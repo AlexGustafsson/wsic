@@ -5,7 +5,7 @@ source := $(shell find src -name "*.c" -not -name "*main.c")
 objects := $(subst src,build,$(source:.c=.o))
 
 .PHONY: all clean
-.SILENT: all clean build build/wsic $(objects) build/main.o compile_commands.json format
+.SILENT: all clean build build/wsic $(objects) build/main.o compile_commands.json format lint
 
 all: build/wsic
 
@@ -35,6 +35,9 @@ format: compile_commands.json
 analyze: compile_commands.json
 	# Analyze code and produce a report using the llvm tool scan-build
 	scan-build --keep-going -o build/reports/static-analysis make
+
+lint: compile_commands.json
+	./ci/lint.sh $(source) src/main.c
 
 clean:
 	rm -rf build/*
