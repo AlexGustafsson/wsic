@@ -5,7 +5,7 @@ source := $(shell find src -name "*.c" -not -name "*main.c")
 objects := $(subst src,build,$(source:.c=.o))
 
 .PHONY: all directories clean
-.SILENT: all directories clean build/wsic $(objects) build/main.o
+.SILENT: all directories clean build/wsic $(objects) build/main.o compile_commands.json format
 
 all: build/wsic
 
@@ -23,6 +23,14 @@ build/main.o: src/main.c
 
 directories:
 	mkdir -p build
+
+compile_commands.json: Makefile
+	# Installed using pip install compiledb
+	compiledb -n make
+
+format: compile_commands.json
+	# Format code adhering to .clang-format
+	clang-format -i -style=file $(source) src/main.c
 
 clean:
 	rm -rf build/*
