@@ -1,41 +1,51 @@
-# Optimize the code and show all warnings (except unused paramters)
+# Disable echoing of commands
+MAKEFLAGS += --silent
+
+# Optimize the code and show all warnings (except unused parameters)
 BUILD_FLAGS=-O2 -Wall -Wextra -pedantic -Wno-unused-parameter
+# Don't optimize, provide all warnings and build with clang's memory checks and support for GDB debugging
+DEBUG_FLAGS=-Wall -Wextra -pedantic -Wno-unused-parameter -fsanitize=address -fno-omit-frame-pointer -g
 
 source := $(shell find src -name "*.c" -not -name "*main.c")
 objects := $(subst src,build,$(source:.c=.o))
 
-.PHONY: all clean
-.SILENT: all clean build build/wsic $(objects) build/main.o compile_commands.json format lint
+.PHONY: build clean debug directories
 
-all: build/wsic
+# Build wsic, default action
+build: build/wsic
+
+# Build wsic with extra debugging enabled
+debug: build/wsic.debug
 
 # Executable linking
-build/wsic: $(objects) build/main.o build
-	# Compile with debug information (-g)
-	$(CC) $(BUILD_FLAGS) -g -o build/wsic $(objects) build/main.o
+build/wsic: $(objects) build/main.o
+	$(CC) $(BUILD_FLAGS) -o build/wsic $(objects) build/main.o
 
 # Source compilation
-$(objects): build/%.o: src/%.c src/%.h build
+$(objects): build/%.o: src/%.c src/%.h
 	mkdir -p $(dir $@)
 	$(CC) $(BUILD_FLAGS) -c $< -o $@
-build/main.o: src/main.c build
+build/main.o: src/main.c
 	$(CC) $(BUILD_FLAGS) -c $< -o $@
 
-build:
-	mkdir -p build
+# Source compilation with debugging enabled
+build/wsic.debug: $(source) src/main.c
+	ASAN_OPTIONS=detect_leaks=1 clang $(DEBUG_FLAGS) -o build/wsic.debug $(source) src/main.c
 
+# Create the compilation database for llvm tools
 compile_commands.json: Makefile
-	# Installed using pip install compiledb
+	# compiledb is installed using: pip install compiledb
 	compiledb -n make
 
+# Format code according to .clang-format
 format: compile_commands.json
-	# Format code adhering to .clang-format
 	clang-format -i -style=file $(source) src/main.c
 
+# Analyze code and produce a report using the llvm tool scan-build
 analyze: compile_commands.json
-	# Analyze code and produce a report using the llvm tool scan-build
 	scan-build --keep-going -o build/reports/static-analysis make
 
+# Lint the code according to .clang-format
 lint: compile_commands.json
 	./ci/lint.sh $(source) src/main.c
 
