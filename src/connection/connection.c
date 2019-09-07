@@ -36,7 +36,7 @@ size_t readFromConnection(connection_t *connection, char *buffer,
     return 0;
   }
 
-  log(LOG_DEBUG, "Successfully resieved request:\n\n%s", buffer);
+  log(LOG_DEBUG, "Successfully received request");
   return bytesReceived;
 }
 
@@ -44,12 +44,12 @@ size_t writeToConnection(connection_t *connection, const char *buffer,
                          size_t bufferSize) {
   ssize_t bytesSent = write(connection->socketId, buffer, bufferSize);
   if (bytesSent == -1) {
-    log(LOG_ERROR, "Could not send header to %s:%i", connection->sourceAddress,
+    log(LOG_ERROR, "Could not write to %s:%i", connection->sourceAddress,
         connection->sourcePort);
     return 0;
   }
 
-  log(LOG_DEBUG, "Successfully sent header to %s:%i", connection->sourceAddress,
+  log(LOG_DEBUG, "Successfully wrote %d bytes to %s:%i", bufferSize, connection->sourceAddress,
       connection->sourcePort);
   return bytesSent;
 }

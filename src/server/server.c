@@ -68,7 +68,7 @@ connection_t *acceptConnection() {
 }
 
 void closeConnection(connection_t *connection) {
-  log(LOG_DEBUG, "Closed socket with id: %d\n\n", connection->socketId);
+  log(LOG_DEBUG, "Closed socket with id %d", connection->socketId);
   close(connection->socketId);
   freeConnection(connection);
 }

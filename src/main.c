@@ -4,6 +4,8 @@
 
 #include "compile-time-defines.h"
 #include "logging/logging.h"
+#include "server/server.h"
+#include "www/www.h"
 
 #include "main.h"
 
@@ -33,13 +35,27 @@ int main(int argc, char const *argv[]) {
 
   if (showHelp) {
     printHelp();
+    return 0;
   } else if (showVersion) {
     printVersion();
-  } else {
-    printf("port: %d\n", port);
-    printf("run as %s\n", runAsDaemon ? "daemon" : "regular process");
-    printf("logfile: %s\n", logfile != 0 ? logfile : "no logfile");
-    printf("parallel mode: %s\n", parallelMode != 0 ? parallelMode : "no mode");
+    return 0;
+  }
+
+  if (!serverListen(port)) {
+    log(LOG_ERROR, "Could not start the server");
+    return 1;
+  }
+
+  while (true) {
+    connection_t *connection = acceptConnection();
+    char requestBuffer[1024] = {0};
+    readFromConnection(connection, requestBuffer, 1024);
+
+    writeToConnection(connection, "HTTP/1.1 200 OK\nContent-Type: text/html\n\n", 41);
+    page_t *page = createPage404("/index.html");
+    writeToConnection(connection, page->source, page->sourceLength);
+    freePage(page);
+    closeConnection(connection);
   }
 
   return 0;
