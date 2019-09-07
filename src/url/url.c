@@ -137,7 +137,7 @@ void addUrlParameter(url_t *url, const char *key, const char *value) {
   } else {
     char **reallocatedQueryKeys = realloc(url->queryKeys, sizeof(char *) * (url->parameters + 1));
     if (reallocatedQueryKeys == 0) {
-      log(LOG_ERROR, "Could not expand url parameter array");
+      log(LOG_ERROR, "Could not expand url key array");
       return;
     }
 
@@ -156,7 +156,6 @@ void addUrlParameter(url_t *url, const char *key, const char *value) {
   size_t keyLength = strlen(key);
   url->queryKeys[url->parameters] = malloc(sizeof(char) * (keyLength + 1));
   strlcpy(url->queryKeys[url->parameters], key, keyLength + 1);
-  url->queryKeys[url->parameters][keyLength] = 0;
 
   size_t valueLength = strlen(value);
   url->queryValues[url->parameters] = malloc(sizeof(char) * (valueLength + 1));

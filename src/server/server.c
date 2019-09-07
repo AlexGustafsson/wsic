@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "../logging/logging.h"
 
@@ -8,8 +9,8 @@
 static int initialSocketId;
 static struct sockaddr_in hostAddress;
 
-void serverListen(int port) {
-  initialSocketId = socket(AF_INET, SOCK_STREAM, 0);
+bool serverListen(int port) {
+  initialSocketId = socket(AF_INET, SOCK_STREAM, PROTOCOL);
   // Test to see if socket is created
   if (initialSocketId < 0) {
     log(LOG_ERROR, "Could not create listening socket");
@@ -23,19 +24,24 @@ void serverListen(int port) {
   hostAddress.sin_port = htons(port);
 
   // Bind socket to PORT
-  if (bind(initialSocketId, (struct sockaddr *)&hostAddress,
-           sizeof(hostAddress)) < 0) {
-    log(LOG_ERROR, "Could not bind listening socket to 0.0.0.0:%d", port);
+  ssize_t returnCodeBind = -1;
+  returnCodeBind = bind(initialSocketId, (struct sockaddr *)&hostAddress, sizeof(hostAddress));
+  if (returnCodeBind < 0) {
+    log(LOG_ERROR, "Could not bind listening socket to 0.0.0.0:%d - code: %d", port, errno);
   } else {
     log(LOG_DEBUG, "Successfully bound listening socket to 0.0.0.0:%d", port);
   }
+  if (returnCodeBind < 0)
+    return false;
 
   // Listen to the socket
-  if (listen(initialSocketId, 10) < 0) {
+  if (listen(initialSocketId, BACKLOG) < 0) {
     log(LOG_ERROR, "Could not start server on 0.0.0.0:%d", port);
-  } else {
-    log(LOG_INFO, "Listening to 0.0.0.0:%d", port);
+    return false;
   }
+
+  log(LOG_INFO, "Listening to 0.0.0.0:%d", port);
+  return true;
 }
 
 connection_t *acceptConnection() {

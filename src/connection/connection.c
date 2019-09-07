@@ -21,7 +21,6 @@ void setSourceAddress(connection_t *connection, const char *sourceAddress) {
   size_t addressLength = strlen(sourceAddress);
   connection->sourceAddress = malloc(sizeof(char) * (addressLength + 1));
   strlcpy(connection->sourceAddress, sourceAddress, addressLength);
-  connection->sourceAddress[addressLength] = 0;
 }
 
 void setSourcePort(connection_t *connection, uint16_t sourcePort) {
@@ -43,7 +42,7 @@ size_t readFromConnection(connection_t *connection, char *buffer,
 
 size_t writeToConnection(connection_t *connection, const char *buffer,
                          size_t bufferSize) {
-  ssize_t bytesSent = send(connection->socketId, buffer, bufferSize, 0);
+  ssize_t bytesSent = write(connection->socketId, buffer, bufferSize);
   if (bytesSent == -1) {
     log(LOG_ERROR, "Could not send header to %s:%i", connection->sourceAddress,
         connection->sourcePort);
