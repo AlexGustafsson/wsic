@@ -36,33 +36,40 @@ void setHttpVersion(http_t *http, const char *version) {
 
 http_t *parseHttpRequest(const char *request) {
   http_t *http = createHttp();
-  size_t j, x, y, z = 0;
-  char buffer[1024] = {0};
+
+  size_t offset = 0;
+  size_t formatedRequest = 0;
   char method[1024] = {0};
   char requestTarget[1024] = {0};
   char version[1024] = {0};
-
-  // Saves the first row of the header in buffer
-  for (size_t i = 0; i < strlen(request) && buffer[i] != '\n' && i < 1024; i++)
-    buffer[i] = request[i];
-
-  // Filter out the http method
-  for (j = 0; j < strlen(buffer) && buffer[j] != ' '; j++)
-    method[x++] = buffer[j];
-  setHttpMethod(http, parseHttpMethod(method));
-  // Filter out the request target
-  for (j += 1; j < strlen(buffer) && buffer[j] != ' '; j++)
-    requestTarget[y++] = buffer[j];
-  setHttpRequestTarget(http, requestTarget);
-  // Filter out the http version
-  for (j += 1; j < strlen(buffer) && buffer[j] != '\n'; j++)
-    version[z++] = buffer[j];
-  setHttpVersion(http, version);
-
-  int offset = (j+1);
   char bufferKeys[1024] = {0};
   char bufferValues[1024] = {0};
-  for (size_t i = 0; offset < strlen(request); i++) {
+
+  if (strlen(request) <= 0) {
+    return NULL;
+  } else {
+    formatedRequest = strlen(request) - 2;
+  }
+
+  for (size_t i = 0; i < 1024 && request[offset] != ' '; i++)
+    method[i] = request[offset++];
+
+  offset += 1;
+  setHttpMethod(http, parseHttpMethod(method));
+
+  for (size_t i = 0; i < 1024 && request[offset] != ' '; i++)
+    requestTarget[i] = request[offset++];
+
+  offset += 1;
+  setHttpRequestTarget(http, requestTarget);
+
+  for (size_t i = 0; i < 1024 && request[offset] != '\n'; i++)
+    version[i] = request[offset++];
+
+  offset += 1;
+  setHttpVersion(http, version);
+
+  for (size_t i = 0; offset < formatedRequest; i++) {
     for (size_t y = 0; y < 1024 && request[offset] != ':'; y++) {
       bufferKeys[y] = request[offset++];
     }
@@ -77,6 +84,13 @@ http_t *parseHttpRequest(const char *request) {
       bufferValues[i] = 0;
     }
   }
+
+  log(LOG_DEBUG, "methdo:%d", http->method);
+  log(LOG_DEBUG, "requestTarget:%s", http->requestTarget);
+  log(LOG_DEBUG, "version:%s", http->version);
+  for (size_t i = 0; i < http->headers; i++)
+    log(LOG_DEBUG, "%s:%s", http->headerKeys[i], http->headerValues[i]);
+
   return http;
 }
 
