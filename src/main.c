@@ -52,7 +52,7 @@ int main(int argc, char const *argv[]) {
     readFromConnection(connection, requestBuffer, 1024);
 
     writeToConnection(connection, "HTTP/1.1 200 OK\nContent-Type: text/html\n\n", 41);
-    page_t *page = createPage404("/index.html");
+    page_t *page = createPage501();
     writeToConnection(connection, page->source, page->sourceLength);
     freePage(page);
     closeConnection(connection);

@@ -14,7 +14,12 @@ typedef struct {
 
 page_t *createPage();
 
+page_t *createPage400(const char *description);
+page_t *createPage403();
 page_t *createPage404(const char *path);
+page_t *createPage500(const char *description);
+page_t *createPage501();
+
 void setPageSource(page_t *page, const char *source);
 void addPageTemplate(page_t *page, const char *key, const char *value);
 

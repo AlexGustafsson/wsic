@@ -14,12 +14,62 @@ page_t *createPage() {
   return page;
 }
 
+page_t *createPage400(const char *description) {
+  page_t *page = createPage();
+  setPageSource(page, RESOURCES_WWW_TEMPLATE_HTML);
+
+  addPageTemplate(page, "content", RESOURCES_WWW_400_HTML);
+  addPageTemplate(page, "description", description);
+  addPageTemplate(page, "version", WSIC_VERSION);
+
+  resolveTemplateStrings(page);
+
+  return page;
+}
+
+page_t *createPage403() {
+  page_t *page = createPage();
+  setPageSource(page, RESOURCES_WWW_TEMPLATE_HTML);
+
+  addPageTemplate(page, "content", RESOURCES_WWW_403_HTML);
+  addPageTemplate(page, "version", WSIC_VERSION);
+
+  resolveTemplateStrings(page);
+
+  return page;
+}
+
 page_t *createPage404(const char *path) {
   page_t *page = createPage();
   setPageSource(page, RESOURCES_WWW_TEMPLATE_HTML);
 
   addPageTemplate(page, "content", RESOURCES_WWW_404_HTML);
   addPageTemplate(page, "path", path);
+  addPageTemplate(page, "version", WSIC_VERSION);
+
+  resolveTemplateStrings(page);
+
+  return page;
+}
+
+page_t *createPage500(const char *description) {
+  page_t *page = createPage();
+  setPageSource(page, RESOURCES_WWW_TEMPLATE_HTML);
+
+  addPageTemplate(page, "content", RESOURCES_WWW_500_HTML);
+  addPageTemplate(page, "description", description);
+  addPageTemplate(page, "version", WSIC_VERSION);
+
+  resolveTemplateStrings(page);
+
+  return page;
+}
+
+page_t *createPage501() {
+  page_t *page = createPage();
+  setPageSource(page, RESOURCES_WWW_TEMPLATE_HTML);
+
+  addPageTemplate(page, "content", RESOURCES_WWW_501_HTML);
   addPageTemplate(page, "version", WSIC_VERSION);
 
   resolveTemplateStrings(page);
