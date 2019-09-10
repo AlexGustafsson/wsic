@@ -33,9 +33,11 @@ size_t readFromConnection(connection_t *connection, char *buffer,
   if (bytesReceived == -1) {
     log(LOG_ERROR, "Could not receive request from %s:%i",
         connection->sourceAddress, connection->sourcePort);
+
     return 0;
   }
-
+  // Null terminate
+  buffer[bufferSize] = 0;
   log(LOG_DEBUG, "Successfully received request");
   return bytesReceived;
 }
