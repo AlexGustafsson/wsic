@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "compile-time-defines.h"
 #include "logging/logging.h"
@@ -10,6 +11,12 @@
 #include "main.h"
 
 int main(int argc, char const *argv[]) {
+  // Disallow the server from running as root
+  if (geteuid() == 0) {
+    log(LOG_ERROR, "Don't start as root, please use a standard user");
+    exit(1);
+  }
+
   bool showHelp = false;
   bool showVersion = false;
   uint16_t port = 80;

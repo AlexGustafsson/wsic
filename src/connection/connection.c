@@ -37,7 +37,7 @@ size_t readFromConnection(connection_t *connection, char *buffer,
     return 0;
   }
   // Null terminate
-  buffer[bufferSize] = 0;
+  buffer[bufferSize - 1] = 0;
   log(LOG_DEBUG, "Successfully received request");
   return bytesReceived;
 }
