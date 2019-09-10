@@ -1,10 +1,10 @@
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "list.h"
 
-list_t* list_create() {
-  list_t* list = malloc(sizeof(list_t));
+list_t *list_create() {
+  list_t *list = malloc(sizeof(list_t));
   if (list == 0)
     return 0;
 
@@ -13,8 +13,8 @@ list_t* list_create() {
   return list;
 }
 
-void list_addValue(list_t* list, void* value) {
-  list_node_t* node = malloc(sizeof(list_node_t));
+void list_addValue(list_t *list, void *value) {
+  list_node_t *node = malloc(sizeof(list_node_t));
   if (node == 0)
     return;
 
@@ -39,7 +39,7 @@ void list_addValue(list_t* list, void* value) {
   list->length++;
 }
 
-void list_moveToIndex(list_t* list, size_t index) {
+void list_moveToIndex(list_t *list, size_t index) {
   if (list->currentIndex == index)
     return;
 
@@ -69,17 +69,18 @@ void list_moveToIndex(list_t* list, size_t index) {
 
   while (list->currentIndex != index) {
     list->currentIndex = (list->currentIndex + 1 * direction) % list->length;
-    list->current = direction == 1 ? list->current->next : list->current->previous;
+    list->current =
+        direction == 1 ? list->current->next : list->current->previous;
   }
 }
 
 // NOTE: Does not free memory for values held, just internal structure
-void* list_removeValue(list_t* list, size_t index) {
+void *list_removeValue(list_t *list, size_t index) {
   // Return if index does not exist
   if (list->length <= index || list->length == 0)
     return 0;
 
-  void* value = 0;
+  void *value = 0;
   if (list->length == 1) {
     value = list->current->value;
     free(list->current);
@@ -87,7 +88,7 @@ void* list_removeValue(list_t* list, size_t index) {
     list->tail = 0;
   } else {
     list_moveToIndex(list, index);
-    list_node_t* current = list->current;
+    list_node_t *current = list->current;
     value = current->value;
 
     current->next->previous = current->previous;
@@ -106,7 +107,7 @@ void* list_removeValue(list_t* list, size_t index) {
   return value;
 }
 
-void* list_getValue(list_t* list, size_t index) {
+void *list_getValue(list_t *list, size_t index) {
   // Return null if index does not exist
   if (list->length <= index)
     return 0;
@@ -117,7 +118,7 @@ void* list_getValue(list_t* list, size_t index) {
 }
 
 // NOTE: Does not free already stored value
-void* list_setValue(list_t* list, size_t index, void* value) {
+void *list_setValue(list_t *list, size_t index, void *value) {
   // Return if index does not exist
   if (list->length <= index)
     return 0;
@@ -128,8 +129,9 @@ void* list_setValue(list_t* list, size_t index, void* value) {
   list->current->value = value;
 }
 
-// NOTE: does not compare values, only pointers - looking for null is undefined behaviour
-ssize_t list_findIndex(list_t* list, void* value) {
+// NOTE: does not compare values, only pointers - looking for null is undefined
+// behaviour
+ssize_t list_findIndex(list_t *list, void *value) {
   for (size_t i = 0; i < list->length; i++) {
     if (list->current->value == value)
       return (list->currentIndex + i) % list->length;
@@ -141,11 +143,12 @@ ssize_t list_findIndex(list_t* list, void* value) {
 }
 
 // Does not free values
-void list_clear(list_t* list) {
+void list_clear(list_t *list) {
   if (list->length == 0)
     return;
 
-  // list_removeValue alters list->length, therefore we need to store it beforehand
+  // list_removeValue alters list->length, therefore we need to store it
+  // beforehand
   size_t length = list->length;
   for (size_t i = 0; i < length; i++)
     list_removeValue(list, 0);
