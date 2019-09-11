@@ -7,6 +7,8 @@
 #include "logging/logging.h"
 #include "server/server.h"
 #include "www/www.h"
+#include "resources/resources.h"
+#include "config/config.h"
 
 #include "main.h"
 
@@ -16,6 +18,8 @@ int main(int argc, char const *argv[]) {
     log(LOG_ERROR, "Don't start as root, please use a standard user");
     exit(1);
   }
+
+  config_t *config = config_parse((char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
 
   bool showHelp = false;
   bool showVersion = false;
@@ -42,14 +46,17 @@ int main(int argc, char const *argv[]) {
 
   if (showHelp) {
     printHelp();
+    config_free(config);
     return 0;
   } else if (showVersion) {
     printVersion();
+    config_free(config);
     return 0;
   }
 
   if (!serverListen(port)) {
     log(LOG_ERROR, "Could not start the server");
+    config_free(config);
     return 1;
   }
 
@@ -65,6 +72,7 @@ int main(int argc, char const *argv[]) {
     closeConnection(connection);
   }
 
+  config_free(config);
   return 0;
 }
 
