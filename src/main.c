@@ -20,13 +20,10 @@ int main(int argc, char const *argv[]) {
   }
 
   config_t *config = config_parse((char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
+  server_config_t *defaultServerConfig = config_getServerConfig(config, 0);
 
   bool showHelp = false;
   bool showVersion = false;
-  uint16_t port = 80;
-  bool runAsDaemon = false;
-  const char *logfile = 0;
-  const char *parallelMode = 0;
 
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "-h") == 0) {
@@ -34,13 +31,22 @@ int main(int argc, char const *argv[]) {
     } else if (strcmp(argv[i], "-v") == 0) {
       showVersion = true;
     } else if (strcmp(argv[i], "-d") == 0) {
-      runAsDaemon = true;
+      defaultServerConfig->enabled= 1;
     } else if (strcmp(argv[i], "-p") == 0) {
-      port = strtol(argv[++i], 0, 10);
+      config_setPort(defaultServerConfig, strtol(argv[++i], 0, 10));
     } else if (strcmp(argv[i], "-l") == 0) {
-      logfile = argv[++i];
+      config_setLogfile(defaultServerConfig, argv[++i]);
     } else if (strcmp(argv[i], "-s") == 0) {
-      parallelMode = argv[++i];
+      const char *mode = argv[++i];
+      if (strcmp(mode, "fork")) {
+        config_setParallelMode(config, PARALLEL_MODE_FORK);
+      } else if (strcmp(mode, "pre-fork")) {
+        config_setParallelMode(config, PARALLEL_MODE_FORK);
+      } else {
+        log(LOG_ERROR, "Unsupported parallel mode '%s'", mode);
+        config_free(config);
+        return 3;
+      }
     }
   }
 
@@ -54,7 +60,7 @@ int main(int argc, char const *argv[]) {
     return 0;
   }
 
-  if (!serverListen(port)) {
+  if (!serverListen(8080)) {
     log(LOG_ERROR, "Could not start the server");
     config_free(config);
     return 1;

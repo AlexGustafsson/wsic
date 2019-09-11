@@ -18,6 +18,7 @@ config_t *config_parse(char *configString) {
   // Parse the server table if it exists
   toml_table_t *serverTable = toml_table_in(toml, "server");
   if (serverTable != 0) {
+    // Parse the parallel mode string into the parallel mode enum
     const char *parallelModeString = config_parseString(serverTable, "parallelMode");
     enum parallelMode parallelMode = PARALLEL_MODE_UNKNOWN;
     if (parallelModeString != 0) {
@@ -31,6 +32,8 @@ config_t *config_parse(char *configString) {
 
     free(parallelModeString);
     config->parallelMode = parallelMode;
+
+    config->daemon = config_parseBool(serverTable, "daemon");
   }
 
   toml_table_t *serversTable = toml_table_in(toml, "servers");
@@ -71,6 +74,7 @@ server_config_t *config_parseServerTable(toml_table_t * serverTable) {
   config->domain = (char *)config_parseString(serverTable, "domain");
   config->rootDirectory = (char *)config_parseString(serverTable, "rootDirectory");
   config->logfile = (char *)config_parseString(serverTable, "logfile");
+  config->enabled = config_parseBool(serverTable, "enabled");
 
   log(LOG_DEBUG, "> %d", toml_table_nkval(serverTable));
   if (toml_raw_in(serverTable, "port") != 0) {
@@ -116,6 +120,77 @@ int64_t config_parseInt(toml_table_t *table, const char *key) {
   }
 
   return value;
+}
+
+int config_parseBool(toml_table_t *table, const char *key) {
+  const char *rawValue = toml_raw_in(table, key);
+  // The value is missing
+  if (rawValue == 0)
+    return -1;
+
+  int value = 0;
+  if (toml_rtob(rawValue, &value)) {
+    log(LOG_ERROR, "Bad bool in config: table '%s', key '%s'", toml_table_key(table), key);
+    return -1;
+  }
+
+  return value;
+}
+
+enum parallelMode config_getParallelMode(config_t *config) {
+  return config->parallelMode;
+}
+
+void config_setParallelMode(config_t *config, enum parallelMode parallelMode) {
+  config->parallelMode = parallelMode;
+}
+
+int16_t config_getIsDeamon(config_t *config) {
+  return config->daemon;
+}
+
+server_config_t *config_getServerConfig(config_t *config, size_t index) {
+  return list_getValue(config->serverConfigs, index);
+}
+
+const char *config_getName(server_config_t *config) {
+  return config->name;
+}
+
+void config_setName(server_config_t *config, const char *name) {
+  // TODO: Fix after string implementation
+}
+
+const char *config_getDomain(server_config_t *config) {
+  return config->domain;
+}
+
+void config_setDomain(server_config_t *config, const char *domain) {
+  // TODO: Fix after string implementation
+}
+
+const char *config_getRootDirectory(server_config_t *config) {
+  return config->rootDirectory;
+}
+
+void config_setRootDirectory(server_config_t *config, const char *rootDirectory) {
+  // TODO: Fix after string implementation
+}
+
+int16_t config_getPort(server_config_t *config) {
+  return config->port;
+}
+
+void config_setPort(server_config_t *config, int16_t port) {
+  // TODO: Fix after string implementation
+}
+
+const char *config_getLogfile(server_config_t *config) {
+  return config->logfile;
+}
+
+void config_setLogfile(server_config_t *config, const char *logfile) {
+  // TODO: Fix after string implementation
 }
 
 void config_free(config_t *config) {
