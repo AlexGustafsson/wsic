@@ -1,66 +1,52 @@
 #include <string.h>
 
-#include "../includes/tomlc99/toml.h"
-
 #include "../logging/logging.h"
 
 #include "config.h"
 
-config_t *parseConfig(const char *filename) {
-  FILE *file = fopen(filename, "r");
-  if (file == 0) {
-    log(LOG_ERROR, "Could not read file %s", filename);
-    return 0;
-  }
-
+config_t *config_parse(char *configString) {
   char parseError[200];
-  toml_table_t *toml = toml_parse_file(file, parseError, sizeof(parseError));
-  fclose(file);
+  toml_table_t *toml = toml_parse(configString, parseError, sizeof(parseError));
   if (toml == 0) {
-    log(LOG_ERROR, "Could not parse config file: %s", parseError);
+    log(LOG_ERROR, "Could not parse config file '%s'", parseError);
     return 0;
   }
 
   config_t *config = malloc(sizeof(config_t));
+  config->serverConfigs = list_create();
 
-  toml_table_t *serverBlock = toml_table_in(toml, "server");
-  if (serverBlock == 0) {
-    log(LOG_WARNING, "Could not parse config - missing server block");
-  } else {
-    const char *rawPort = toml_raw_in(serverBlock, "port");
-    if (rawPort != 0) {
-      int64_t port = 0;
-      if (toml_rtoi(rawPort, &port)) {
-        log(LOG_ERROR, "Bad value for config server:port");
-      } else if (port > 2 << 16) {
-        log(LOG_ERROR, "Bad value for config server:port - value to big");
-      } else {
-        config->port = (uint16_t)port;
-      }
+  // Parse the server table if it exists
+  toml_table_t *serverTable = toml_table_in(toml, "server");
+  if (serverTable != 0) {
+    const char *parallelModeString = config_parseString(serverTable, "parallelMode");
+    enum parallelMode parallelMode = PARALLEL_MODE_UNKNOWN;
+    if (parallelModeString != 0) {
+      if (strcmp(parallelModeString, "fork") == 0)
+        parallelMode = PARALLEL_MODE_FORK;
+      else if (strcmp(parallelModeString, "pre-fork") == 0)
+        parallelMode = PARALLEL_MODE_PRE_FORK;
+      else
+        log(LOG_WARNING, "Unknown parallel mode '%s'", parallelModeString);
     }
 
-    const char *rawParallelMode = toml_raw_in(serverBlock, "parallelMode");
-    if (rawParallelMode != 0) {
-      char *parallelMode;
-      if (toml_rtos(rawParallelMode, &parallelMode)) {
-        log(LOG_ERROR, "Bad value for config server:parallelMode");
-      } else {
-        config->parallelMode = parallelMode;
-      }
-    }
+    free(parallelModeString);
+    config->parallelMode = parallelMode;
   }
 
-  toml_table_t *webBlock = toml_table_in(toml, "web");
-  if (webBlock == 0) {
-    log(LOG_WARNING, "Could not parse config - missing web block");
+  toml_table_t *serversTable = toml_table_in(toml, "servers");
+  if (serversTable == 0) {
+    log(LOG_WARNING, "Missing table 'servers' - no server will be enabled");
   } else {
-    const char *rawRootDirectory = toml_raw_in(webBlock, "rootDirectory");
-    if (rawRootDirectory != 0) {
-      char *rootDirectory;
-      if (toml_rtos(rawRootDirectory, &rootDirectory)) {
-        log(LOG_ERROR, "Bad value for config web:rootDirectory");
+    int serversTables = toml_table_ntab(serversTable);
+
+    for (int i = 0; i < serversTables; i++) {
+      const char *tableKey = toml_key_in(serversTable, i);
+      toml_table_t *serverTable = toml_table_in(serversTable, tableKey);
+      if (serverTable == 0) {
+        log(LOG_ERROR, "Got a corrupt server table when parsing config");
       } else {
-        config->rootDirectory = rootDirectory;
+        server_config_t *serverConfig = config_parseServerTable(serverTable);
+        list_addValue(config->serverConfigs, serverConfig);
       }
     }
   }
@@ -70,12 +56,78 @@ config_t *parseConfig(const char *filename) {
   return config;
 }
 
-void freeConfig(config_t *config) {
-  if (config->rootDirectory != 0)
-    free((void *)config->rootDirectory);
+server_config_t *config_parseServerTable(toml_table_t * serverTable) {
+  server_config_t *config = malloc(sizeof(server_config_t));
+  if (config == 0)
+    return 0;
 
-  if (config->parallelMode != 0)
-    free((void *)config->parallelMode);
+  char *name = toml_table_key(serverTable);
+  size_t nameLength = strlen(name);
+  char *nameCopy = malloc(sizeof(char) * (nameLength + 1));
+  memcpy(nameCopy, name, nameLength);
+  nameCopy[nameLength] = 0;
 
+  config->name = nameCopy;
+  config->domain = (char *)config_parseString(serverTable, "domain");
+  config->rootDirectory = (char *)config_parseString(serverTable, "rootDirectory");
+  config->logfile = (char *)config_parseString(serverTable, "logfile");
+
+  log(LOG_DEBUG, "> %d", toml_table_nkval(serverTable));
+  if (toml_raw_in(serverTable, "port") != 0) {
+    int64_t port = config_parseInt(serverTable, "port");
+    if (port > 1<<16)
+      log(LOG_ERROR, "The port in config for server '%s' was too large", config->name);
+    else
+      config->port = port;
+  }
+
+  return config;
+}
+
+const char *config_parseString(toml_table_t *table, const char *key) {
+  if (table == 0)
+    return 0;
+
+  const char *rawValue = toml_raw_in(table, key);
+  // The value is missing
+  if (rawValue == 0)
+    return 0;
+
+  char *value;
+  // The value is not a string
+  if (toml_rtos(rawValue, &value)) {
+    log(LOG_ERROR, "Bad string in config: table '%s', key '%s'", toml_table_key(table), key);
+    return 0;
+  }
+
+  return value;
+}
+
+int64_t config_parseInt(toml_table_t *table, const char *key) {
+  const char *rawValue = toml_raw_in(table, key);
+  // The value is missing
+  if (rawValue == 0)
+    return 0;
+
+  int64_t value = 0;
+  if (toml_rtoi(rawValue, &value)) {
+    log(LOG_ERROR, "Bad integer in config: table '%s', key '%s'", toml_table_key(table), key);
+    return 0;
+  }
+
+  return value;
+}
+
+void config_free(config_t *config) {
+  for (size_t i = 0; i < config->serverConfigs->length; i++) {
+    server_config_t *serverConfig = list_removeValue(config->serverConfigs, i);
+    free(serverConfig->domain);
+    free(serverConfig->logfile);
+    free(serverConfig->name);
+    free(serverConfig->rootDirectory);
+    free(serverConfig);
+  }
+
+  list_free(config->serverConfigs);
   free(config);
 }

@@ -2,7 +2,7 @@
   parallelMode = "fork"
 
 [servers]
-  [default]
+  [servers.default]
     domain = "localhost"
     rootDirectory = "www"
     port = 8080
