@@ -15,10 +15,10 @@
 #define PROTOCOL 0
 #define REQUEST_BUFFER_SIZE 1024
 
-bool serverListen(int port);
+void server_start(int port);
+bool server_getIsRunning();
 connection_t *acceptConnection();
 void closeConnection(connection_t *connection);
 
-// Automatically deconstruct server
-__attribute__((destructor)) void closeServer();
+void server_close();
 #endif
