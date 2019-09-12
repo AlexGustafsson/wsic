@@ -62,7 +62,8 @@ void string_append(string_t *string, const char *buffer) {
 
   // Expand if necessary
   if (newSize >= string->bufferSize) {
-    char *expandedBuffer = realloc(string->buffer, sizeof(char) * (newSize + 1));
+    char *expandedBuffer =
+        realloc(string->buffer, sizeof(char) * (newSize + 1));
     if (expandedBuffer == 0)
       return;
     string->buffer = expandedBuffer;
@@ -74,7 +75,7 @@ void string_append(string_t *string, const char *buffer) {
   string->size = newSize;
 }
 
-const char* string_getBuffer(string_t *string) {
+const char *string_getBuffer(string_t *string) {
   return (const char *)string->buffer;
 }
 
@@ -108,12 +109,14 @@ void string_setCharAt(string_t *string, size_t index, char character) {
   (*characterAddress) = character;
 }
 
-string_t *string_substring(string_t *string, size_t firstIndex, size_t lastIndex) {
+string_t *string_substring(string_t *string, size_t firstIndex,
+                           size_t lastIndex) {
   // Out of bounds
   if (firstIndex >= string->size || lastIndex > string->size)
     return 0;
 
-  string_t *substring = string_fromCopyWithLength(string->buffer + firstIndex, lastIndex - firstIndex);
+  string_t *substring = string_fromCopyWithLength(string->buffer + firstIndex,
+                                                  lastIndex - firstIndex);
   // Unable to allocate substring
   if (substring == 0)
     return 0;
@@ -139,7 +142,8 @@ string_t *string_getNextLine(string_cursor_t *stringCursor) {
   }
 
   // Don't include the newline
-  string_t *line = string_substring(stringCursor->string, stringCursor->offset, stop);
+  string_t *line =
+      string_substring(stringCursor->string, stringCursor->offset, stop);
   // Move past the newline
   stop++;
   stringCursor->offset = stop;
