@@ -43,7 +43,7 @@ make analyze
 # Format the code
 make format
 # Build and run a debugging build (memory analyzer and GDB debugging enabled)
-make debug && ./build/wsic.debug
+make debug && ASAN_OPTIONS=detect_leaks=1 ./build/wsic.debug
 # Build and run a release build
 make build && ./build
 ```

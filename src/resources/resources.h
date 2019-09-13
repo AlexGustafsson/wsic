@@ -8,4 +8,6 @@
 #include "resources/www/500.html.h"
 #include "resources/www/501.html.h"
 
+#include "resources/config/default-config.toml.h"
+
 #endif

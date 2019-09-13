@@ -3,14 +3,61 @@
 
 #include <stdint.h>
 
-typedef struct config {
-  // The root www directory
-  const char *rootDirectory;
-  uint16_t port;
-  const char *parallelMode;
+#include "../includes/tomlc99/toml.h"
+
+#include "../datastructures/list/list.h"
+
+enum parallelMode {PARALLEL_MODE_FORK, PARALLEL_MODE_PRE_FORK, PARALLEL_MODE_UNKNOWN};
+
+typedef struct {
+  char *name;
+  char *domain;
+  char *rootDirectory;
+  // -1 if not set, 0 - 65536 otherwise
+  int16_t port;
+  char *logfile;
+  // -1 if not set, 0 or 1 otherwise
+  int8_t enabled;
+} server_config_t;
+
+typedef struct {
+  enum parallelMode parallelMode;
+  // -1 if not set, 0 or 1 otherwise
+  int8_t daemon;
+  list_t *serverConfigs;
 } config_t;
 
-config_t *parseConfig(const char *filename);
-void freeConfig(config_t *config);
+config_t *config_parse(char *configString);
+
+server_config_t *config_parseServerTable(toml_table_t *serverTable);
+
+enum parallelMode config_getParallelMode(config_t *config);
+void config_setParallelMode(config_t *config, enum parallelMode parallelMode);
+
+int16_t config_getIsDeamon(config_t *config);
+void config_setIsDeamon(config_t *config, int16_t isDeamon);
+
+server_config_t *config_getServerConfig(config_t *config, size_t index);
+
+const char *config_getName(server_config_t *config);
+void config_setName(server_config_t *config, const char *name);
+
+const char *config_getDomain(server_config_t *config);
+void config_setDomain(server_config_t *config, const char *domain);
+
+const char *config_getRootDirectory(server_config_t *config);
+void config_setRootDirectory(server_config_t *config, const char *rootDirectory);
+
+int16_t config_getPort(server_config_t *config);
+void config_setPort(server_config_t *config, int16_t port);
+
+const char *config_getLogfile(server_config_t *config);
+void config_setLogfile(server_config_t *config, const char *logfile);
+
+const char *config_parseString(toml_table_t *table, const char *key);
+int64_t config_parseInt(toml_table_t *table, const char *key);
+int config_parseBool(toml_table_t *table, const char *key);
+
+void config_free(config_t *config);
 
 #endif
