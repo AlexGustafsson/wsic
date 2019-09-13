@@ -6,10 +6,12 @@
 
 #include "server.h"
 
+static bool server_isRunning = false;
+
 static int initialSocketId;
 static struct sockaddr_in hostAddress;
 
-bool serverListen(int port) {
+void server_start(int port) {
   initialSocketId = socket(AF_INET, SOCK_STREAM, PROTOCOL);
   // Test to see if socket is created
   if (initialSocketId < 0) {
@@ -32,16 +34,21 @@ bool serverListen(int port) {
     log(LOG_DEBUG, "Successfully bound listening socket to 0.0.0.0:%d", port);
   }
   if (returnCodeBind < 0)
-    return false;
+    return;
 
   // Listen to the socket
   if (listen(initialSocketId, BACKLOG) < 0) {
     log(LOG_ERROR, "Could not start server on 0.0.0.0:%d", port);
-    return false;
+    return;
   }
 
   log(LOG_INFO, "Listening to 0.0.0.0:%d", port);
-  return true;
+  server_isRunning = true;
+}
+
+
+bool server_getIsRunning() {
+  return server_isRunning;
 }
 
 connection_t *acceptConnection() {
@@ -73,6 +80,7 @@ void closeConnection(connection_t *connection) {
   freeConnection(connection);
 }
 
-void closeServer() {
+void server_close() {
   log(LOG_INFO, "Closing server");
+  server_isRunning = false;
 }

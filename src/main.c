@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "compile-time-defines.h"
 #include "logging/logging.h"
@@ -9,14 +10,19 @@
 #include "www/www.h"
 #include "resources/resources.h"
 #include "config/config.h"
+#include "daemon/daemon.h"
 
 #include "main.h"
 
 int main(int argc, char const *argv[]) {
+  signal(SIGINT, handleSignalSIGINT);
+  signal(SIGTERM, handleSignalSIGTERM);
+  signal(SIGKILL, handleSignalSIGKILL);
+
   // Disallow the server from running as root
   if (geteuid() == 0) {
     log(LOG_ERROR, "Don't start as root, please use a standard user");
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   config_t *config = config_parse((char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
@@ -60,10 +66,32 @@ int main(int argc, char const *argv[]) {
     return 0;
   }
 
-  if (!serverListen(8080)) {
+  if (runAsDaemon) {
+    // Daemonize the server
+    pid_t sid = daemonize();
+    if (sid < 0) {
+      log(LOG_ERROR, "Unable to daemonize the server");
+      return EXIT_FAILURE;
+    }
+
+    // Log the process id
+    log(LOG_INFO, "Successfully deamonized the server. PID: %d", sid);
+
+    // Disable console logging (as there'll be no TTY)
+    LOGGING_OUTPUT &= ~(0xFF << LOGGING_CONSOLE);
+    // Enable syslog logging
+    LOGGING_OUTPUT |= LOGGING_SYSLOG;
+
+    // Close open file descriptiors related to a TTY session
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+  }
+
+  server_start(port);
+  if (!server_getIsRunning()) {
     log(LOG_ERROR, "Could not start the server");
-    config_free(config);
-    return 1;
+    return EXIT_FAILURE;
   }
 
   while (true) {
@@ -109,4 +137,24 @@ void printVersion() {
   printf("\n");
   printf("\x1b[1mOPEN SOURCE\x1b[0m\n");
   printf("The source code is hosted on https://github.com/AlexGustafsson/wsic/\n");
+}
+
+// Handle SIGINT (CTRL + C)
+void handleSignalSIGINT(int signalNumber) {
+  log(LOG_INFO, "Got SIGINT - exiting cleanly");
+  server_close();
+  exit(EXIT_SUCCESS);
+}
+
+// Handle SIGTERM (kill etc.)
+void handleSignalSIGTERM(int signalNumber) {
+  log(LOG_INFO, "Got SIGTERM - exiting cleanly");
+  server_close();
+  exit(EXIT_SUCCESS);
+}
+
+// Handle SIGKILL (unblockable - just used for logging)
+void handleSignalSIGKILL(int signalNumber) {
+  log(LOG_WARNING, "Got SIGKILL - exiting immediately");
+  exit(EXIT_SUCCESS);
 }
