@@ -1,0 +1,44 @@
+image: registry.axgn.se/wsic/ci-image
+stages:
+  - staticAnalysis
+  - build
+  - test
+
+lint:
+  stage: staticAnalysis
+  script: make lint
+  allow_failure: true
+
+analyze:
+  stage: staticAnalysis
+  script: make clean analyze
+  allow_failure: true
+  artifacts:
+    paths:
+      - build/reports/static-analysis
+
+build:
+  stage: build
+  script: make clean build
+  artifacts:
+    paths:
+    - build/wsic
+
+debugBuild:
+  stage: build
+  script: make clean debug
+  artifacts:
+    paths:
+      - build/wsic.debug
+
+florianCheck:
+  stage: test
+  script: ./test/florian/check.sh ./build/wsic.debug
+  allow_failure: true
+  dependencies:
+    - debugBuild
+
+florianInsecure:
+  stage: test
+  script: ./test/florian/insecure.sh ./src
+  allow_failure: true
