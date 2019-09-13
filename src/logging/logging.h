@@ -44,13 +44,15 @@
 // A "private" macro for formatting and logging to console
 #define _log_console(level, ...) do {fprintf(stderr, "\x1b[90m[\x1b[%dm%s\x1b[90m][%s@%d][%s]\x1b[0m ", LOG_COLOR_##level, LOG_LABEL_##level, __FILE__, __LINE__, __func__); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n");} while(0)
 // Log to all enabled outputs
-#define log(level, ...) do {if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0) {_log_console(level, __VA_ARGS__);} if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0) {syslog(LOG_NOTICE, __VA_ARGS__);}} while(0)
+#define log(level, ...) do {if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0) {_log_console(level, __VA_ARGS__);} if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0) {syslog(level, __VA_ARGS__);}} while(0)
+// Log only the inputs (and a newline) to all enabled outputs
+#define logRaw(level, ...) do {if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0) {fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");} if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0) {syslog(level, __VA_ARGS__);}} while(0)
 
 extern uint8_t LOGGING_OUTPUT;
 
 // Automatically start logging
-__attribute__((constructor)) void startLogging();
+__attribute__((constructor)) void logging_startSyslog();
 // Automatically deconstruct logging
-__attribute__((destructor)) void stopLogging();
+__attribute__((destructor)) void logging_stopSyslog();
 
 #endif
