@@ -129,6 +129,10 @@ void *list_setValue(list_t *list, size_t index, void *value) {
   list->current->value = value;
 }
 
+size_t list_getLength(list_t* list) {
+  return list->length;
+}
+
 // NOTE: does not compare values, only pointers - looking for null is undefined
 // behaviour
 ssize_t list_findIndex(list_t *list, void *value) {

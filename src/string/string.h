@@ -5,9 +5,11 @@
 
 /**
 * Terminology:
-* A 'string' is a string_t defined by this library.
-* A 'buffer' is a char buffer allocated to hold raw bytes.
+* A 'string' is a string_t defined by this library
+* A 'buffer' is a char buffer allocated to hold raw bytes
 * A 'buffer-based string' is a null-terminated, "regular c string" buffer
+* Notes:
+* The buffer size is the full size of the buffer - including null byte
 */
 
 typedef struct {
@@ -25,6 +27,10 @@ typedef struct {
 
 // Create an empty string - needs to be freed
 string_t *string_create();
+// Set a strings buffer size - allocates and frees as needed. Useful for preallocating space
+void string_setBufferSize(string_t *string, size_t bufferSize);
+// Clear the contents of the string
+void string_clear(string_t *string);
 // Create a cursor for a string - needs to be freed
 string_cursor_t *string_createCursor(string_t *string);
 // Reset a cursor to point to the start of a string
@@ -33,8 +39,14 @@ void string_resetCursor(string_cursor_t *stringCursor);
 string_t *string_fromCopyWithLength(const char *buffer, size_t length);
 // Create a string by copying a buffer-based string
 string_t *string_fromCopy(const char *buffer);
+// Append a string to a string
+void string_append(string_t *string, string_t *string2);
 // Append a buffer-based string to a string
-void string_append(string_t *string, const char *buffer);
+void string_appendBuffer(string_t *string, const char *buffer);
+// Append a buffer-based string to a string with a specific length
+void string_appendBufferWithLength(string_t *string, const char *buffer, size_t bufferSize);
+// Append a char to a string
+void string_appendChar(string_t *string, char character);
 // Get the raw buffer of the string
 const char* string_getBuffer(string_t *string);
 // Get the actual size of the string (content's length)
@@ -49,6 +61,10 @@ string_t *string_substring(string_t *string, size_t firstIndex, size_t lastIndex
 char string_getNextChar(string_cursor_t *stringCursor);
 // Get the next line (excluding trailing newline) in a cursor
 string_t *string_getNextLine(string_cursor_t *stringCursor);
+// Get the current offset in a cursor
+size_t string_getOffset(string_cursor_t *stringCursor);
+// Set the current offset in a cursor (trusted to be within bounds)
+void string_setOffset(string_cursor_t *stringCursor, size_t offset);
 // Free a string
 void string_free(string_t *string);
 // Free a cursor

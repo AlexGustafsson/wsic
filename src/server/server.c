@@ -58,18 +58,16 @@ connection_t *acceptConnection() {
       accept(initialSocketId, (struct sockaddr *)&hostAddress, &addressLength);
 
   if (socketId < 0) {
-    log(LOG_ERROR, "Could not accept connection from %s:%i",
-        inet_ntoa(hostAddress.sin_addr), ntohs(hostAddress.sin_port));
+    log(LOG_ERROR, "Could not accept connection from %s:%i", inet_ntoa(hostAddress.sin_addr), ntohs(hostAddress.sin_port));
     return 0;
   }
 
-  connection_t *connection = createConnection();
-  setConnectionSocket(connection, socketId);
-  setSourcePort(connection, ntohs(hostAddress.sin_port));
-  setSourceAddress(connection, inet_ntoa(hostAddress.sin_addr));
+  connection_t *connection = connection_create();
+  connection_setSocket(connection, socketId);
+  connection_setSourcePort(connection, ntohs(hostAddress.sin_port));
+  connection_setSourceAddress(connection, string_fromCopy(inet_ntoa(hostAddress.sin_addr)));
 
-  log(LOG_DEBUG, "Successfully accepted connection from %s:%i",
-      connection->sourceAddress, connection->sourcePort);
+  log(LOG_DEBUG, "Successfully accepted connection from %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
 
   return connection;
 }
@@ -77,7 +75,7 @@ connection_t *acceptConnection() {
 void closeConnection(connection_t *connection) {
   log(LOG_DEBUG, "Closed socket with id %d", connection->socketId);
   close(connection->socketId);
-  freeConnection(connection);
+  connection_free(connection);
 }
 
 void server_close() {

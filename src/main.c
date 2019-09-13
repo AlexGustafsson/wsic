@@ -11,6 +11,7 @@
 #include "resources/resources.h"
 #include "config/config.h"
 #include "daemon/daemon.h"
+#include "string/string.h"
 
 #include "main.h"
 
@@ -37,7 +38,7 @@ int main(int argc, char const *argv[]) {
     } else if (strcmp(argv[i], "-v") == 0) {
       showVersion = true;
     } else if (strcmp(argv[i], "-d") == 0) {
-      defaultServerConfig->enabled= 1;
+      config_setIsDaemon(config, 1);
     } else if (strcmp(argv[i], "-p") == 0) {
       config_setPort(defaultServerConfig, strtol(argv[++i], 0, 10));
     } else if (strcmp(argv[i], "-l") == 0) {
@@ -66,7 +67,7 @@ int main(int argc, char const *argv[]) {
     return 0;
   }
 
-  if (runAsDaemon) {
+  if (config_getIsDaemon(config)) {
     // Daemonize the server
     pid_t sid = daemonize();
     if (sid < 0) {
@@ -88,7 +89,7 @@ int main(int argc, char const *argv[]) {
     close(STDERR_FILENO);
   }
 
-  server_start(port);
+  server_start(config_getPort(defaultServerConfig));
   if (!server_getIsRunning()) {
     log(LOG_ERROR, "Could not start the server");
     return EXIT_FAILURE;
@@ -96,13 +97,13 @@ int main(int argc, char const *argv[]) {
 
   while (true) {
     connection_t *connection = acceptConnection();
-    char requestBuffer[1024] = {0};
-    readFromConnection(connection, requestBuffer, 1024);
+    string_t *request = connection_read(connection, 1024);
+    log(LOG_DEBUG, "Got request:\n %s", string_getBuffer(request));
 
-    writeToConnection(connection, "HTTP/1.1 200 OK\nContent-Type: text/html\n\n", 41);
-    page_t *page = createPage501();
-    writeToConnection(connection, page->source, page->sourceLength);
-    freePage(page);
+    connection_write(connection, "HTTP/1.1 200 OK\nContent-Type: text/html\n\n", 41);
+    page_t *page = page_create501();
+    connection_write(connection, string_getBuffer(page->source), string_getSize(page->source));
+    page_free(page);
     closeConnection(connection);
   }
 

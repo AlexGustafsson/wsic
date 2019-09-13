@@ -30,7 +30,7 @@ config_t *config_parse(char *configString) {
         log(LOG_WARNING, "Unknown parallel mode '%s'", parallelModeString);
     }
 
-    free(parallelModeString);
+    free((void *)parallelModeString);
     config->parallelMode = parallelMode;
 
     config->daemon = config_parseBool(serverTable, "daemon");
@@ -64,7 +64,7 @@ server_config_t *config_parseServerTable(toml_table_t * serverTable) {
   if (config == 0)
     return 0;
 
-  char *name = toml_table_key(serverTable);
+  const char *name = toml_table_key(serverTable);
   size_t nameLength = strlen(name);
   char *nameCopy = malloc(sizeof(char) * (nameLength + 1));
   memcpy(nameCopy, name, nameLength);
@@ -76,7 +76,6 @@ server_config_t *config_parseServerTable(toml_table_t * serverTable) {
   config->logfile = (char *)config_parseString(serverTable, "logfile");
   config->enabled = config_parseBool(serverTable, "enabled");
 
-  log(LOG_DEBUG, "> %d", toml_table_nkval(serverTable));
   if (toml_raw_in(serverTable, "port") != 0) {
     int64_t port = config_parseInt(serverTable, "port");
     if (port > 1<<16)
@@ -145,8 +144,12 @@ void config_setParallelMode(config_t *config, enum parallelMode parallelMode) {
   config->parallelMode = parallelMode;
 }
 
-int16_t config_getIsDeamon(config_t *config) {
+int16_t config_getIsDaemon(config_t *config) {
   return config->daemon;
+}
+
+void config_setIsDaemon(config_t *config, int16_t isDaemon) {
+  config->daemon = isDaemon;
 }
 
 server_config_t *config_getServerConfig(config_t *config, size_t index) {
@@ -182,7 +185,7 @@ int16_t config_getPort(server_config_t *config) {
 }
 
 void config_setPort(server_config_t *config, int16_t port) {
-  // TODO: Fix after string implementation
+  config->port = port;
 }
 
 const char *config_getLogfile(server_config_t *config) {

@@ -34,8 +34,8 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable);
 enum parallelMode config_getParallelMode(config_t *config);
 void config_setParallelMode(config_t *config, enum parallelMode parallelMode);
 
-int16_t config_getIsDeamon(config_t *config);
-void config_setIsDeamon(config_t *config, int16_t isDeamon);
+int16_t config_getIsDaemon(config_t *config);
+void config_setIsDaemon(config_t *config, int16_t isDaemon);
 
 server_config_t *config_getServerConfig(config_t *config, size_t index);
 
