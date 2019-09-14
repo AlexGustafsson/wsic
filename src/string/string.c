@@ -201,7 +201,7 @@ void string_setOffset(string_cursor_t *stringCursor, size_t offset) {
   stringCursor->offset = offset;
 }
 
-bool string_equalsBuffer(string_t *string, const char* buffer) {
+bool string_equalsBuffer(string_t *string, const char *buffer) {
   return strcmp(string->buffer, buffer) == 0;
 }
 

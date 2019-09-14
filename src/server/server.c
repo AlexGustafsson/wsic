@@ -1,6 +1,6 @@
 #include <arpa/inet.h>
-#include <unistd.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "../logging/logging.h"
 
@@ -45,7 +45,6 @@ void server_start(int port) {
   log(LOG_INFO, "Listening to 0.0.0.0:%d", port);
   server_isRunning = true;
 }
-
 
 bool server_getIsRunning() {
   return server_isRunning;

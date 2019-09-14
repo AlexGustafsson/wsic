@@ -62,7 +62,7 @@ config_t *config_parse(char *configString) {
   return config;
 }
 
-server_config_t *config_parseServerTable(toml_table_t * serverTable) {
+server_config_t *config_parseServerTable(toml_table_t *serverTable) {
   server_config_t *config = malloc(sizeof(server_config_t));
   if (config == 0)
     return 0;
@@ -78,7 +78,7 @@ server_config_t *config_parseServerTable(toml_table_t * serverTable) {
 
   if (toml_raw_in(serverTable, "port") != 0) {
     int64_t port = config_parseInt(serverTable, "port");
-    if (port > 1<<16)
+    if (port > 1 << 16)
       log(LOG_ERROR, "The port in config for server '%s' was too large", string_getBuffer(config->name));
     else
       config->port = port;

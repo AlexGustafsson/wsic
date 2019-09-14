@@ -129,7 +129,7 @@ void *list_setValue(list_t *list, size_t index, void *value) {
   list->current->value = value;
 }
 
-size_t list_getLength(list_t* list) {
+size_t list_getLength(list_t *list) {
   return list->length;
 }
 

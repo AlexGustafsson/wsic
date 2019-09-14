@@ -1,17 +1,17 @@
-#include <stdbool.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "compile-time-defines.h"
-#include "logging/logging.h"
-#include "server/server.h"
-#include "www/www.h"
-#include "resources/resources.h"
 #include "config/config.h"
 #include "daemon/daemon.h"
+#include "logging/logging.h"
+#include "resources/resources.h"
+#include "server/server.h"
 #include "string/string.h"
+#include "www/www.h"
 
 #include "main.h"
 

@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../compile-time-defines.h"
 #include "../logging/logging.h"
 #include "../resources/resources.h"
-#include "../compile-time-defines.h"
 
 #include "www.h"
 
@@ -15,16 +15,16 @@ page_t *page_create() {
   memset(page, 0, sizeof(page_t));
 
   page->templates = hash_table_create();
-  page_setTemplateBuffer(page, string_fromCopy("version"), (const char*)WSIC_VERSION);
+  page_setTemplateBuffer(page, string_fromCopy("version"), (const char *)WSIC_VERSION);
 
   return page;
 }
 
 page_t *page_create400(const char *description) {
   page_t *page = page_create();
-  page_setSourceBuffer(page, (const char*)RESOURCES_WWW_TEMPLATE_HTML);
+  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
 
-  page_setTemplateBuffer(page, string_fromCopy("content"), (const char*)RESOURCES_WWW_400_HTML);
+  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_400_HTML);
   page_setTemplateBuffer(page, string_fromCopy("description"), description);
 
   page_resolveTemplates(page);
@@ -34,9 +34,9 @@ page_t *page_create400(const char *description) {
 
 page_t *page_create403() {
   page_t *page = page_create();
-  page_setSourceBuffer(page, (const char*)RESOURCES_WWW_TEMPLATE_HTML);
+  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
 
-  page_setTemplateBuffer(page, string_fromCopy("content"), (const char*)RESOURCES_WWW_403_HTML);
+  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_403_HTML);
 
   page_resolveTemplates(page);
 
@@ -45,9 +45,9 @@ page_t *page_create403() {
 
 page_t *page_create404(const char *path) {
   page_t *page = page_create();
-  page_setSourceBuffer(page, (const char*)RESOURCES_WWW_TEMPLATE_HTML);
+  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
 
-  page_setTemplateBuffer(page, string_fromCopy("content"), (const char*)RESOURCES_WWW_404_HTML);
+  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_404_HTML);
   page_setTemplateBuffer(page, string_fromCopy("path"), path);
 
   page_resolveTemplates(page);
@@ -57,10 +57,10 @@ page_t *page_create404(const char *path) {
 
 page_t *page_create500(const char *description) {
   page_t *page = page_create();
-  page_setSourceBuffer(page, (const char*)RESOURCES_WWW_TEMPLATE_HTML);
+  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
 
-  page_setTemplateBuffer(page, string_fromCopy("content"), (const char*)RESOURCES_WWW_500_HTML);
-  page_setTemplateBuffer(page, string_fromCopy("description"), (const char*)description);
+  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_500_HTML);
+  page_setTemplateBuffer(page, string_fromCopy("description"), (const char *)description);
 
   page_resolveTemplates(page);
 
@@ -69,9 +69,9 @@ page_t *page_create500(const char *description) {
 
 page_t *page_create501() {
   page_t *page = page_create();
-  page_setSourceBuffer(page, (const char*)RESOURCES_WWW_TEMPLATE_HTML);
+  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
 
-  page_setTemplateBuffer(page, string_fromCopy("content"), (const char*)RESOURCES_WWW_501_HTML);
+  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_501_HTML);
 
   page_resolveTemplates(page);
 
