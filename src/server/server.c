@@ -16,8 +16,15 @@ void server_start(int port) {
   // Test to see if socket is created
   if (initialSocketId < 0) {
     log(LOG_ERROR, "Could not create listening socket");
-  } else {
-    log(LOG_DEBUG, "Successfully created listening socket");
+    return;
+  }
+
+  log(LOG_DEBUG, "Successfully created listening socket");
+
+  int enableSocketReuse = 1;
+  if (setsockopt(initialSocketId, SOL_SOCKET, SO_REUSEADDR, &enableSocketReuse, sizeof(int)) < 0) {
+    log(LOG_ERROR, "Could not make socket reuse address");
+    return;
   }
 
   // Host address info
@@ -30,11 +37,10 @@ void server_start(int port) {
   returnCodeBind = bind(initialSocketId, (struct sockaddr *)&hostAddress, sizeof(hostAddress));
   if (returnCodeBind < 0) {
     log(LOG_ERROR, "Could not bind listening socket to 0.0.0.0:%d - code: %d", port, errno);
-  } else {
-    log(LOG_DEBUG, "Successfully bound listening socket to 0.0.0.0:%d", port);
-  }
-  if (returnCodeBind < 0)
     return;
+  }
+
+  log(LOG_DEBUG, "Successfully bound listening socket to 0.0.0.0:%d", port);
 
   // Listen to the socket
   if (listen(initialSocketId, BACKLOG) < 0) {
