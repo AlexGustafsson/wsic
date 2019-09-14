@@ -1,8 +1,10 @@
 # Disable echoing of commands
 MAKEFLAGS += --silent
 
+WSIC_VERSION := 0.0.1
+
 # Build variables (such as version etc.)
-BUILD_VARIABLES=-DWSIC_VERSION='"0.0.1"' -DCOMPILER_VERSION='"$(shell $(CC) --version | head -1)"' -DCOMPILE_TIME='"$(shell LC_ALL=en_US date)"'
+BUILD_VARIABLES=-D WSIC_VERSION='"$(WSIC_VERSION)"' -D COMPILER_VERSION='"$(shell $(CC) --version | head -1)"' -D COMPILE_TIME='"$(shell LC_ALL=en_US date)"'
 
 # Optimize the code and show all warnings (except unused parameters)
 BUILD_FLAGS=-O2 -Wall -Wextra -pedantic -Wno-unused-parameter $(BUILD_VARIABLES)
@@ -102,6 +104,10 @@ analyze: compile_commands.json
 # Lint the code according to .clang-format
 lint: compile_commands.json
 	./ci/lint.sh $(source)
+
+# Build and tag the docker image
+docker: $(includeSource) $(resources) $(source)
+	docker build -t wsic/wsic -t wsic/wsic:$(WSIC_VERSION) -t registry.axgn.se/wsic/wsic .
 
 clean:
 	rm -rf build/*

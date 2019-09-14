@@ -1,0 +1,9 @@
+build
+ci
+test
+.clang-format
+.gitignore
+.gitlab-ci.yml
+README.md
+config.toml
+compile_commands.json
