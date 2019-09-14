@@ -61,8 +61,8 @@ function benchmark {
     return
   fi
 
-  failedRequests="$(grep "Failed requests:\s\+[0-9]\+" "build/reports/benchmark/$test/report.txt" | head -1 | sed 's/\s*Failed requests:\s\+\([0-9]\+\)/\1/')"
-  timePerRequest="$(grep "Time per request:\s\+[0-9]\+" "build/reports/benchmark/$test/report.txt" | head -1 | sed 's/\s*Time per request:\s\+\([0-9\.]\+\).*/\1/')"
+  failedRequests="$(grep "Failed requests:\s\+[0-9]\+" "build/reports/benchmark/$test/report.txt" | tail -1 | sed 's/\s*Failed requests:\s\+\([0-9]\+\)/\1/')"
+  timePerRequest="$(grep "Time per request:\s\+[0-9]\+" "build/reports/benchmark/$test/report.txt" | tail -1 | sed 's/\s*Time per request:\s\+\([0-9\.]\+\).*/\1/')"
 
   if [[ ! "$failedRequests" = "0" ]]; then
     testFailed="true"
