@@ -1,16 +1,17 @@
-#include <stdbool.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "compile-time-defines.h"
-#include "logging/logging.h"
-#include "server/server.h"
-#include "www/www.h"
-#include "resources/resources.h"
 #include "config/config.h"
 #include "daemon/daemon.h"
+#include "logging/logging.h"
+#include "resources/resources.h"
+#include "server/server.h"
+#include "string/string.h"
+#include "www/www.h"
 
 #include "main.h"
 
@@ -18,12 +19,11 @@ int main(int argc, char const *argv[]) {
   signal(SIGINT, handleSignalSIGINT);
   signal(SIGTERM, handleSignalSIGTERM);
   signal(SIGKILL, handleSignalSIGKILL);
+  signal(SIGPIPE, handleSignalSIGPIPE);
 
-  // Disallow the server from running as root
-  if (geteuid() == 0) {
-    log(LOG_ERROR, "Don't start as root, please use a standard user");
-    exit(EXIT_FAILURE);
-  }
+  // Warn if the server is running as root
+  if (geteuid() == 0)
+    log(LOG_WARNING, "Running as root. I hope you know what you're doing.");
 
   config_t *config = config_parse((char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
   server_config_t *defaultServerConfig = config_getServerConfig(config, 0);
@@ -37,11 +37,12 @@ int main(int argc, char const *argv[]) {
     } else if (strcmp(argv[i], "-v") == 0) {
       showVersion = true;
     } else if (strcmp(argv[i], "-d") == 0) {
-      defaultServerConfig->enabled= 1;
+      config_setIsDaemon(config, 1);
     } else if (strcmp(argv[i], "-p") == 0) {
       config_setPort(defaultServerConfig, strtol(argv[++i], 0, 10));
     } else if (strcmp(argv[i], "-l") == 0) {
-      config_setLogfile(defaultServerConfig, argv[++i]);
+      string_t *logfile = string_fromCopy(argv[++i]);
+      config_setLogfile(defaultServerConfig, logfile);
     } else if (strcmp(argv[i], "-s") == 0) {
       const char *mode = argv[++i];
       if (strcmp(mode, "fork")) {
@@ -66,7 +67,7 @@ int main(int argc, char const *argv[]) {
     return 0;
   }
 
-  if (runAsDaemon) {
+  if (config_getIsDaemon(config)) {
     // Daemonize the server
     pid_t sid = daemonize();
     if (sid < 0) {
@@ -88,21 +89,22 @@ int main(int argc, char const *argv[]) {
     close(STDERR_FILENO);
   }
 
-  server_start(port);
+  server_start(config_getPort(defaultServerConfig));
   if (!server_getIsRunning()) {
     log(LOG_ERROR, "Could not start the server");
     return EXIT_FAILURE;
   }
 
+  string_t *header = string_fromCopy("HTTP/1.1 200 OK\nContent-Type: text/html\n\n");
   while (true) {
     connection_t *connection = acceptConnection();
-    char requestBuffer[1024] = {0};
-    readFromConnection(connection, requestBuffer, 1024);
+    string_t *request = connection_read(connection, 1024);
+    log(LOG_DEBUG, "Got request:\n %s", string_getBuffer(request));
 
-    writeToConnection(connection, "HTTP/1.1 200 OK\nContent-Type: text/html\n\n", 41);
-    page_t *page = createPage501();
-    writeToConnection(connection, page->source, page->sourceLength);
-    freePage(page);
+    connection_write(connection, string_getBuffer(header), string_getSize(header));
+    page_t *page = page_create501();
+    connection_write(connection, string_getBuffer(page->source), string_getSize(page->source));
+    page_free(page);
     closeConnection(connection);
   }
 
@@ -157,4 +159,10 @@ void handleSignalSIGTERM(int signalNumber) {
 void handleSignalSIGKILL(int signalNumber) {
   log(LOG_WARNING, "Got SIGKILL - exiting immediately");
   exit(EXIT_SUCCESS);
+}
+
+// Handle SIGPIPE (the other end of a pipe broke it)
+void handleSignalSIGPIPE(int signalNumber) {
+  // Log and ignore
+  log(LOG_WARNING, "Got SIGPIPE - broken pipe");
 }

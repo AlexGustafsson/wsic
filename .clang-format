@@ -3,3 +3,4 @@ IndentWidth: 2
 AllowShortFunctionsOnASingleLine: None
 KeepEmptyLinesAtTheStartOfBlocks: false
 BreakBeforeBraces: Attach
+ColumnLimit: 0

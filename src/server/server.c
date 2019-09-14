@@ -1,6 +1,6 @@
 #include <arpa/inet.h>
-#include <unistd.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "../logging/logging.h"
 
@@ -16,8 +16,15 @@ void server_start(int port) {
   // Test to see if socket is created
   if (initialSocketId < 0) {
     log(LOG_ERROR, "Could not create listening socket");
-  } else {
-    log(LOG_DEBUG, "Successfully created listening socket");
+    return;
+  }
+
+  log(LOG_DEBUG, "Successfully created listening socket");
+
+  int enableSocketReuse = 1;
+  if (setsockopt(initialSocketId, SOL_SOCKET, SO_REUSEADDR, &enableSocketReuse, sizeof(int)) < 0) {
+    log(LOG_ERROR, "Could not make socket reuse address");
+    return;
   }
 
   // Host address info
@@ -30,11 +37,10 @@ void server_start(int port) {
   returnCodeBind = bind(initialSocketId, (struct sockaddr *)&hostAddress, sizeof(hostAddress));
   if (returnCodeBind < 0) {
     log(LOG_ERROR, "Could not bind listening socket to 0.0.0.0:%d - code: %d", port, errno);
-  } else {
-    log(LOG_DEBUG, "Successfully bound listening socket to 0.0.0.0:%d", port);
-  }
-  if (returnCodeBind < 0)
     return;
+  }
+
+  log(LOG_DEBUG, "Successfully bound listening socket to 0.0.0.0:%d", port);
 
   // Listen to the socket
   if (listen(initialSocketId, BACKLOG) < 0) {
@@ -45,7 +51,6 @@ void server_start(int port) {
   log(LOG_INFO, "Listening to 0.0.0.0:%d", port);
   server_isRunning = true;
 }
-
 
 bool server_getIsRunning() {
   return server_isRunning;
@@ -58,18 +63,16 @@ connection_t *acceptConnection() {
       accept(initialSocketId, (struct sockaddr *)&hostAddress, &addressLength);
 
   if (socketId < 0) {
-    log(LOG_ERROR, "Could not accept connection from %s:%i",
-        inet_ntoa(hostAddress.sin_addr), ntohs(hostAddress.sin_port));
+    log(LOG_ERROR, "Could not accept connection from %s:%i", inet_ntoa(hostAddress.sin_addr), ntohs(hostAddress.sin_port));
     return 0;
   }
 
-  connection_t *connection = createConnection();
-  setConnectionSocket(connection, socketId);
-  setSourcePort(connection, ntohs(hostAddress.sin_port));
-  setSourceAddress(connection, inet_ntoa(hostAddress.sin_addr));
+  connection_t *connection = connection_create();
+  connection_setSocket(connection, socketId);
+  connection_setSourcePort(connection, ntohs(hostAddress.sin_port));
+  connection_setSourceAddress(connection, string_fromCopy(inet_ntoa(hostAddress.sin_addr)));
 
-  log(LOG_DEBUG, "Successfully accepted connection from %s:%i",
-      connection->sourceAddress, connection->sourcePort);
+  log(LOG_DEBUG, "Successfully accepted connection from %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
 
   return connection;
 }
@@ -77,7 +80,7 @@ connection_t *acceptConnection() {
 void closeConnection(connection_t *connection) {
   log(LOG_DEBUG, "Closed socket with id %d", connection->socketId);
   close(connection->socketId);
-  freeConnection(connection);
+  connection_free(connection);
 }
 
 void server_close() {

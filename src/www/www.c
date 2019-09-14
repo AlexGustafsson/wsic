@@ -1,172 +1,161 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../compile-time-defines.h"
 #include "../logging/logging.h"
 #include "../resources/resources.h"
-#include "../compile-time-defines.h"
 
 #include "www.h"
 
-page_t *createPage() {
+page_t *page_create() {
   page_t *page = malloc(sizeof(page_t));
+  if (page == 0)
+    return 0;
+
   memset(page, 0, sizeof(page_t));
 
-  return page;
-}
-
-page_t *createPage400(const char *description) {
-  page_t *page = createPage();
-  setPageSource(page, RESOURCES_WWW_TEMPLATE_HTML);
-
-  addPageTemplate(page, "content", RESOURCES_WWW_400_HTML);
-  addPageTemplate(page, "description", description);
-  addPageTemplate(page, "version", WSIC_VERSION);
-
-  resolveTemplateStrings(page);
+  page->templates = hash_table_create();
+  page_setTemplateBuffer(page, string_fromCopy("version"), (const char *)WSIC_VERSION);
 
   return page;
 }
 
-page_t *createPage403() {
-  page_t *page = createPage();
-  setPageSource(page, RESOURCES_WWW_TEMPLATE_HTML);
+page_t *page_create400(const char *description) {
+  page_t *page = page_create();
+  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
 
-  addPageTemplate(page, "content", RESOURCES_WWW_403_HTML);
-  addPageTemplate(page, "version", WSIC_VERSION);
+  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_400_HTML);
+  page_setTemplateBuffer(page, string_fromCopy("description"), description);
 
-  resolveTemplateStrings(page);
-
-  return page;
-}
-
-page_t *createPage404(const char *path) {
-  page_t *page = createPage();
-  setPageSource(page, RESOURCES_WWW_TEMPLATE_HTML);
-
-  addPageTemplate(page, "content", RESOURCES_WWW_404_HTML);
-  addPageTemplate(page, "path", path);
-  addPageTemplate(page, "version", WSIC_VERSION);
-
-  resolveTemplateStrings(page);
+  page_resolveTemplates(page);
 
   return page;
 }
 
-page_t *createPage500(const char *description) {
-  page_t *page = createPage();
-  setPageSource(page, RESOURCES_WWW_TEMPLATE_HTML);
+page_t *page_create403() {
+  page_t *page = page_create();
+  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
 
-  addPageTemplate(page, "content", RESOURCES_WWW_500_HTML);
-  addPageTemplate(page, "description", description);
-  addPageTemplate(page, "version", WSIC_VERSION);
+  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_403_HTML);
 
-  resolveTemplateStrings(page);
+  page_resolveTemplates(page);
 
   return page;
 }
 
-page_t *createPage501() {
-  page_t *page = createPage();
-  setPageSource(page, RESOURCES_WWW_TEMPLATE_HTML);
+page_t *page_create404(const char *path) {
+  page_t *page = page_create();
+  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
 
-  addPageTemplate(page, "content", RESOURCES_WWW_501_HTML);
-  addPageTemplate(page, "version", WSIC_VERSION);
+  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_404_HTML);
+  page_setTemplateBuffer(page, string_fromCopy("path"), path);
 
-  resolveTemplateStrings(page);
+  page_resolveTemplates(page);
 
   return page;
 }
 
-void setPageSource(page_t *page, const char *source) {
+page_t *page_create500(const char *description) {
+  page_t *page = page_create();
+  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
+
+  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_500_HTML);
+  page_setTemplateBuffer(page, string_fromCopy("description"), (const char *)description);
+
+  page_resolveTemplates(page);
+
+  return page;
+}
+
+page_t *page_create501() {
+  page_t *page = page_create();
+  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
+
+  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_501_HTML);
+
+  page_resolveTemplates(page);
+
+  return page;
+}
+
+void page_setSourceBuffer(page_t *page, const char *source) {
   if (page->source != 0)
-    free(page->source);
+    string_free(page->source);
 
-  size_t pageLength = strlen(source);
-
-  page->sourceLength = pageLength;
-  page->source = malloc(sizeof(char) * (pageLength + 1));
-  strlcpy(page->source, source, pageLength + 1);
+  page->source = string_fromCopy(source);
 }
 
-void addPageTemplate(page_t *page, const char *key, const char *value) {
-  if (page->templates == 0) {
-    page->templateKeys = malloc(sizeof(char *));
-    page->templateValues = malloc(sizeof(char *));
-    page->templateKeys[0] = 0;
-    page->templateValues[0] = 0;
-  } else {
-    char **reallocatedTemplateKeys = realloc(page->templateKeys, sizeof(char *) * (page->templates + 1));
-    if (reallocatedTemplateKeys == 0) {
-      log(LOG_ERROR, "Could not expand page template key array");
-      return;
-    }
+void page_setSource(page_t *page, string_t *source) {
+  if (page->source != 0)
+    string_free(page->source);
 
-    char **reallocatedTemplateValues = realloc(page->templateValues, sizeof(char *) * (page->templates + 1));
-    if (reallocatedTemplateValues == 0) {
-      log(LOG_ERROR, "Could not expand page template value array");
-      return;
-    }
-
-    page->templateKeys = reallocatedTemplateKeys;
-    page->templateValues = reallocatedTemplateValues;
-    page->templateKeys[page->templates] = 0;
-    page->templateValues[page->templates] = 0;
-  }
-
-  size_t keyLength = strlen(key);
-  page->templateKeys[page->templates] = malloc(sizeof(char) * (keyLength + 1));
-  strlcpy(page->templateKeys[page->templates], key, keyLength + 1);
-
-  size_t valueLength = strlen(value);
-  page->templateValues[page->templates] = malloc(sizeof(char) * (valueLength + 1));
-  strlcpy(page->templateValues[page->templates], value, valueLength + 1);
-
-  page->templates++;
+  page->source = source;
 }
 
-ssize_t resolveTemplateString(page_t *page, size_t offset) {
-  char templateBuffer[100] = {0};
-  size_t templateLength = 0;
-  char previous = 0;
+void page_setTemplate(page_t *page, string_t *key, string_t *value) {
+  hash_table_setValue(page->templates, key, value);
+}
 
+void page_setTemplateBuffer(page_t *page, string_t *key, const char *buffer) {
+  string_t *value = string_fromCopy(buffer);
+  if (value == 0)
+    return;
+  page_setTemplate(page, key, value);
+}
+
+ssize_t page_resolveTemplate(page_t *page, size_t offset) {
+  string_t *templateKey = string_create();
+  // Pre-allocate 100 bytes (determined to be enough for current use cases)
+  string_setBufferSize(templateKey, 100);
+
+  // Inclusive index range for the template key
   ssize_t templateStart = -1;
   ssize_t templateEnd = -1;
-  for (size_t i = offset; i < page->sourceLength; i++) {
-    char current = page->source[i];
+  char previous = 0;
+  char current = 0;
+  // Create a cursor to the current offset
+  string_cursor_t *sourceCursor = string_createCursor(page->source);
+  string_setOffset(sourceCursor, offset);
+  while ((current = string_getNextChar(sourceCursor)) != 0) {
     if (previous == '{' && current == '{') {
-      templateStart = i - 1;
+      // -1 since the cursor has moved beyond the character
+      // -2 since we want to have the first '{' as the template start
+      templateStart = string_getOffset(sourceCursor) - 2;
     } else if (templateStart >= 0) {
-      if (current >= 'a' && current <= 'z' && templateLength < 100) {
-        templateBuffer[templateLength++] = current;
+      if (current >= 'a' && current <= 'z') {
+        // Append allowed letters [a-z]
+        string_appendChar(templateKey, current);
       } else if (current != '}') {
+        // Reset the parsed template if a illegal character was found
         templateStart = -1;
-        memset(templateBuffer, 0, templateLength);
-        templateLength = 0;
+        string_clear(templateKey);
       } else if (templateStart >= 0 && previous == '}' && current == '}') {
-        templateEnd = i;
+        // -1 since the cursor has moved beyond the character
+        templateEnd = string_getOffset(sourceCursor) - 1;
 
-        char *templateValue = 0;
-        for (size_t j = 0; j < page->templates; j++) {
-          if (strcmp(templateBuffer, page->templateKeys[j]) == 0) {
-            templateValue = page->templateValues[j];
-            break;
-          }
-        }
+        // Retrieve the value and length of the template (which may not exist)
+        string_t *templateValue = hash_table_getValue(page->templates, templateKey);
+        size_t templateValueLength = templateValue == 0 ? 0 : string_getSize(templateValue);
 
-        size_t templateValueLength = templateValue == 0 ? 0 : strlen(templateValue);
-        char *oldSource = page->source;
-        page->source = malloc(page->sourceLength - (templateEnd - templateStart) - 1 + templateValueLength);
-        // NOTE: Temporary memset. Please remove
-        memset(page->source, '-', page->sourceLength - (templateEnd - templateStart) - 1 + templateValueLength);
-        memcpy(page->source, oldSource, templateStart);
+        string_t *oldSource = page->source;
+        // Create a new string with a determined buffer size for some speedup
+        page->source = string_create();
+        string_setBufferSize(page->source, string_getSize(oldSource) - (templateEnd - templateStart) - 1 + templateValueLength);
+
+        // Append the source before the template
+        string_appendBufferWithLength(page->source, string_getBuffer(oldSource), templateStart);
+
+        // Append the template value if it exists
         if (templateValue != 0)
-          memcpy(page->source + templateStart, templateValue, templateValueLength + 1);
+          string_appendBufferWithLength(page->source, string_getBuffer(templateValue), templateValueLength);
         else
-          log(LOG_ERROR, "No value for template %s", templateBuffer);
-        memcpy(page->source + templateStart + templateValueLength, oldSource + templateEnd + 1, page->sourceLength - templateEnd - 1);
-        page->sourceLength = page->sourceLength - (templateEnd - templateStart) - 1 + templateValueLength;
-        free(oldSource);
+          log(LOG_ERROR, "No value for template %s", string_getBuffer(templateKey));
 
+        // Append the source after the template
+        string_appendBufferWithLength(page->source, string_getBuffer(oldSource) + templateEnd + 1, string_getSize(oldSource) - templateEnd - 1);
+
+        string_free(oldSource);
+        string_freeCursor(sourceCursor);
         return templateStart;
       }
     }
@@ -174,32 +163,25 @@ ssize_t resolveTemplateString(page_t *page, size_t offset) {
     previous = current;
   }
 
+  string_freeCursor(sourceCursor);
   return -1;
 }
 
-void resolveTemplateStrings(page_t *page) {
+void page_resolveTemplates(page_t *page) {
   ssize_t offset = 0;
   do {
-    offset = resolveTemplateString(page, offset);
+    offset = page_resolveTemplate(page, offset);
   } while (offset > -1);
 }
 
-void freePage(page_t *page) {
+void page_free(page_t *page) {
   if (page->source != 0)
-    free(page->source);
-  if (page->templateKeys != 0) {
-    for (size_t i = 0; i < page->templates; i++) {
-      if (page->templateKeys[i] != 0)
-        free(page->templateKeys[i]);
-    }
-    free(page->templateKeys);
+    string_free(page->source);
+  for (size_t i = 0; i < hash_table_getLength(page->templates); i++) {
+    string_t *key = hash_table_getKeyByIndex(page->templates, i);
+    string_t *value = hash_table_removeValue(page->templates, key);
+    string_free(value);
   }
-  if (page->templateValues != 0) {
-    for (size_t i = 0; i < page->templates; i++) {
-      if (page->templateValues[i] != 0)
-        free(page->templateValues[i]);
-    }
-    free(page->templateValues);
-  }
+  hash_table_free(page->templates);
   free(page);
 }

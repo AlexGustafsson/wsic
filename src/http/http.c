@@ -1,5 +1,5 @@
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "../logging/logging.h"
 
@@ -123,7 +123,6 @@ void addHeader(http_t *http, const char *key, const char *value) {
   http->headerKeys[http->headers] = malloc(sizeof(char) * (keyLength + 1));
   strlcpy(http->headerKeys[http->headers], key, keyLength + 1);
 
-
   size_t valueLength = strlen(value);
   http->headerValues[http->headers] = malloc(sizeof(char) * (valueLength + 1));
   strlcpy(http->headerValues[http->headers], value, valueLength + 1);
@@ -153,7 +152,7 @@ void freeHttp(http_t *http) {
   free(http);
 }
 
-enum httpMethod parseHttpMethod(char* method) {
+enum httpMethod parseHttpMethod(char *method) {
   if (strcmp(method, "GET") == 0)
     return GET;
   if (strcmp(method, "PUT") == 0)
