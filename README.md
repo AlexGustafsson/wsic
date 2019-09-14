@@ -8,9 +8,21 @@
 
 TODO.
 
-##### Running using docker
+##### Running using Docker
 
-TODO.
+**Use the published image**
+
+```
+docker login registry.axgn.se
+docker run -it -p8080:8080 registry.axgn.se/wsic/wsic
+```
+
+**Build and run image**
+
+```
+make docker
+docker run -it -p8080:8080 wsic/wsic
+```
 
 ##### Installing from source
 
