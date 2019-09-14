@@ -9,9 +9,13 @@
 
 page_t *page_create() {
   page_t *page = malloc(sizeof(page_t));
+  if (page == 0)
+    return 0;
+
   memset(page, 0, sizeof(page_t));
 
   page->templates = hash_table_create();
+  page_setTemplateBuffer(page, string_fromCopy("version"), (const char*)WSIC_VERSION);
 
   return page;
 }
@@ -22,7 +26,6 @@ page_t *page_create400(const char *description) {
 
   page_setTemplateBuffer(page, string_fromCopy("content"), (const char*)RESOURCES_WWW_400_HTML);
   page_setTemplateBuffer(page, string_fromCopy("description"), description);
-  page_setTemplateBuffer(page, string_fromCopy("version"), (const char*)WSIC_VERSION);
 
   page_resolveTemplates(page);
 
@@ -34,7 +37,6 @@ page_t *page_create403() {
   page_setSourceBuffer(page, (const char*)RESOURCES_WWW_TEMPLATE_HTML);
 
   page_setTemplateBuffer(page, string_fromCopy("content"), (const char*)RESOURCES_WWW_403_HTML);
-  page_setTemplateBuffer(page, string_fromCopy("version"), (const char*)WSIC_VERSION);
 
   page_resolveTemplates(page);
 
@@ -47,7 +49,6 @@ page_t *page_create404(const char *path) {
 
   page_setTemplateBuffer(page, string_fromCopy("content"), (const char*)RESOURCES_WWW_404_HTML);
   page_setTemplateBuffer(page, string_fromCopy("path"), path);
-  page_setTemplateBuffer(page, string_fromCopy("version"), (const char*)WSIC_VERSION);
 
   page_resolveTemplates(page);
 
@@ -60,7 +61,6 @@ page_t *page_create500(const char *description) {
 
   page_setTemplateBuffer(page, string_fromCopy("content"), (const char*)RESOURCES_WWW_500_HTML);
   page_setTemplateBuffer(page, string_fromCopy("description"), (const char*)description);
-  page_setTemplateBuffer(page, string_fromCopy("version"), (const char*)WSIC_VERSION);
 
   page_resolveTemplates(page);
 
@@ -72,7 +72,6 @@ page_t *page_create501() {
   page_setSourceBuffer(page, (const char*)RESOURCES_WWW_TEMPLATE_HTML);
 
   page_setTemplateBuffer(page, string_fromCopy("content"), (const char*)RESOURCES_WWW_501_HTML);
-  page_setTemplateBuffer(page, string_fromCopy("version"), (const char*)WSIC_VERSION);
 
   page_resolveTemplates(page);
 
@@ -117,13 +116,11 @@ ssize_t page_resolveTemplate(page_t *page, size_t offset) {
   // Create a cursor to the current offset
   string_cursor_t *sourceCursor = string_createCursor(page->source);
   string_setOffset(sourceCursor, offset);
-  log(LOG_DEBUG, "Looking at source from offset %zu", offset);
   while ((current = string_getNextChar(sourceCursor)) != 0) {
     if (previous == '{' && current == '{') {
       // -1 since the cursor has moved beyond the character
       // -2 since we want to have the first '{' as the template start
       templateStart = string_getOffset(sourceCursor) - 2;
-      log(LOG_DEBUG, "Start of template key found at %zu", templateStart);
     } else if (templateStart >= 0) {
       if (current >= 'a' && current <= 'z') {
         // Append allowed letters [a-z]
@@ -133,8 +130,6 @@ ssize_t page_resolveTemplate(page_t *page, size_t offset) {
         templateStart = -1;
         string_clear(templateKey);
       } else if (templateStart >= 0 && previous == '}' && current == '}') {
-        log(LOG_DEBUG, "Resolving template key %s", string_getBuffer(templateKey));
-
         // -1 since the cursor has moved beyond the character
         templateEnd = string_getOffset(sourceCursor) - 1;
 
@@ -158,8 +153,6 @@ ssize_t page_resolveTemplate(page_t *page, size_t offset) {
 
         // Append the source after the template
         string_appendBufferWithLength(page->source, string_getBuffer(oldSource) + templateEnd + 1, string_getSize(oldSource) - templateEnd - 1);
-
-        log(LOG_DEBUG, "Resolved to: \n%s", string_getBuffer(page->source));
 
         string_free(oldSource);
         string_freeCursor(sourceCursor);

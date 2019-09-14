@@ -8,6 +8,9 @@
 
 url_t *url_create() {
   url_t *url = malloc(sizeof(url_t));
+  if (url == 0)
+    return 0;
+
   memset(url, 0, sizeof(url_t));
 
   url->parameters = hash_table_create();

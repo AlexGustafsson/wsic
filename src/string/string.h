@@ -2,6 +2,7 @@
 #define STRING_H
 
 #include <stdio.h>
+#include <stdbool.h>
 
 /**
 * Terminology:
@@ -65,6 +66,10 @@ string_t *string_getNextLine(string_cursor_t *stringCursor);
 size_t string_getOffset(string_cursor_t *stringCursor);
 // Set the current offset in a cursor (trusted to be within bounds)
 void string_setOffset(string_cursor_t *stringCursor, size_t offset);
+// Compare a string to a buffer-based string
+bool string_equalsBuffer(string_t *string, const char* buffer);
+// Compare a string to another
+bool string_equals(string_t *string, string_t *string2);
 // Free a string
 void string_free(string_t *string);
 // Free a cursor

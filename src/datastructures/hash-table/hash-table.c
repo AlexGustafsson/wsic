@@ -52,6 +52,9 @@ void *hash_table_setValue(hash_table_t *hashTable, string_t *key, void *value) {
 
   if (keyIndex == -1) {
     hash_table_entry_t *entry = malloc(sizeof(hash_table_entry_t));
+    if (entry == 0)
+      return 0;
+
     entry->key = key;
     entry->keyHash = keyHash;
     entry->value = value;

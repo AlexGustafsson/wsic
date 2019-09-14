@@ -42,7 +42,8 @@ int main(int argc, char const *argv[]) {
     } else if (strcmp(argv[i], "-p") == 0) {
       config_setPort(defaultServerConfig, strtol(argv[++i], 0, 10));
     } else if (strcmp(argv[i], "-l") == 0) {
-      config_setLogfile(defaultServerConfig, argv[++i]);
+      string_t *logfile = string_fromCopy(argv[++i]);
+      config_setLogfile(defaultServerConfig, logfile);
     } else if (strcmp(argv[i], "-s") == 0) {
       const char *mode = argv[++i];
       if (strcmp(mode, "fork")) {
