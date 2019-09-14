@@ -35,6 +35,7 @@ debugBuild:
 benchmark:
   stage: test
   script: ./ci/benchmark/benchmark.sh ./build/wsic.debug
+  allow_failure: true
   dependencies:
     - debugBuild
   artifacts:
