@@ -19,6 +19,7 @@ int main(int argc, char const *argv[]) {
   signal(SIGINT, handleSignalSIGINT);
   signal(SIGTERM, handleSignalSIGTERM);
   signal(SIGKILL, handleSignalSIGKILL);
+  signal(SIGPIPE, handleSignalSIGPIPE);
 
   // Disallow the server from running as root
   if (geteuid() == 0) {
@@ -96,12 +97,13 @@ int main(int argc, char const *argv[]) {
     return EXIT_FAILURE;
   }
 
+  string_t *header = string_fromCopy("HTTP/1.1 200 OK\nContent-Type: text/html\n\n");
   while (true) {
     connection_t *connection = acceptConnection();
     string_t *request = connection_read(connection, 1024);
     log(LOG_DEBUG, "Got request:\n %s", string_getBuffer(request));
 
-    connection_write(connection, "HTTP/1.1 200 OK\nContent-Type: text/html\n\n", 41);
+    connection_write(connection, string_getBuffer(header), string_getSize(header));
     page_t *page = page_create501();
     connection_write(connection, string_getBuffer(page->source), string_getSize(page->source));
     page_free(page);
@@ -159,4 +161,10 @@ void handleSignalSIGTERM(int signalNumber) {
 void handleSignalSIGKILL(int signalNumber) {
   log(LOG_WARNING, "Got SIGKILL - exiting immediately");
   exit(EXIT_SUCCESS);
+}
+
+// Handle SIGPIPE (the other end of a pipe broke it)
+void handleSignalSIGPIPE(int signalNumber) {
+  // Log and ignore
+  log(LOG_WARNING, "Got SIGPIPE - broken pipe");
 }

@@ -1,10 +1,16 @@
-#include <netinet/in.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "../logging/logging.h"
 
 #include "connection.h"
+
+// MSG_NOSIGNAL is in POSIX, but usually not defined on macOS
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
 
 connection_t *connection_create() {
   connection_t *connection = malloc(sizeof(connection_t));
@@ -44,13 +50,14 @@ string_t *connection_read(connection_t *connection, size_t bytes) {
 }
 
 size_t connection_write(connection_t *connection, const char *buffer, size_t bufferSize) {
-  ssize_t bytesSent = write(connection->socketId, buffer, bufferSize);
+  // Use the flag MSG_NOSIGNAL to try to stop SIGPIPE on supported platforms
+  ssize_t bytesSent = send(connection->socketId, buffer, bufferSize, MSG_NOSIGNAL);
 
   const char *sourceAddress = string_getBuffer(connection->sourceAddress);
   uint16_t sourcePort = connection->sourcePort;
 
   if (bytesSent == -1) {
-    log(LOG_ERROR, "Could not write to %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
+    log(LOG_ERROR, "Could not write to %s:%i", sourceAddress, sourcePort);
 
     return 0;
   }
