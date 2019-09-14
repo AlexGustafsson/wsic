@@ -21,11 +21,9 @@ int main(int argc, char const *argv[]) {
   signal(SIGKILL, handleSignalSIGKILL);
   signal(SIGPIPE, handleSignalSIGPIPE);
 
-  // Disallow the server from running as root
-  if (geteuid() == 0) {
-    log(LOG_ERROR, "Don't start as root, please use a standard user");
-    exit(EXIT_FAILURE);
-  }
+  // Warn if the server is running as root
+  if (geteuid() == 0)
+    log(LOG_WARNING, "Running as root. I hope you know what you're doing.");
 
   config_t *config = config_parse((char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
   server_config_t *defaultServerConfig = config_getServerConfig(config, 0);
