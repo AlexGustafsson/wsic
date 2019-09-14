@@ -10,15 +10,18 @@ BUILD_FLAGS=-O2 -Wall -Wextra -pedantic -Wno-unused-parameter $(BUILD_VARIABLES)
 # Don't optimize, provide all warnings and build with clang's memory checks and support for GDB debugging
 DEBUG_FLAGS=-Wall -Wextra -pedantic -Wno-unused-parameter -fsanitize=address -fno-omit-frame-pointer -g $(BUILD_VARIABLES)
 
-# Include generated code
-INCLUDES := -Isrc -Ibuild
+# Include generated and third-party code
+INCLUDES := -Ibuild -Iincludes
 
 # The name of the target binary
 TARGET_NAME := "wsic"
 DEBUG_TARGET_NAME := "wsic.debug"
 
-source := $(shell find src -type f -name "*.c" -not -name "/resources/*/*")
+source := $(shell find src -type f -name "*.c" -not -path "src/resources/*")
 objects := $(subst src,build,$(source:.c=.o))
+
+includeSource := $(shell find includes -type f -name "*.c")
+includeObjects := $(subst includes,build/includes,$(includeSource:.c=.o))
 
 # Resources as defined in their source form (be it html, toml etc.)
 resources := $(shell find src/resources -type f -not -name "*.c" -not -name "*.h")
@@ -41,11 +44,16 @@ debug: CC = clang
 debug: build/$(TARGET_NAME)
 
 # Executable linking
-build/$(TARGET_NAME): $(resourceObjects) $(objects)
-	$(CC) $(INCLUDES) $(BUILD_FLAGS) -o build/$(TARGET_NAME) $(objects) $(resourceObjects)
+build/$(TARGET_NAME): $(includeObjects) $(resourceObjects) $(objects)
+	$(CC) $(INCLUDES) $(BUILD_FLAGS) -o build/$(TARGET_NAME) $(objects) $(resourceObjects) $(includeObjects)
 
 # Source compilation
 $(objects): build/%.o: src/%.c src/%.h
+	mkdir -p $(dir $@)
+	$(CC) $(INCLUDES) $(BUILD_FLAGS) -c $< -o $@
+
+# Includes compilation
+$(includeObjects): build/includes/%.o: includes/%.c includes/%.h
 	mkdir -p $(dir $@)
 	$(CC) $(INCLUDES) $(BUILD_FLAGS) -c $< -o $@
 

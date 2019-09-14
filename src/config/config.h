@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "../includes/tomlc99/toml.h"
+#include "tomlc99/toml.h"
 
 #include "../datastructures/list/list.h"
 #include "../string/string.h"
