@@ -31,12 +31,15 @@ debugBuild:
     paths:
       - build/wsic.debug
 
-florianCheck:
+benchmark:
   stage: test
-  script: ./test/florian/check.sh ./build/wsic.debug
-  allow_failure: true
+  script: ./ci/benchmark/benchmark.sh ./build/wsic.debug
+  allow_failure: false
   dependencies:
     - debugBuild
+  artifacts:
+    paths:
+      - build/reports/benchmark
 
 florianInsecure:
   stage: test
