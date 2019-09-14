@@ -34,14 +34,13 @@ debugBuild:
 benchmark:
   stage: test
   script: ./ci/benchmark/benchmark.sh ./build/wsic.debug
-  allow_failure: false
   dependencies:
     - debugBuild
   artifacts:
     paths:
       - build/reports/benchmark
 
-florianInsecure:
+insecure:
   stage: test
-  script: ./test/florian/insecure.sh ./src
+  script: ./ci/insecure.sh ./src
   allow_failure: true
