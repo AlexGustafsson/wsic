@@ -22,7 +22,7 @@ void setHttpRequestTarget(http_t *http, const char *requestTarget) {
 
   size_t length = strlen(requestTarget);
   http->requestTarget = malloc(length + 1);
-  strlcpy(http->requestTarget, requestTarget, length + 1);
+  memcpy(http->requestTarget, requestTarget, length + 1);
 }
 
 void setHttpVersion(http_t *http, const char *version) {
@@ -31,7 +31,7 @@ void setHttpVersion(http_t *http, const char *version) {
 
   size_t length = strlen(version);
   http->version = malloc(length + 1);
-  strlcpy(http->version, version, length + 1);
+  memcpy(http->version, version, length + 1);
 }
 
 http_t *parseHttpRequest(const char *request) {
@@ -121,11 +121,11 @@ void addHeader(http_t *http, const char *key, const char *value) {
 
   size_t keyLength = strlen(key);
   http->headerKeys[http->headers] = malloc(sizeof(char) * (keyLength + 1));
-  strlcpy(http->headerKeys[http->headers], key, keyLength + 1);
+  memcpy(http->headerKeys[http->headers], key, keyLength + 1);
 
   size_t valueLength = strlen(value);
   http->headerValues[http->headers] = malloc(sizeof(char) * (valueLength + 1));
-  strlcpy(http->headerValues[http->headers], value, valueLength + 1);
+  memcpy(http->headerValues[http->headers], value, valueLength + 1);
 
   http->headers++;
 }
