@@ -12,5 +12,7 @@ void handleSignalSIGTERM(int signalNumber);
 void handleSignalSIGKILL(int signalNumber);
 // Handle SIGPIPE (the other end of a pipe broke it)
 void handleSignalSIGPIPE(int signalNumber);
+// Handle SIGCHLD (a child exited)
+void handleSignalSIGCHLD(int signalNumber);
 
 #endif

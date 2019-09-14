@@ -13,6 +13,7 @@
 #include "server/server.h"
 #include "string/string.h"
 #include "www/www.h"
+#include "cgi/cgi.h"
 
 #include "main.h"
 
@@ -21,6 +22,7 @@ int main(int argc, char const *argv[]) {
   signal(SIGTERM, handleSignalSIGTERM);
   signal(SIGKILL, handleSignalSIGKILL);
   signal(SIGPIPE, handleSignalSIGPIPE);
+  signal(SIGCHLD, handleSignalSIGCHLD);
 
   // Warn if the server is running as root
   if (geteuid() == 0)
@@ -96,17 +98,36 @@ int main(int argc, char const *argv[]) {
     return EXIT_FAILURE;
   }
 
-  string_t *header = string_fromCopy("HTTP/1.1 200 OK\nContent-Type: text/html\n\n");
   while (true) {
     connection_t *connection = acceptConnection();
     string_t *request = connection_read(connection, 1024);
     log(LOG_DEBUG, "Got request:\n %s", string_getBuffer(request));
 
-    connection_write(connection, string_getBuffer(header), string_getSize(header));
-    page_t *page = page_create501();
-    string_t *source = page_getSource(page);
-    connection_write(connection, string_getBuffer(source), string_getSize(page->source));
-    page_free(page);
+    log(LOG_DEBUG, "Spawning CGI process");
+    cgi_process_t *process = cgi_spawn("/Users/alexgustafsson/Documents/GitHub/wsic/cgi-test.sh", 0, 0);
+    log(LOG_DEBUG, "Spawned process with pid %d", process->pid);
+
+    log(LOG_DEBUG, "Writing request to CGI process");
+    cgi_write(process, string_getBuffer(request), string_getSize(request));
+    // Make sure the process receives EOF
+    cgi_flushStdin(process);
+
+    log(LOG_DEBUG, "Reading response from CGI process");
+    char buffer[4096] = {0};
+    cgi_read(process, buffer, 4096);
+    buffer[4096 - 1] = 0;
+
+    log(LOG_DEBUG, "Got response: \n%s", buffer);
+    connection_write(connection, buffer, 4096);
+
+    // NOTE: Not necessary, but for debugging it's nice to know
+    // that the process is actually exiting (not kept forever)
+    // since we don't currently kill spawned processes
+    log(LOG_DEBUG, "Waiting for process to exit");
+    uint8_t exitCode = cgi_waitForExit(process);
+    log(LOG_DEBUG, "Process exited with status %d", exitCode);
+
+    cgi_freeProcess(process);
     closeConnection(connection);
     string_free(request);
   }
@@ -168,4 +189,10 @@ void handleSignalSIGKILL(int signalNumber) {
 void handleSignalSIGPIPE(int signalNumber) {
   // Log and ignore
   log(LOG_WARNING, "Got SIGPIPE - broken pipe");
+}
+
+// Handle SIGCHLD (a child exited)
+void handleSignalSIGCHLD(int signalNumber) {
+  // Log and ignore
+  log(LOG_WARNING, "Got SIGCHLD - child exited");
 }
