@@ -3,6 +3,9 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <unistd.h>
+
+#include "../datastructures/hash-table/hash-table.h"
 
 /*
 typedef struct {
@@ -55,7 +58,7 @@ typedef struct {
   int stderr[2];
 } cgi_process_t;
 
-cgi_process_t *cgi_spawn(const char *command, char * const arguments[], char * const environment[]);
+cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *environment);
 
 // NOTE: This is a blocking call
 void cgi_read(cgi_process_t *process, char *buffer, size_t bufferSize);

@@ -4,6 +4,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "datastructures/hash-table/hash-table.h"
+#include "datastructures/list/list.h"
+
 #include "compile-time-defines.h"
 #include "config/config.h"
 #include "daemon/daemon.h"
@@ -103,8 +106,13 @@ int main(int argc, char const *argv[]) {
     string_t *request = connection_read(connection, 1024);
     log(LOG_DEBUG, "Got request:\n %s", string_getBuffer(request));
 
+    list_t *arguments = 0;
+    hash_table_t *environment = hash_table_create();
+    hash_table_setValue(environment, string_fromCopy("HTTPS"), string_fromCopy("off"));
+    hash_table_setValue(environment, string_fromCopy("SERVER_SOFTWARE"), string_fromCopy("WSIC"));
+
     log(LOG_DEBUG, "Spawning CGI process");
-    cgi_process_t *process = cgi_spawn("/Users/alexgustafsson/Documents/GitHub/wsic/cgi-test.sh", 0, 0);
+    cgi_process_t *process = cgi_spawn("/Users/alexgustafsson/Documents/GitHub/wsic/cgi-test.sh", arguments, environment);
     log(LOG_DEBUG, "Spawned process with pid %d", process->pid);
 
     log(LOG_DEBUG, "Writing request to CGI process");

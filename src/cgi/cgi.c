@@ -1,7 +1,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
@@ -13,7 +12,7 @@
 #define PIPE_READ 0
 #define PIPE_WRITE 1
 
-cgi_process_t *cgi_spawn(const char *command, char *const arguments[], char *const environment[]) {
+cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *environment) {
   cgi_process_t *process = malloc(sizeof(cgi_process_t));
   if (process == 0)
     return 0;
@@ -72,8 +71,37 @@ cgi_process_t *cgi_spawn(const char *command, char *const arguments[], char *con
     close(process->stderr[PIPE_READ]);
     close(process->stderr[PIPE_WRITE]);
 
+    const char **argumentsBuffer = 0;
+    if (arguments != 0) {
+      argumentsBuffer = malloc(sizeof(char *) * (list_getLength(arguments) + 1));
+      for (size_t i = 0; i < list_getLength(arguments); i++) {
+        string_t *argumentString = list_removeValue(arguments, i);
+        argumentsBuffer[i] = string_getBuffer(argumentString);
+      }
+      list_free(arguments);
+      argumentsBuffer[list_getLength(arguments)] = 0;
+    }
+
+    char **environmentBuffer = 0;
+    if (environment != 0) {
+      environmentBuffer = malloc(sizeof(char *) * (hash_table_getLength(environment) + 1));
+      for (size_t i = 0; i < hash_table_getLength(environment); i++) {
+        string_t *key = hash_table_getKeyByIndex(environment, i);
+        string_t *value = hash_table_getValueByIndex(environment, i);
+
+        string_t *keyValuePair = string_fromCopyWithLength(string_getBuffer(key), string_getSize(key));
+        string_appendChar(keyValuePair, '=');
+        string_append(keyValuePair, value);
+        string_free(value);
+
+        environmentBuffer[i] = string_getBuffer(keyValuePair);
+      }
+      environmentBuffer[hash_table_getLength(environment)] = 0;
+      hash_table_free(environment);
+    }
+
     // Run the CGI command
-    int exitCode = execve(command, arguments, environment);
+    int exitCode = execve(command, argumentsBuffer, environmentBuffer);
 
     exit(exitCode);
   }
