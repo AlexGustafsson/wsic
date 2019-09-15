@@ -7,6 +7,7 @@
 #include "datastructures/hash-table/hash-table.h"
 #include "datastructures/list/list.h"
 
+#include "cgi/cgi.h"
 #include "compile-time-defines.h"
 #include "config/config.h"
 #include "daemon/daemon.h"
@@ -16,17 +17,10 @@
 #include "server/server.h"
 #include "string/string.h"
 #include "www/www.h"
-#include "cgi/cgi.h"
 
 #include "main.h"
 
 int main(int argc, char const *argv[]) {
-  signal(SIGINT, handleSignalSIGINT);
-  signal(SIGTERM, handleSignalSIGTERM);
-  signal(SIGKILL, handleSignalSIGKILL);
-  signal(SIGPIPE, handleSignalSIGPIPE);
-  signal(SIGCHLD, handleSignalSIGCHLD);
-
   // Warn if the server is running as root
   if (geteuid() == 0)
     log(LOG_WARNING, "Running as root. I hope you know what you're doing.");
@@ -95,49 +89,50 @@ int main(int argc, char const *argv[]) {
     close(STDERR_FILENO);
   }
 
-  server_start(config_getPort(defaultServerConfig));
-  if (!server_getIsRunning()) {
-    log(LOG_ERROR, "Could not start the server");
-    return EXIT_FAILURE;
+  list_t *ports = list_create();
+  // Extract unique ports used by the configuration
+  for (size_t i = 0; i < list_getLength(config->serverConfigs); i++) {
+    server_config_t *serverConfig = config_getServerConfig(config, i);
+    if (list_findIndex(ports, (void *)serverConfig->port) < 0)
+      list_addValue(ports, (void *)serverConfig->port);
   }
 
+  list_t *pids = list_create();
+  // Spawn a server instance for each port
+  for (size_t i = 0; i < list_getLength(ports); i++) {
+    int16_t port = (int16_t)list_getValue(ports, i);
+
+    pid_t pid = server_createInstance(port);
+    if (pid != 0)
+      list_addValue(pids, (void *)pid);
+  }
+
+  // Setup signal handling
+  signal(SIGINT, handleSignalSIGINT);
+  signal(SIGTERM, handleSignalSIGTERM);
+  signal(SIGKILL, handleSignalSIGKILL);
+  signal(SIGPIPE, handleSignalSIGPIPE);
+  // If a child exits, it will interrupt the sleep and check statuses directly
+  signal(SIGCHLD, handleSignalSIGCHLD);
+
+  // Put the main process into a polling sleep
   while (true) {
-    connection_t *connection = acceptConnection();
-    string_t *request = connection_read(connection, 1024);
-    log(LOG_DEBUG, "Got request:\n %s", string_getBuffer(request));
+    // If a child exits, it will interrupt the sleep and check statuses directly, sleep for 10 seconds
+    sleep(10);
+    for (size_t i = 0; i < list_getLength(pids); i++) {
+      int16_t port = (int16_t)list_getValue(ports, i);
+      pid_t pid = (pid_t)list_getValue(pids, i);
 
-    list_t *arguments = 0;
-    hash_table_t *environment = hash_table_create();
-    hash_table_setValue(environment, string_fromCopy("HTTPS"), string_fromCopy("off"));
-    hash_table_setValue(environment, string_fromCopy("SERVER_SOFTWARE"), string_fromCopy("WSIC"));
-
-    log(LOG_DEBUG, "Spawning CGI process");
-    cgi_process_t *process = cgi_spawn("/Users/alexgustafsson/Documents/GitHub/wsic/cgi-test.sh", arguments, environment);
-    log(LOG_DEBUG, "Spawned process with pid %d", process->pid);
-
-    log(LOG_DEBUG, "Writing request to CGI process");
-    cgi_write(process, string_getBuffer(request), string_getSize(request));
-    // Make sure the process receives EOF
-    cgi_flushStdin(process);
-
-    log(LOG_DEBUG, "Reading response from CGI process");
-    char buffer[4096] = {0};
-    cgi_read(process, buffer, 4096);
-    buffer[4096 - 1] = 0;
-
-    log(LOG_DEBUG, "Got response: \n%s", buffer);
-    connection_write(connection, buffer, 4096);
-
-    // NOTE: Not necessary, but for debugging it's nice to know
-    // that the process is actually exiting (not kept forever)
-    // since we don't currently kill spawned processes
-    log(LOG_DEBUG, "Waiting for process to exit");
-    uint8_t exitCode = cgi_waitForExit(process);
-    log(LOG_DEBUG, "Process exited with status %d", exitCode);
-
-    cgi_freeProcess(process);
-    closeConnection(connection);
-    string_free(request);
+      int status;
+      if (waitpid(pid, &status, WNOHANG) != 0) {
+        int exitCode = WEXITSTATUS(status);
+        log(LOG_WARNING, "Server instance has exited with code %d", exitCode);
+        log(LOG_DEBUG, "Recreating server instance for port %d", port);
+        pid_t newPid = server_createInstance(port);
+        if (newPid != 0)
+          list_setValue(pids, i, (void *)newPid);
+      }
+    }
   }
 
   config_free(config);
