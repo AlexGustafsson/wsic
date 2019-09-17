@@ -2,6 +2,7 @@
 #define SERVER_H
 
 #include <stdbool.h>
+#include <unistd.h>
 
 #include "../connection/connection.h"
 

@@ -1,6 +1,5 @@
 #include <arpa/inet.h>
 #include <errno.h>
-#include <unistd.h>
 
 #include "../cgi/cgi.h"
 #include "../datastructures/hash-table/hash-table.h"
