@@ -1,6 +1,6 @@
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <unistd.h>
 
 #include "../logging/logging.h"
@@ -25,7 +25,7 @@ string_t *resources_loadFile(string_t *filePath) {
 
   // Read the file, character by character until EOF
   char current = 0;
-  while((current = fgetc(file)) != EOF)
+  while ((current = fgetc(file)) != EOF)
     string_appendChar(content, current);
 
   fclose(file);
