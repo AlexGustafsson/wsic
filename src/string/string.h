@@ -40,6 +40,8 @@ void string_resetCursor(string_cursor_t *stringCursor);
 string_t *string_fromCopyWithLength(const char *buffer, size_t length);
 // Create a string by copying a buffer-based string
 string_t *string_fromCopy(const char *buffer);
+// Create a string by converting from a base 10 integer
+string_t *string_fromInt(int number);
 // Append a string to a string
 void string_append(string_t *string, string_t *string2);
 // Append a buffer-based string to a string

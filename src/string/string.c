@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "string.h"
 
@@ -81,6 +82,28 @@ string_t *string_fromCopy(const char *buffer) {
   size_t length = strlen(buffer);
 
   return string_fromCopyWithLength(buffer, length);
+}
+
+string_t *string_fromInt(int number) {
+  string_t *string = string_create();
+  // Get the rough number of digits in the number
+  int digits = (int)log10(abs(number)) + 1;
+  // Pre-allocate the rough number of necessary digits
+  string_setBufferSize(string, digits);
+
+  // Parse sign
+  if (number < 0) {
+    string_appendChar(string, '-');
+    number = abs(number);
+  }
+
+  // Parse the integer left to right
+  for (int offset = digits; offset > 0; offset--) {
+    int digit = (int)(number / pow(10, offset - 1)) % 10;
+    string_appendChar(string, (char)('0' + digit));
+  }
+
+  return string;
 }
 
 void string_append(string_t *string, string_t *string2) {
