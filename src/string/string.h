@@ -35,7 +35,7 @@ void string_clear(string_t *string);
 // Create a cursor for a string - needs to be freed
 string_cursor_t *string_createCursor(string_t *string);
 // Reset a cursor to point to the start of a string
-void string_resetCursor(string_cursor_t *stringCursor);
+void string_resetCursor(string_cursor_t *cursor);
 // Create a string by copying a buffer with a specified length
 string_t *string_fromCopyWithLength(const char *buffer, size_t length);
 // Create a string by copying a buffer-based string
@@ -58,16 +58,18 @@ size_t string_getSize(string_t *string);
 char string_getCharAt(string_t *string, size_t index);
 // Set the character at a certain position. Not guaranteed to set the character if out of bounds
 void string_setCharAt(string_t *string, size_t index, char character);
-// Get a substring of a string with inclusive index - needs to be freed
+// Get a substring of a string with inclusive first index and exclusive last index
 string_t *string_substring(string_t *string, size_t firstIndex, size_t lastIndex);
 // Get the next character in a cursor
-char string_getNextChar(string_cursor_t *stringCursor);
-// Get the next line (excluding trailing newline) in a cursor
-string_t *string_getNextLine(string_cursor_t *stringCursor);
+char string_getNextChar(string_cursor_t *cursor);
+// Get the next line (excluding trailing newline (\r\n or \n)) in a cursor
+string_t *string_getNextLine(string_cursor_t *cursor);
+// Get the next index of a character in a cursor (-1 if not found)
+ssize_t string_findNextChar(string_cursor_t *cursor, char needle);
 // Get the current offset in a cursor
-size_t string_getOffset(string_cursor_t *stringCursor);
+size_t string_getOffset(string_cursor_t *cursor);
 // Set the current offset in a cursor (trusted to be within bounds)
-void string_setOffset(string_cursor_t *stringCursor, size_t offset);
+void string_setOffset(string_cursor_t *cursor, size_t offset);
 // Compare a string to a buffer-based string
 bool string_equalsBuffer(string_t *string, const char* buffer);
 // Compare a string to another
@@ -75,6 +77,6 @@ bool string_equals(string_t *string, string_t *string2);
 // Free a string
 void string_free(string_t *string);
 // Free a cursor
-void string_freeCursor(string_cursor_t *stringCursor);
+void string_freeCursor(string_cursor_t *cursor);
 
 #endif

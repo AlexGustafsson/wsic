@@ -44,18 +44,18 @@ void string_clear(string_t *string) {
 }
 
 string_cursor_t *string_createCursor(string_t *string) {
-  string_cursor_t *stringCursor = malloc(sizeof(string_cursor_t));
-  if (stringCursor == 0)
+  string_cursor_t *cursor = malloc(sizeof(string_cursor_t));
+  if (cursor == 0)
     return 0;
 
-  stringCursor->string = string;
-  stringCursor->offset = 0;
+  cursor->string = string;
+  cursor->offset = 0;
 
-  return stringCursor;
+  return cursor;
 }
 
-void string_resetCursor(string_cursor_t *stringCursor) {
-  stringCursor->offset = 0;
+void string_resetCursor(string_cursor_t *cursor) {
+  cursor->offset = 0;
 }
 
 // NOTE: Currently trusts the length to be within the bounds of the buffer
@@ -174,14 +174,12 @@ void string_setCharAt(string_t *string, size_t index, char character) {
   (*characterAddress) = character;
 }
 
-string_t *string_substring(string_t *string, size_t firstIndex,
-                           size_t lastIndex) {
+string_t *string_substring(string_t *string, size_t firstIndex, size_t lastIndex) {
   // Out of bounds
   if (firstIndex >= string->size || lastIndex > string->size)
     return 0;
 
-  string_t *substring = string_fromCopyWithLength(string->buffer + firstIndex,
-                                                  lastIndex - firstIndex);
+  string_t *substring = string_fromCopyWithLength(string->buffer + firstIndex, lastIndex - firstIndex);
   // Unable to allocate substring
   if (substring == 0)
     return 0;
@@ -189,39 +187,61 @@ string_t *string_substring(string_t *string, size_t firstIndex,
   return substring;
 }
 
-char string_getNextChar(string_cursor_t *stringCursor) {
-  if (stringCursor->offset >= stringCursor->string->size)
+char string_getNextChar(string_cursor_t *cursor) {
+  if (cursor->offset >= cursor->string->size)
     return 0;
 
-  return string_getCharAt(stringCursor->string, stringCursor->offset++);
+  return string_getCharAt(cursor->string, cursor->offset++);
 }
 
-string_t *string_getNextLine(string_cursor_t *stringCursor) {
-  if (stringCursor->offset >= stringCursor->string->size)
+string_t *string_getNextLine(string_cursor_t *cursor) {
+  if (cursor->offset >= cursor->string->size)
     return 0;
 
-  size_t stop;
-  for (stop = stringCursor->offset; stop < stringCursor->string->size; stop++) {
-    if (string_getCharAt(stringCursor->string, stop) == '\n')
-      break;
+  size_t start = cursor->offset;
+  // The index to the last newline character (\r<\n> or <\n>)
+  ssize_t lastLineIndex = string_findNextChar(cursor, '\n');
+  // The index to the last character of the content
+  ssize_t lastContentIndex = -1;
+  if (lastLineIndex > 0) {
+    // Content is anything leading up to the newline
+    if (string_getCharAt(cursor->string, lastLineIndex - 1) == '\r')
+      lastContentIndex = lastLineIndex - 1;
+    else
+      lastContentIndex = lastLineIndex;
+  } else if (lastContentIndex == -1){
+    // No more newlines in the string, content is anything up until EOF
+    lastContentIndex = cursor->string->size;
   }
 
-  // Don't include the newline
-  string_t *line =
-      string_substring(stringCursor->string, stringCursor->offset, stop);
-  // Move past the newline
-  stop++;
-  stringCursor->offset = stop;
+  string_t *line = 0;
+  if (lastContentIndex >= (ssize_t)start)
+    line = string_substring(cursor->string, start, lastContentIndex);
+  else
+    line = string_fromCopy("");
 
   return line;
 }
 
-size_t string_getOffset(string_cursor_t *stringCursor) {
-  return stringCursor->offset;
+ssize_t string_findNextChar(string_cursor_t *cursor, char needle) {
+  ssize_t index = -1;
+  char current = 0;
+  while ((current = string_getNextChar(cursor)) != 0) {
+    if (current == needle) {
+      index = cursor->offset - 1;
+      break;
+    }
+  }
+
+  return index;
 }
 
-void string_setOffset(string_cursor_t *stringCursor, size_t offset) {
-  stringCursor->offset = offset;
+size_t string_getOffset(string_cursor_t *cursor) {
+  return cursor->offset;
+}
+
+void string_setOffset(string_cursor_t *cursor, size_t offset) {
+  cursor->offset = offset;
 }
 
 bool string_equalsBuffer(string_t *string, const char *buffer) {
@@ -239,6 +259,6 @@ void string_free(string_t *string) {
   free(string);
 }
 
-void string_freeCursor(string_cursor_t *stringCursor) {
-  free(stringCursor);
+void string_freeCursor(string_cursor_t *cursor) {
+  free(cursor);
 }
