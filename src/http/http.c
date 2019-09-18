@@ -111,18 +111,21 @@ http_t *http_parseRequest(string_t *request) {
   }
   // Parse the first line in the request (METHOD, PATH, VERSION)
   correctlyParsed = parseRequestLine(http, line);
+  // Check if the parse was successfull
   if (correctlyParsed == false) {
     log(LOG_ERROR, "Could not parse request");
     return 0;
   }
-  log(LOG_DEBUG, "%d %s %s", http->method, string_getBuffer(http->requestTarget), string_getBuffer(http->version));
+
   // Parse all headers (KEY: VALUES)
   while ((line = string_getNextLine(cursor)) != 0) {
+    // if line is null break
     if (string_getSize(line) == 0) {
       string_free(line);
       break;
     }
 
+    // Parse headers
     correctlyParsed = parseHeader(http, line);
     if (correctlyParsed == false) {
       log(LOG_ERROR, "Could not parse request");
@@ -131,6 +134,7 @@ http_t *http_parseRequest(string_t *request) {
     string_free(line);
   }
 
+  // Parse body if there is one
   parseBody(http, request, string_getOffset(cursor));
   log(LOG_DEBUG, "%s", string_getBuffer(http->body));
 
@@ -153,6 +157,7 @@ bool parseRequestLine(http_t *http, string_t *string) {
     return false;
   }
 
+  // Convert from string to enum
   http->method = http_parseMethod(tempString);
   string_free(tempString);
 
@@ -190,16 +195,17 @@ bool parseRequestLine(http_t *http, string_t *string) {
 }
 
 bool parseHeader(http_t *http, string_t *string) {
-  char current = 0;
   string_cursor_t *cursor = string_createCursor(string);
   ssize_t offset = string_findNextChar(cursor, ':');
 
+  // Get the offset for the : if it exesists
   if (offset == -1) {
     log(LOG_ERROR, "Could not find : in header");
     string_freeCursor(cursor);
     return false;
   }
 
+  // Making sure there is a space after :
   if (string_getCharAt(string, offset + 1) != ' ') {
     log(LOG_ERROR, "Expected space after :");
     string_freeCursor(cursor);
@@ -221,6 +227,7 @@ bool parseHeader(http_t *http, string_t *string) {
 }
 
 void parseBody(http_t *http, string_t *string, size_t offset) {
+  // After headers is added we put everything that is left in the request into the body variable
   http->body = string_substring(string, offset, string_getSize(string));
 }
 
