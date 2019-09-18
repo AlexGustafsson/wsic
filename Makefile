@@ -22,7 +22,7 @@ INCLUDES := -Ibuild -Iincludes
 TARGET_NAME := "wsic"
 DEBUG_TARGET_NAME := "wsic.debug"
 
-source := $(shell find src -type f -name "*.c" -not -path "src/resources/*")
+source := $(shell find src -type f -name "*.c" -not -path "src/resources/*") src/resources/resources.c
 objects := $(subst src,build,$(source:.c=.o))
 
 includeSource := $(shell find includes -type f -name "*.c")
