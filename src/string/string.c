@@ -1,6 +1,6 @@
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 #include "string.h"
 
@@ -209,7 +209,7 @@ string_t *string_getNextLine(string_cursor_t *cursor) {
       lastContentIndex = lastLineIndex - 1;
     else
       lastContentIndex = lastLineIndex;
-  } else if (lastContentIndex == -1){
+  } else if (lastContentIndex == -1) {
     // No more newlines in the string, content is anything up until EOF
     lastContentIndex = cursor->string->size;
   }
