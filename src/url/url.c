@@ -28,39 +28,39 @@ string_t *url_toString(url_t *url) {
 
   if (url->subdomain != 0) {
     string_append(result, url->subdomain);
-    string_appendBuffer(result, ".");
+    string_appendChar(result, '.');
   }
 
   if (url->domain != 0)
     string_append(result, url->domain);
 
   if (url->port != 0 && url->port != 80) {
-    // The max number of a 16 bit unsigned integer is 65356 which has 5
-    // characters (two extra for ":" and null)
-    char portBuffer[7] = {0};
-    sprintf(portBuffer, ":%d", url->port);
-    size_t portLength = strlen(portBuffer);
+    string_t *port = string_fromInt(url->port);
 
-    string_appendBufferWithLength(result, portBuffer, portLength);
+    string_appendChar(result, ':');
+    string_append(result, port);
+    string_free(port);
   }
 
   size_t parameters = hash_table_getLength(url->parameters);
   if (parameters > 0)
-    string_appendBuffer(result, "?");
+    string_appendChar(result, '?');
 
   for (size_t i = 0; i < parameters; i++) {
     string_t *key = (string_t *)hash_table_getKeyByIndex(url->parameters, i);
     string_t *value = (string_t *)hash_table_getValueByIndex(url->parameters, i);
     string_append(result, key);
-    string_appendBuffer(result, "=");
+    string_appendChar(result, '=');
     string_append(result, value);
 
     if (i + 1 < parameters)
-      string_appendBuffer(result, "&");
+      string_appendChar(result, '&');
   }
 
-  if (url->fragment != 0)
+  if (url->fragment != 0) {
+    string_appendChar(result, '#');
     string_append(result, url->fragment);
+  }
 
   return result;
 }
