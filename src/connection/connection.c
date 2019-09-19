@@ -2,6 +2,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
+#include <poll.h>
 
 #include "../logging/logging.h"
 
@@ -33,22 +35,57 @@ void connection_setSourcePort(connection_t *connection, uint16_t sourcePort) {
   connection->sourcePort = sourcePort;
 }
 
-string_t *connection_read(connection_t *connection, size_t bytes) {
-  char *buffer = malloc(sizeof(char) * bytes);
-  if (buffer == 0)
+string_t *connection_read(connection_t *connection, int timeout) {
+  // Set up structures necessary for polling
+  struct pollfd descriptors[1];
+  memset(descriptors, 0, sizeof(struct pollfd));
+  descriptors[0].fd = connection->socketId;
+  descriptors[0].events = POLLIN;
+
+  // Wait for the connection to be ready to read
+  int status = poll(descriptors, 1, timeout);
+  if (status < -1) {
+    log(LOG_ERROR, "Could not wait for connection to send data");
     return 0;
-
-  ssize_t bytesReceived = read(connection->socketId, buffer, bytes);
-  if (bytesReceived == -1) {
-    log(LOG_ERROR, "Could not receive request from %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
-
+  } else if (status == 0) {
+    log(LOG_ERROR, "The connection timed out");
     return 0;
   }
 
-  log(LOG_DEBUG, "Successfully received request");
-  string_t *request = string_fromCopyWithLength(buffer, bytesReceived);
-  free(buffer);
-  return request;
+  log(LOG_DEBUG, "Successfully waited for the data to be readable");
+
+  string_t *message = string_create();
+  // Allocate some memory to start with for some speedup
+  string_setBufferSize(message, 1024);
+
+  // Read the entire message
+  // TODO: Possible DoS attack here where we read the entirety of what is sent to us
+  // The client may send data indefinitely
+  while (true) {
+    char character = 0;
+    ssize_t bytesReceived = read(connection->socketId, &character, 1);
+    if (bytesReceived == -1) {
+      // If the request to read one byte would block, we've read everything
+      int error = errno;
+      if (error == EAGAIN || error == EWOULDBLOCK) {
+        log(LOG_DEBUG, "Successfully received request of %zu bytes", string_getSize(message));
+        return message;
+      } else {
+        log(LOG_ERROR, "Could not receive request from %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
+        string_free(message);
+      }
+    } else if (bytesReceived == 0) {
+      log(LOG_DEBUG, "Successfully received request of %zu bytes", string_getSize(message));
+      return message;
+    }
+
+    string_appendChar(message, character);
+    log(LOG_DEBUG, "%c = %d", character, (int)character);
+    if (character == 0) {
+      log(LOG_DEBUG, "Successfully received request of %zu bytes", string_getSize(message));
+      return message;
+    }
+  }
 }
 
 size_t connection_write(connection_t *connection, const char *buffer, size_t bufferSize) {

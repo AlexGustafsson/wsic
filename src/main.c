@@ -6,6 +6,7 @@
 
 #include "datastructures/hash-table/hash-table.h"
 #include "datastructures/list/list.h"
+#include "datastructures/set/set.h"
 
 #include "cgi/cgi.h"
 #include "compile-time-defines.h"
@@ -89,25 +90,20 @@ int main(int argc, char const *argv[]) {
     close(STDERR_FILENO);
   }
 
-  list_t *ports = list_create();
+  set_t *ports = set_create();
   // Extract unique ports used by the configuration
   for (size_t i = 0; i < list_getLength(config->serverConfigs); i++) {
     server_config_t *serverConfig = config_getServerConfig(config, i);
-    if (list_findIndex(ports, (void *)serverConfig->port) < 0)
-      list_addValue(ports, (void *)serverConfig->port);
+    set_addValue(ports, (void *)serverConfig->port);
   }
 
-  list_t *pids = list_create();
-  // Spawn a server instance for each port
-  for (size_t i = 0; i < list_getLength(ports); i++) {
-    int16_t port = (int16_t)list_getValue(ports, i);
-
-    pid_t pid = server_createInstance(port);
-    if (pid != 0)
-      list_addValue(pids, (void *)pid);
+  pid_t serverInstance = server_createInstance(ports);
+  if (serverInstance == 0) {
+    log(LOG_ERROR, "Unable to create server instance");
+    exit(EXIT_FAILURE);
   }
 
-  // Setup signal handling
+  // Setup signal handling for main process
   signal(SIGINT, handleSignalSIGINT);
   signal(SIGTERM, handleSignalSIGTERM);
   signal(SIGKILL, handleSignalSIGKILL);
@@ -119,19 +115,14 @@ int main(int argc, char const *argv[]) {
   while (true) {
     // If a child exits, it will interrupt the sleep and check statuses directly, sleep for 10 seconds
     sleep(10);
-    for (size_t i = 0; i < list_getLength(pids); i++) {
-      int16_t port = (int16_t)list_getValue(ports, i);
-      pid_t pid = (pid_t)list_getValue(pids, i);
-
-      int status;
-      if (waitpid(pid, &status, WNOHANG) != 0) {
-        int exitCode = WEXITSTATUS(status);
-        log(LOG_WARNING, "Server instance has exited with code %d", exitCode);
-        log(LOG_DEBUG, "Recreating server instance for port %d", port);
-        pid_t newPid = server_createInstance(port);
-        if (newPid != 0)
-          list_setValue(pids, i, (void *)newPid);
-      }
+    int status;
+    if (waitpid(serverInstance, &status, WNOHANG) != 0) {
+      int exitCode = WEXITSTATUS(status);
+      log(LOG_WARNING, "Server instance has exited with code %d", exitCode);
+      log(LOG_DEBUG, "Recreating server instance");
+      pid_t newInstance = server_createInstance(ports);
+      if (newInstance != 0)
+        serverInstance = newInstance;
     }
   }
 

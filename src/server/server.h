@@ -3,8 +3,10 @@
 
 #include <stdbool.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include "../connection/connection.h"
+#include "../datastructures/set/set.h"
 
 // The backlog argument defines the maximum length to which the queue of pending connections for sockfd may grow.
 #define BACKLOG 10
@@ -16,12 +18,14 @@
 #define PROTOCOL 0
 #define REQUEST_BUFFER_SIZE 1024
 
-pid_t server_createInstance(int port);
+pid_t server_createInstance(set_t *ports);
 // Main entrypoint for a server instance
-int server_start(int port);
-// Start listening on a port
-bool server_listen(int port);
-connection_t *server_acceptConnection();
+int server_start();
+// Start listening on a port. Returns the listening socket or 0 if failed
+int server_listen(uint16_t port);
+// Block until at least one of the bound ports receives a request. Returns the number of sockets to handle (0 if failed)
+int server_acceptConnections();
+void server_handleConnection(connection_t *connection);
 void server_closeConnection(connection_t *connection);
 
 void server_close();
