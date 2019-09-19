@@ -136,11 +136,12 @@ size_t list_getLength(list_t *list) {
 // NOTE: does not compare values, only pointers - looking for null is undefined
 // behaviour
 ssize_t list_findIndex(list_t *list, void *value) {
+  size_t currentIndex = list->currentIndex;
   for (size_t i = 0; i < list->length; i++) {
     if (list->current->value == value)
-      return (list->currentIndex + i) % list->length;
+      return (currentIndex + i) % list->length;
 
-    list_moveToIndex(list, (list->currentIndex + i + 1) % list->length);
+    list_moveToIndex(list, (currentIndex + i + 1) % list->length);
   }
 
   return -1;
