@@ -3,7 +3,12 @@
 
 #include <stdio.h>
 
-enum httpMethod{GET, PUT, POST, HEAD, OPTIONS, UNKNOWN};
+enum httpMethod { GET,
+                  PUT,
+                  POST,
+                  HEAD,
+                  OPTIONS,
+                  UNKNOWN };
 
 typedef struct {
   enum httpMethod method;
@@ -25,7 +30,6 @@ void addHeader(http_t *http, const char *key, const char *value);
 
 void freeHttp(http_t *http);
 
-enum httpMethod parseHttpMethod(char* method);
-
+enum httpMethod parseHttpMethod(char *method);
 
 #endif

@@ -8,7 +8,9 @@
 #include "../datastructures/list/list.h"
 #include "../string/string.h"
 
-enum parallelMode {PARALLEL_MODE_FORK, PARALLEL_MODE_PRE_FORK, PARALLEL_MODE_UNKNOWN};
+enum parallelMode { PARALLEL_MODE_FORK,
+                    PARALLEL_MODE_PRE_FORK,
+                    PARALLEL_MODE_UNKNOWN };
 
 typedef struct {
   string_t *name;

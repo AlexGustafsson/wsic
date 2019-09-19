@@ -1,8 +1,8 @@
 #ifndef WWW_H
 #define WWW_H
 
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "../datastructures/hash-table/hash-table.h"
 #include "../string/string.h"
