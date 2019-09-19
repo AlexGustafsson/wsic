@@ -1,8 +1,8 @@
 #ifndef STRING_H
 #define STRING_H
 
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 /**
 * Terminology:
@@ -51,7 +51,7 @@ void string_appendBufferWithLength(string_t *string, const char *buffer, size_t 
 // Append a char to a string
 void string_appendChar(string_t *string, char character);
 // Get the raw buffer of the string
-const char* string_getBuffer(string_t *string);
+const char *string_getBuffer(string_t *string);
 // Get the actual size of the string (content's length)
 size_t string_getSize(string_t *string);
 // Get the character at a certain position within the string. Returns 0 if out of bounds or not found
@@ -71,7 +71,7 @@ size_t string_getOffset(string_cursor_t *cursor);
 // Set the current offset in a cursor (trusted to be within bounds)
 void string_setOffset(string_cursor_t *cursor, size_t offset);
 // Compare a string to a buffer-based string
-bool string_equalsBuffer(string_t *string, const char* buffer);
+bool string_equalsBuffer(string_t *string, const char *buffer);
 // Compare a string to another
 bool string_equals(string_t *string, string_t *string2);
 // Free a string

@@ -19,7 +19,7 @@ void connection_setSourceAddress(connection_t *connection, string_t *sourceAddre
 void connection_setSourcePort(connection_t *connection, uint16_t sourcePort);
 
 string_t *connection_read(connection_t *connection, size_t bytes);
-size_t connection_write(connection_t *connection, const char* buffer, size_t bufferSize);
+size_t connection_write(connection_t *connection, const char *buffer, size_t bufferSize);
 
 void connection_free(connection_t *connection);
 
