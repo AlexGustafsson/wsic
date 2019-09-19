@@ -137,8 +137,8 @@ void freeUrl(url_t *url) {
     string_free(url->domain);
   if (url->path != 0)
     string_free(url->path);
-  for (size_t i = 0; i < hash_table_getLength(url->parameters); i++) {
-    string_t *key = hash_table_getKeyByIndex(url->parameters, i);
+  while (hash_table_getLength(url->parameters) > 0) {
+    string_t *key = hash_table_getKeyByIndex(url->parameters, 0);
     string_t *value = hash_table_removeValue(url->parameters, key);
     string_free(value);
   }

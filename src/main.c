@@ -103,9 +103,11 @@ int main(int argc, char const *argv[]) {
 
     connection_write(connection, string_getBuffer(header), string_getSize(header));
     page_t *page = page_create501();
-    connection_write(connection, string_getBuffer(page->source), string_getSize(page->source));
+    string_t *source = page_getSource(page);
+    connection_write(connection, string_getBuffer(source), string_getSize(page->source));
     page_free(page);
     closeConnection(connection);
+    string_free(request);
   }
 
   config_free(config);
