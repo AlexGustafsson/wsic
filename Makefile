@@ -23,6 +23,7 @@ TARGET_NAME := "wsic"
 DEBUG_TARGET_NAME := "wsic.debug"
 
 source := $(shell find src -type f -name "*.c" -not -path "src/resources/*") src/resources/resources.c
+headers := $(shell find src -type f -name "*.h" -not -path "src/resources/*") src/resources/resources.h
 objects := $(subst src,build,$(source:.c=.o))
 
 includeSource := $(shell find includes -type f -name "*.c")
@@ -98,7 +99,7 @@ compile_commands.json: Makefile
 
 # Format code according to .clang-format
 format: compile_commands.json
-	clang-format -i -style=file $(source)
+	clang-format -i -style=file $(source) $(headers)
 
 # Analyze code and produce a report using the llvm tool scan-build
 analyze: compile_commands.json
