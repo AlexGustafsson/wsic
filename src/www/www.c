@@ -15,17 +15,17 @@ page_t *page_create() {
   memset(page, 0, sizeof(page_t));
 
   page->templates = hash_table_create();
-  page_setTemplateBuffer(page, string_fromCopy("version"), (const char *)WSIC_VERSION);
+  page_setTemplate(page, string_fromCopy("version"), string_fromCopy((const char *)WSIC_VERSION));
 
   return page;
 }
 
-page_t *page_create400(const char *description) {
+page_t *page_create400(string_t *description) {
   page_t *page = page_create();
-  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
+  page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
-  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_400_HTML);
-  page_setTemplateBuffer(page, string_fromCopy("description"), description);
+  page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_400_HTML));
+  page_setTemplate(page, string_fromCopy("description"), description);
 
   page_resolveTemplates(page);
 
@@ -34,33 +34,33 @@ page_t *page_create400(const char *description) {
 
 page_t *page_create403() {
   page_t *page = page_create();
-  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
+  page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
-  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_403_HTML);
-
-  page_resolveTemplates(page);
-
-  return page;
-}
-
-page_t *page_create404(const char *path) {
-  page_t *page = page_create();
-  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
-
-  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_404_HTML);
-  page_setTemplateBuffer(page, string_fromCopy("path"), path);
+  page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_403_HTML));
 
   page_resolveTemplates(page);
 
   return page;
 }
 
-page_t *page_create500(const char *description) {
+page_t *page_create404(string_t *path) {
   page_t *page = page_create();
-  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
+  page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
-  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_500_HTML);
-  page_setTemplateBuffer(page, string_fromCopy("description"), (const char *)description);
+  page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_404_HTML));
+  page_setTemplate(page, string_fromCopy("path"), path);
+
+  page_resolveTemplates(page);
+
+  return page;
+}
+
+page_t *page_create500(string_t *description) {
+  page_t *page = page_create();
+  page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
+
+  page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_500_HTML));
+  page_setTemplate(page, string_fromCopy("description"), string_fromCopy((const char *)description));
 
   page_resolveTemplates(page);
 
@@ -69,20 +69,15 @@ page_t *page_create500(const char *description) {
 
 page_t *page_create501() {
   page_t *page = page_create();
-  page_setSourceBuffer(page, (const char *)RESOURCES_WWW_TEMPLATE_HTML);
+  page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
-  page_setTemplateBuffer(page, string_fromCopy("content"), (const char *)RESOURCES_WWW_501_HTML);
+  // TODO: It seems like the key is not properly freed here, neither is the value?
+  // The free loops only once through templates, should be at least twice?
+  page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_501_HTML));
 
   page_resolveTemplates(page);
 
   return page;
-}
-
-void page_setSourceBuffer(page_t *page, const char *source) {
-  if (page->source != 0)
-    string_free(page->source);
-
-  page->source = string_fromCopy(source);
 }
 
 void page_setSource(page_t *page, string_t *source) {
@@ -92,15 +87,12 @@ void page_setSource(page_t *page, string_t *source) {
   page->source = source;
 }
 
-void page_setTemplate(page_t *page, string_t *key, string_t *value) {
-  hash_table_setValue(page->templates, key, value);
+string_t *page_getSource(page_t *page) {
+  return page->source;
 }
 
-void page_setTemplateBuffer(page_t *page, string_t *key, const char *buffer) {
-  string_t *value = string_fromCopy(buffer);
-  if (value == 0)
-    return;
-  page_setTemplate(page, key, value);
+void page_setTemplate(page_t *page, string_t *key, string_t *value) {
+  hash_table_setValue(page->templates, key, value);
 }
 
 ssize_t page_resolveTemplate(page_t *page, size_t offset) {
@@ -126,7 +118,7 @@ ssize_t page_resolveTemplate(page_t *page, size_t offset) {
         // Append allowed letters [a-z]
         string_appendChar(templateKey, current);
       } else if (current != '}') {
-        // Reset the parsed template if a illegal character was found
+        // Reset the parsed template if an illegal character was found
         templateStart = -1;
         string_clear(templateKey);
       } else if (templateStart >= 0 && previous == '}' && current == '}') {
@@ -156,6 +148,7 @@ ssize_t page_resolveTemplate(page_t *page, size_t offset) {
 
         string_free(oldSource);
         string_freeCursor(sourceCursor);
+        string_free(templateKey);
         return templateStart;
       }
     }
@@ -163,6 +156,7 @@ ssize_t page_resolveTemplate(page_t *page, size_t offset) {
     previous = current;
   }
 
+  string_free(templateKey);
   string_freeCursor(sourceCursor);
   return -1;
 }
@@ -177,11 +171,13 @@ void page_resolveTemplates(page_t *page) {
 void page_free(page_t *page) {
   if (page->source != 0)
     string_free(page->source);
-  for (size_t i = 0; i < hash_table_getLength(page->templates); i++) {
-    string_t *key = hash_table_getKeyByIndex(page->templates, i);
+
+  while (hash_table_getLength(page->templates) > 0) {
+    string_t *key = hash_table_getKeyByIndex(page->templates, 0);
     string_t *value = hash_table_removeValue(page->templates, key);
     string_free(value);
   }
   hash_table_free(page->templates);
+
   free(page);
 }

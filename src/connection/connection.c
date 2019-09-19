@@ -46,7 +46,9 @@ string_t *connection_read(connection_t *connection, size_t bytes) {
   }
 
   log(LOG_DEBUG, "Successfully received request");
-  return string_fromCopyWithLength(buffer, bytesReceived);
+  string_t *request = string_fromCopyWithLength(buffer, bytesReceived);
+  free(buffer);
+  return request;
 }
 
 size_t connection_write(connection_t *connection, const char *buffer, size_t bufferSize) {
