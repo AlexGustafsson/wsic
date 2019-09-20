@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <poll.h>
+#include <sys/ioctl.h>
 
 #include "../logging/logging.h"
 
@@ -35,7 +36,7 @@ void connection_setSourcePort(connection_t *connection, uint16_t sourcePort) {
   connection->sourcePort = sourcePort;
 }
 
-string_t *connection_read(connection_t *connection, int timeout) {
+string_t *connection_read(connection_t *connection, int timeout, size_t maxBytes) {
   // Set up structures necessary for polling
   struct pollfd descriptors[1];
   memset(descriptors, 0, sizeof(struct pollfd));
@@ -55,36 +56,48 @@ string_t *connection_read(connection_t *connection, int timeout) {
   log(LOG_DEBUG, "Successfully waited for the data to be readable");
 
   string_t *message = string_create();
-  // Allocate some memory to start with for some speedup
-  string_setBufferSize(message, 1024);
 
   // Read the entire message
-  // TODO: Possible DoS attack here where we read the entirety of what is sent to us
-  // The client may send data indefinitely
   while (true) {
-    char character = 0;
-    ssize_t bytesReceived = read(connection->socketId, &character, 1);
-    if (bytesReceived == -1) {
-      // If the request to read one byte would block, we've read everything
-      int error = errno;
-      if (error == EAGAIN || error == EWOULDBLOCK) {
+    // Get the number of bytes immediately available for reading
+    int bytesAvailable = 0;
+    // TODO: Does not seem to work with GCC. Does with clang. Issue with latency?
+    // Perhaps poll again after reading - could solve issues when streaming
+    ioctl(connection->socketId, FIONREAD, &bytesAvailable);
+
+    log(LOG_DEBUG, "There are %d bytes available for reading", bytesAvailable);
+
+    if (bytesAvailable == 0) {
+      if (string_getSize(message) > 0) {
         log(LOG_DEBUG, "Successfully received request of %zu bytes", string_getSize(message));
         return message;
       } else {
-        log(LOG_ERROR, "Could not receive request from %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
+        log(LOG_ERROR, "There are no bytes available for read");
         string_free(message);
+        return 0;
       }
+    } else if (bytesAvailable < 0) {
+      log(LOG_ERROR, "Failed to get number of available bytes");
+      string_free(message);
+      return 0;
+    } else if (string_getSize(message) + (size_t)bytesAvailable > maxBytes) {
+      log(LOG_ERROR, "Too many bytes to read");
+      string_free(message);
+      return 0;
+    }
+
+    char *buffer = malloc(sizeof(char) * bytesAvailable);
+    ssize_t bytesReceived = read(connection->socketId, buffer, bytesAvailable);
+    if (bytesReceived == -1) {
+      log(LOG_ERROR, "Could not receive request from %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
+      string_free(message);
+      return 0;
     } else if (bytesReceived == 0) {
       log(LOG_DEBUG, "Successfully received request of %zu bytes", string_getSize(message));
       return message;
     }
 
-    string_appendChar(message, character);
-    log(LOG_DEBUG, "%c = %d", character, (int)character);
-    if (character == 0) {
-      log(LOG_DEBUG, "Successfully received request of %zu bytes", string_getSize(message));
-      return message;
-    }
+    string_appendBufferWithLength(message, buffer, bytesReceived);
   }
 }
 

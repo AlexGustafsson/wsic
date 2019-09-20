@@ -199,10 +199,8 @@ int server_acceptConnections() {
 }
 
 void server_handleConnection(connection_t *connection) {
-  // TODO: Don't allow for DOS? Perhaps don't read at all,
-  // let worker handle it - enables timeout of process and everything!
   // Read a request (wait for maximum of one second)
-  string_t *request = connection_read(connection, 1000);
+  string_t *request = connection_read(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_SIZE);
   if (request == 0) {
     log(LOG_ERROR, "Could not get request from connection");
     server_closeConnection(connection);
@@ -237,9 +235,9 @@ void server_handleConnection(connection_t *connection) {
   // NOTE: Not necessary, but for debugging it's nice to know
   // that the process is actually exiting (not kept forever)
   // since we don't currently kill spawned processes
-  log(LOG_DEBUG, "Waiting for process to exit");
+  /*log(LOG_DEBUG, "Waiting for process to exit");
   uint8_t exitCode = cgi_waitForExit(process);
-  log(LOG_DEBUG, "Process exited with status %d", exitCode);
+  log(LOG_DEBUG, "Process exited with status %d", exitCode);*/
 
   cgi_freeProcess(process);
   server_closeConnection(connection);

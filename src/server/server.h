@@ -16,7 +16,10 @@
        protocol can be specified as 0
 */
 #define PROTOCOL 0
-#define REQUEST_BUFFER_SIZE 1024
+// Don't allow requests larger than 1 MB
+#define REQUEST_MAX_SIZE 1048576
+// Don't allow connections to wait for more than one second without sending data when reading
+#define REQUEST_READ_TIMEOUT 1000
 
 pid_t server_createInstance(set_t *ports);
 // Main entrypoint for a server instance
