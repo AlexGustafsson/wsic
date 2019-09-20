@@ -24,10 +24,17 @@ function testFunctionUse {
 testFunctionUse "strcpy"
 testFunctionUse "strcat"
 testFunctionUse "sprintf"
+testFunctionUse "snprintf"
+testFunctionUse "vsprintf"
 testFunctionUse "gets"
-testFunctionUse "strtok"
+testFunctionUse "makepath"
+testFunctionUse "_splitpath"
 testFunctionUse "scanf"
+testFunctionUse "sscanf"
+testFunctionUse "snscanf"
+testFunctionUse "strtok"
 testFunctionUse "itoa"
+testFunctionUse "strncpy"
 
 if [[ "$testFailed" = "true" ]]; then
   echo -e "\e[31mTest failed\e[0m"
