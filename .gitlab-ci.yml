@@ -46,4 +46,3 @@ benchmark:
 insecure:
   stage: test
   script: ./ci/insecure.sh ./src
-  allow_failure: true
