@@ -22,23 +22,29 @@ INCLUDES := -Ibuild -Iincludes
 TARGET_NAME := "wsic"
 DEBUG_TARGET_NAME := "wsic.debug"
 
+# Source code
 source := $(shell find src -type f -name "*.c" -not -path "src/resources/*") src/resources/resources.c
 headers := $(shell find src -type f -name "*.h" -not -path "src/resources/*") src/resources/resources.h
 objects := $(subst src,build,$(source:.c=.o))
+# Third party includes
+buildIncludes := build/includes/tomlc99/toml.o
 
-includeSource := $(shell find includes -type f -name "*.c")
-includeObjects := $(subst includes,build/includes,$(includeSource:.c=.o))
+# Test code
+testSource := $(shell find test -type f -name "*.c")
+testHeaders := $(shell find test -type f -name "*.h")
+testObjects := build/test/main.o
+testIncludes := build/includes/unity/unity.o
+
+filesToFormat := $(source) $(sourceHeaders) $(testSource) $(testHeaders)
 
 # Resources as defined in their source form (be it html, toml etc.)
 resources := $(shell find src/resources -type f -not -name "*.c" -not -name "*.h")
-# Generated source code (c) files for resources
+# Generated files for resources
 resourceSources := $(subst src,build,$(resources:=.c))
-# Generated header files for resources
-resourceHeaders:= $(subst src,build,$(resources:=.h))
-# Compiled resource objects
-resourceObjects:= $(subst src,build,$(resources:=.o))
+resourceHeaders := $(subst src,build,$(resources:=.h))
+resourceObjects := $(subst src,build,$(resources:=.o))
 
-.PHONY: build clean debug directories
+.PHONY: build clean debug test
 
 # Build wsic, default action
 build: build/$(TARGET_NAME)
@@ -49,17 +55,26 @@ debug: TARGET_NAME = $(DEBUG_TARGET_NAME)
 debug: CC = clang
 debug: build/$(TARGET_NAME)
 
+# Build wsic with all tests
+test: source := $(filter-out src/main.c, $(source))
+test: objects := $(filter-out build/main.o, $(objects))
+test: build/wsic.test
+
 # Executable linking
-build/$(TARGET_NAME): $(includeObjects) $(resourceObjects) $(objects)
-	$(CC) $(INCLUDES) $(BUILD_FLAGS) -o build/$(TARGET_NAME) $(objects) $(resourceObjects) $(includeObjects) $(LINKER_FLAGS)
+build/$(TARGET_NAME): $(buildIncludes) $(resourceObjects) $(objects)
+	$(CC) $(INCLUDES) $(BUILD_FLAGS) -o build/$(TARGET_NAME) $(buildIncludes) $(resourceObjects) $(objects) $(LINKER_FLAGS)
 
 # Source compilation
 $(objects): build/%.o: src/%.c src/%.h
 	mkdir -p $(dir $@)
 	$(CC) $(INCLUDES) $(BUILD_FLAGS) -c $< -o $@
 
-# Includes compilation
-$(includeObjects): build/includes/%.o: includes/%.c includes/%.h
+# Test linking
+build/wsic.test: $(buildIncludes) $(testIncludes) $(resourceObjects) $(objects) $(testObjects)
+	$(CC) $(INCLUDES) $(BUILD_FLAGS) -o $@ $(buildIncludes) $(testIncludes) $(resourceObjects) $(objects) $(testObjects) $(LINKER_FLAGS)
+
+# Test compilation
+$(testObjects): build/test/%.o: test/%.c
 	mkdir -p $(dir $@)
 	$(CC) $(INCLUDES) $(BUILD_FLAGS) -c $< -o $@
 
@@ -92,6 +107,16 @@ $(resourceHeaders): build/%.h: build/%.c
 $(resourceObjects): build/%.o: build/%.c build/%.h
 	$(CC) $(INCLUDES) $(BUILD_FLAGS) -c $< -o $@
 
+# Compile tomlc99
+build/includes/tomlc99/toml.o: includes/tomlc99/toml.c
+	mkdir -p $(dir $@)
+	$(CC) -O2 -c $< -o $@
+
+# Compile unity test framework
+build/includes/unity/unity.o: includes/unity/unity.c
+	mkdir -p $(dir $@)
+	$(CC) -O2 -c $< -o $@
+
 # Create the compilation database for llvm tools
 compile_commands.json: Makefile
 	# compiledb is installed using: pip install compiledb
@@ -99,7 +124,7 @@ compile_commands.json: Makefile
 
 # Format code according to .clang-format
 format: compile_commands.json
-	clang-format -i -style=file $(source) $(headers)
+	clang-format -i -style=file $(filesToFormat)
 
 # Analyze code and produce a report using the llvm tool scan-build
 analyze: compile_commands.json

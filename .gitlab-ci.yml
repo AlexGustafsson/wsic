@@ -35,6 +35,13 @@ debug build:
     paths:
       - build/wsic.debug
 
+test build:
+  stage: build
+  script: make clean test
+  artifacts:
+    paths:
+      - build/wsic.test
+
 benchmark:
   stage: test
   script: ./ci/benchmark/benchmark.sh ./build/wsic.debug
@@ -44,4 +51,14 @@ benchmark:
     paths:
       - build/reports/benchmark/*/plot.png
       - build/reports/benchmark/*/report.txt
+    when: always
+
+test:
+  stage: test
+  script: ./ci/test.sh ./build/wsic.test
+  dependencies:
+    - test build
+  artifacts:
+    paths:
+      - build/reports/test
     when: always
