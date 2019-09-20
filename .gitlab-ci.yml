@@ -1,15 +1,15 @@
 image: registry.axgn.se/wsic/ci-image
 stages:
-  - staticAnalysis
+  - static analysis
   - build
   - test
 
 lint:
-  stage: staticAnalysis
+  stage: static analysis
   script: make lint
 
 analyze:
-  stage: staticAnalysis
+  stage: static analysis
   script: make clean analyze
   allow_failure: true
   artifacts:
@@ -17,9 +17,9 @@ analyze:
       - build/reports/static-analysis
     when: always
 
-insecure:
-  stage: staticAnalysis
-  script: ./ci/insecure.sh ./src
+check insecure code:
+  stage: static analysis
+  script: ./ci/check-insecure-code.sh ./src
 
 build:
   stage: build
@@ -28,7 +28,7 @@ build:
     paths:
     - build/wsic
 
-debugBuild:
+debug build:
   stage: build
   script: make clean debug
   artifacts:
@@ -39,7 +39,7 @@ benchmark:
   stage: test
   script: ./ci/benchmark/benchmark.sh ./build/wsic.debug
   dependencies:
-    - debugBuild
+    - debug build
   artifacts:
     paths:
       - build/reports/benchmark/*/plot.png
