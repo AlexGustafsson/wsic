@@ -7,7 +7,6 @@ stages:
 lint:
   stage: staticAnalysis
   script: make lint
-  allow_failure: true
 
 analyze:
   stage: staticAnalysis
