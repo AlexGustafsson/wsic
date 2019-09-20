@@ -32,7 +32,6 @@ buildIncludes := build/includes/tomlc99/toml.o
 # Test code
 testSource := $(shell find test -type f -name "*.c")
 testHeaders := $(shell find test -type f -name "*.h")
-testObjects := build/test/main.o
 testIncludes := build/includes/unity/unity.o
 
 filesToFormat := $(source) $(sourceHeaders) $(testSource) $(testHeaders)
@@ -70,13 +69,13 @@ $(objects): build/%.o: src/%.c src/%.h
 	$(CC) $(INCLUDES) $(BUILD_FLAGS) -c $< -o $@
 
 # Test linking
-build/wsic.test: $(buildIncludes) $(testIncludes) $(resourceObjects) $(objects) $(testObjects)
-	$(CC) $(INCLUDES) $(BUILD_FLAGS) -o $@ $(buildIncludes) $(testIncludes) $(resourceObjects) $(objects) $(testObjects) $(LINKER_FLAGS)
+build/wsic.test: $(buildIncludes) $(testIncludes) $(resourceObjects) $(objects) build/test/main.o $(testSource)
+	$(CC) $(INCLUDES) $(BUILD_FLAGS) -o $@ $(buildIncludes) $(testIncludes) $(resourceObjects) $(objects) build/test/main.o $(LINKER_FLAGS)
 
 # Test compilation
-$(testObjects): build/test/%.o: test/%.c
+build/test/main.o: $(testSource)
 	mkdir -p $(dir $@)
-	$(CC) $(INCLUDES) $(BUILD_FLAGS) -c $< -o $@
+	$(CC) $(INCLUDES) $(BUILD_FLAGS) -c test/main.c -o $@
 
 # Turn resources into c files
 $(resourceSources): build/%.c: src/%
