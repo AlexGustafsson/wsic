@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "../url/url.h"
 #include "../string/string.h"
 #include "../datastructures/hash-table/hash-table.h"
 
@@ -25,6 +26,7 @@ typedef struct {
   string_t *responseCodeText;
   hash_table_t *headers;
   string_t *body;
+  url_t *url;
 } http_t;
 
 http_t *http_create();

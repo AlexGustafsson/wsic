@@ -7,9 +7,9 @@
 #include "http.h"
 
 // Forward declaration of functions (For internal use Only)
-bool parseRequestLine(http_t *http, string_t *string);
-bool parseHeader(http_t *http, string_t *string);
-void parseBody(http_t *http, string_t *string, size_t offset);
+bool http_parseRequestLine(http_t *http, string_t *string);
+bool http_parseHeader(http_t *http, string_t *string);
+void http_parseBody(http_t *http, string_t *string, size_t offset);
 
 http_t *http_create() {
   http_t *http = malloc(sizeof(http_t));
@@ -88,7 +88,7 @@ string_t *http_ToString(http_t *http) {
 
   // End of headers
   string_appendBuffer(result, "\r\n");
-
+  // Append body to result
   string_append(result, http->body);
   // End of body
   string_appendBuffer(result, "\r\n\r\n");
@@ -110,7 +110,7 @@ http_t *http_parseRequest(string_t *request) {
     return 0;
   }
   // Parse the first line in the request (METHOD, PATH, VERSION)
-  correctlyParsed = parseRequestLine(http, line);
+  correctlyParsed = http_parseRequestLine(http, line);
   // Check if the parse was successfull
   if (correctlyParsed == false) {
     log(LOG_ERROR, "Could not parse request");
@@ -126,7 +126,7 @@ http_t *http_parseRequest(string_t *request) {
     }
 
     // Parse headers
-    correctlyParsed = parseHeader(http, line);
+    correctlyParsed = http_parseHeader(http, line);
     if (correctlyParsed == false) {
       log(LOG_ERROR, "Could not parse request");
       return 0;
@@ -135,14 +135,106 @@ http_t *http_parseRequest(string_t *request) {
   }
 
   // Parse body if there is one
-  parseBody(http, request, string_getOffset(cursor));
-  log(LOG_DEBUG, "%s", string_getBuffer(http->body));
-
+  http_parseBody(http, request, string_getOffset(cursor));
   string_freeCursor(cursor);
+
+
+  // http://level1.level2.axgn.se/index/test.html?page=120&test=5
+
+  // GET /index/test.html?page=120&test=5 HTTP/1.1
+  // Host: level1.level2.axgn.se
+  // Host: level1.level2.axgn.se:8080
+  // Upgrade-Insecure-Requests: 1
+  // Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+  // User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1.2 Safari/605.1.15
+  // Accept-Language: sv-se
+  // Accept-Encoding: gzip, deflate
+  // Connection: keep-alive
+
+  // SET URL
+  http->url = url_create();
+  if (http->url == 0) {
+    log(LOG_ERROR, "Could not inizialise https url struct");
+    http_free(http);
+    return 0;
+  }
+
+  url_setProtocol(http->url, string_fromCopy("http"));
+
+  string_cursor_t *requestCursor = string_createCursor(http->requestTarget);
+  ssize_t offset = string_findNextChar(requestCursor, '?');
+  string_t *path = string_create();
+  string_t *key = string_create();
+  string_t *value = string_create();
+  ssize_t oldOffset = 0;
+
+  if (offset == -1) {
+    path = string_substring(http->requestTarget, 0, string_getSize(http->requestTarget));
+    url_setPath(http->url, path);
+  } else {
+    path = string_substring(http->requestTarget, 0, offset);
+    url_setPath(http->url, path);
+  }
+
+  while (offset != -1) {
+    oldOffset = offset + 1;
+    offset = string_findNextChar(requestCursor, '=');
+    if (offset == -1) { break; }
+    key = string_substring(http->requestTarget, oldOffset, offset);
+
+    oldOffset = offset + 1;
+    offset = string_findNextChar(requestCursor, '&');
+    if (offset == -1) {
+      value = string_substring(http->requestTarget, oldOffset, string_getSize(http->requestTarget));
+      url_setParameter(http->url, key, value);
+      break;
+    }
+    value = string_substring(http->requestTarget, oldOffset, offset);
+
+    url_setParameter(http->url, key, value);
+  }
+
+  string_t *keyHost = string_fromCopy("Host");
+  string_t *host = hash_table_getValue(http->headers, keyHost);
+  if (host == 0) {
+    log(LOG_ERROR, "Can not parse. Host key was not set");
+    http_free(http);
+    return 0;
+  }
+
+  string_cursor_t *hostCursor = string_createCursor(host);
+  ssize_t parameter = string_findNextChar(hostCursor, ':');
+  string_t *domainName = string_create();
+
+  if (parameter == -1) {
+    url_setPort(http->url, 80);
+    url_setDomainName(http->url, host);
+  } else {
+    // plus one to skip colon
+    string_t *portString = string_substring(host, parameter + 1, string_getSize(host));
+    int port = atoi(string_getBuffer(portString));
+    if (port < 0 || port > 1<<16) {
+      log(LOG_DEBUG, "The port in request was to large");
+      return 0;
+    }
+    url_setPort(http->url, port);
+    domainName = string_substring(host, 0, parameter);
+    url_setDomainName(http->url, domainName);
+  }
+
+  // från key:HOST ska jag hämta hem SUBDOMAIN; DOMAIN; PORT
+  //url_setDomain(url, );
+  //url_setPort(url, );
+
+  // ssize_t offset = string_findNextChar(requestCursor, ':');
+  // if (offset == -1) {
+  //    string_substring(http->port, 0, offset);
+  // }
+
   return http;
 }
 
-bool parseRequestLine(http_t *http, string_t *string) {
+bool http_parseRequestLine(http_t *http, string_t *string) {
   char current = 0;
   string_t *tempString = string_create();
   string_cursor_t *cursor = string_createCursor(string);
@@ -194,7 +286,7 @@ bool parseRequestLine(http_t *http, string_t *string) {
   return true;
 }
 
-bool parseHeader(http_t *http, string_t *string) {
+bool http_parseHeader(http_t *http, string_t *string) {
   string_cursor_t *cursor = string_createCursor(string);
   ssize_t offset = string_findNextChar(cursor, ':');
 
@@ -219,14 +311,13 @@ bool parseHeader(http_t *http, string_t *string) {
   // + 2 to skip the space
   // - 1 because arrays are starting at index zero; string length = amount of chars in string
   value = string_substring(string, offset + 2, stringLength);
-  log(LOG_DEBUG, "%s: %s", string_getBuffer(key), string_getBuffer(value));
   http_setHeader(http, key, value);
 
   string_freeCursor(cursor);
   return true;
 }
 
-void parseBody(http_t *http, string_t *string, size_t offset) {
+void http_parseBody(http_t *http, string_t *string, size_t offset) {
   // After headers is added we put everything that is left in the request into the body variable
   http->body = string_substring(string, offset, string_getSize(string));
 }
@@ -255,8 +346,8 @@ void http_free(http_t *http) {
   if (http->responseCodeText != 0)
     string_free(http->responseCodeText);
 
-  for (size_t i = 0; i < hash_table_getLength(http->headers); i++) {
-    string_t *key = hash_table_getKeyByIndex(http->headers, i);
+  while (hash_table_getLength(http->headers) > 0) {
+    string_t *key = hash_table_getKeyByIndex(http->headers, 0);
     string_t *value = hash_table_removeValue(http->headers, key);
     string_free(value);
   }

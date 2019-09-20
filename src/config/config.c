@@ -78,8 +78,8 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
 
   if (toml_raw_in(serverTable, "port") != 0) {
     int64_t port = config_parseInt(serverTable, "port");
-    if (port > 1 << 16)
-      log(LOG_ERROR, "The port in config for server '%s' was too large", string_getBuffer(config->name));
+    if (port < 0 || port > 1 << 16)
+      log(LOG_ERROR, "The port in config for server '%s' was unexpected", string_getBuffer(config->name));
     else
       config->port = port;
   }

@@ -26,13 +26,8 @@ string_t *url_toString(url_t *url) {
     string_appendBuffer(result, "://");
   }
 
-  if (url->subdomain != 0) {
-    string_append(result, url->subdomain);
-    string_appendChar(result, '.');
-  }
-
-  if (url->domain != 0)
-    string_append(result, url->domain);
+  if (url->domainName != 0)
+    string_append(result, url->domainName);
 
   if (url->port != 0 && url->port != 80) {
     string_t *port = string_fromInt(url->port);
@@ -79,22 +74,15 @@ string_t *url_getProtocol(url_t *url) {
   return url->protocol;
 }
 
-void url_setSubdomain(url_t *url, string_t *subdomain) {
-  if (url->subdomain != 0)
-    string_free(url->subdomain);
+void url_setDomainName(url_t *url, string_t *domainName) {
+  if (url->domainName != 0)
+    string_free(url->domainName);
 
-  url->subdomain = subdomain;
+  url->domainName = domainName;
 }
 
-void url_setDomain(url_t *url, string_t *domain) {
-  if (url->domain != 0)
-    string_free(url->domain);
-
-  url->domain = domain;
-}
-
-string_t *url_getDomain(url_t *url) {
-  return url->domain;
+string_t *url_getDomainName(url_t *url) {
+  return url->domainName;
 }
 
 void url_setPort(url_t *url, uint16_t port) {
@@ -134,10 +122,8 @@ string_t *url_getFragment(url_t *url) {
 void url_free(url_t *url) {
   if (url->protocol != 0)
     string_free(url->protocol);
-  if (url->subdomain != 0)
-    string_free(url->subdomain);
-  if (url->domain != 0)
-    string_free(url->domain);
+  if (url->domainName != 0)
+    string_free(url->domainName);
   if (url->path != 0)
     string_free(url->path);
   while (hash_table_getLength(url->parameters) > 0) {
