@@ -18,6 +18,10 @@ analyze:
       - build/reports/static-analysis
     when: always
 
+insecure:
+  stage: staticAnalysis
+  script: ./ci/insecure.sh ./src
+
 build:
   stage: build
   script: make clean build
@@ -42,7 +46,3 @@ benchmark:
       - build/reports/benchmark/*/plot.png
       - build/reports/benchmark/*/report.txt
     when: always
-
-insecure:
-  stage: test
-  script: ./ci/insecure.sh ./src
