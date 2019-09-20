@@ -58,6 +58,8 @@ size_t string_getSize(string_t *string);
 char string_getCharAt(string_t *string, size_t index);
 // Set the character at a certain position. Not guaranteed to set the character if out of bounds
 void string_setCharAt(string_t *string, size_t index, char character);
+// Removes whitespace at the end of a string
+void string_trimEnd(string_t *string);
 // Get a substring of a string with inclusive first index and exclusive last index
 string_t *string_substring(string_t *string, size_t firstIndex, size_t lastIndex);
 // Get the next character in a cursor

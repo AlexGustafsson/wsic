@@ -199,6 +199,39 @@ int server_acceptConnections() {
 }
 
 void server_handleConnection(connection_t *connection) {
+  string_t *header = string_create();
+  string_t *line = 0;
+  while (true) {
+    line = connection_readLine(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_SIZE);
+    if (line == 0 || string_getSize(line) == 0)
+      break;
+    string_append(header, line);
+    string_free(line);
+    line = 0;
+  }
+
+  if (string_getSize(header) == 0) {
+    log(LOG_ERROR, "Didn't receive a header from the request");
+    string_free(header);
+    server_closeConnection(connection);
+    return;
+  }
+
+  // TODO: Parse HTTP headers here
+  log(LOG_DEBUG, "Got headers:\n%s", string_getBuffer(header));
+
+  // TODO: If the headers specify a body, read it here
+
+  // TODO: If the headers specify an "Expect: " then we need to respond
+  // (sockets are bidirectional and will stay open for a while)
+
+  // Try with:
+  // dd if=/dev/urandom of=test.dat bs=1M count=1
+  // curl -v -X POST -d @test.dat localhost:3000
+
+  server_closeConnection(connection);
+  return;
+
   // Read a request (wait for maximum of one second)
   string_t *request = connection_read(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_SIZE);
   if (request == 0) {
