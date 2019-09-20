@@ -40,7 +40,8 @@ benchmark:
     - debugBuild
   artifacts:
     paths:
-      - build/reports/benchmark
+      - build/reports/benchmark/*/plot.png
+      - build/reports/benchmark/*/report.txt
     when: always
 
 insecure:
