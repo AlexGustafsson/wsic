@@ -103,7 +103,7 @@ format: compile_commands.json
 
 # Analyze code and produce a report using the llvm tool scan-build
 analyze: compile_commands.json
-	scan-build --keep-going -o build/reports/static-analysis make
+	scan-build --force-analyze-debug-code --keep-going -o build/reports/static-analysis make
 
 # Lint the code according to .clang-format
 lint: compile_commands.json
