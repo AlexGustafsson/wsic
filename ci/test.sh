@@ -15,9 +15,9 @@ mkdir -p build/reports/test
 $wsic &> build/reports/test/report.txt
 
 # Generate coverage report
-fastcov --include src/ --lcov -o build/reports/test/coverage.info > /dev/null 2>&1
+fastcov --include src/ --lcov -o build/reports/test/coverage.info
 fastcovExitCode="$?"
-genhtml build/reports/test/coverage.info -o build/reports/test > /dev/null 2>&1
+genhtml build/reports/test/coverage.info -o build/reports/test
 genhtmlExitCode="$?"
 
 # Output the results with appropriate colors
