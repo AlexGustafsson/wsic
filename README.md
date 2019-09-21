@@ -1,63 +1,121 @@
+<div align="center">
+  <img src=".gitlab/logo.png">
+</div>
+<div align="center">
+  <a href="https://gitlab.axgn.se/wsic/wsic/commits/development">
+    <img alt="pipeline status" src="https://gitlab.axgn.se/wsic/wsic/badges/development/pipeline.svg" />
+  </a>
+  <a href="https://gitlab.axgn.se/wsic/wsic/commits/development">
+    <img alt="coverage report" src="https://gitlab.axgn.se/wsic/wsic/badges/development/coverage.svg" /></a>
+  <br>
+  <strong>[Quick Start](#quick-start) | [Contribute](#contributing) </strong>
+</div>
+
 # A Web Server written in C
 ### An efficient web server written in C for the course DV1457 at BTH, Sweden
 ***
 
-### Setting up
+## Quick Start
 
-##### Installing from prebuilt binaries
-
-TODO.
-
-##### Running using Docker
+#### Running using Docker
 
 **Use the published image**
 
-```
+Make sure you meet the following prerequisites:
+* `docker` is installed locally or configured to use another server
+* You're authorized to pull from registry.axgn.se
+
+```Bash
 docker login registry.axgn.se
 docker run -it -p8080:8080 registry.axgn.se/wsic/wsic
 ```
 
 **Build and run image**
 
-```
-make docker
+Make sure you meet the following prerequisites:
+* `docker` is installed locally or configured to use another server
+
+```Bash
+# Clone the repository (or download it)
+git clone ssh://git@git.axgn.se:2222/wsic/wsic.git
+
+# Build the wsic docker image
+cd wsic && make docker
+
+# Run on port 8080
 docker run -it -p8080:8080 wsic/wsic
 ```
 
+##### Installing from prebuilt binaries
+
+You can download the latest build build [here](https://gitlab.axgn.se/wsic/wsic/builds/artifacts/development/download?job=build). Note however that this is a development build and will only run on an amd64 architecture on Ubuntu.  
+
 ##### Installing from source
 
-TODO.
+Make sure you meet the following prerequisites:
+* `$CC` refers to `gcc` 9 (`brew install gcc` on macOS) or `clang` 7
+* `xxd` is installed (default on many distributions)
+* `gnu sed` is installed and available as `sed` (default on many distributions, `brew install gnu-sed` on macOS)
 
-##### Quickstart
+_NOTE: for instructions on how to install all the prerequisites on Ubuntu, refer to the CI image used by WSIC over at https://gitlab.axgn.se/wsic/ci-image (see `Dockerfile`)._
 
-TODO.
+```Bash
+# Clone the repository (or download it)
+git clone ssh://git@git.axgn.se:2222/wsic/wsic.git
 
-### Documentation
+# Build wsic
+cd wsic && make
+
+# Run
+./build/wsic
+```
+
+## Documentation
 
 The documentation is currently a bit sparse. For more information, refer to the source, tests and issues.
 
-### Contributing
+## Contributing
 
 Any contribution is welcome. If you're not able to code it yourself, perhaps someone else is - so post an issue if there's anything on your mind.
 
 ##### Development
 
-Clone the repository:
-```Bash
-git clone https://github.com/AlexGustafsson/wsic.git && cd wsic
-```
+Make sure you meet the following prerequisites:
+* `$CC` refers to `gcc` 9 (`brew install gcc` on macOS) or `clang` 7
+* `xxd` is installed (default on many distributions)
+* `gnu sed` is installed and available as `sed` (default on many distributions, `brew install gnu-sed` on macOS)
+* `clang` 7 is installed
+* `gcov` refers to version 9 which comes with `gcc`
+* `lcov` is installed (`brew install lcov` on macOS)
+* `fastcov` is installed (`pip3 install fastcov`)
+* `scan-build` refers to version 7 which comes with `clang`
+* `clang-format` refers to version 7 which comes with `clang`
+
+_NOTE: for instructions on how to install all the prerequisites on Ubuntu, refer to the CI image used by WSIC over at https://gitlab.axgn.se/wsic/ci-image (see `Dockerfile`)._
 
 ```Bash
+# Clone the repository
+git clone ssh://git@git.axgn.se:2222/wsic/wsic.git && cd wsic
+
 # Lint
 make lint
+
 # Perform static analysis
 make analyze
+# The report is now available in build/reports/static-analysis
+
 # Format the code
 make format
+
 # Build and run a debugging build (memory analyzer and GDB debugging enabled)
 make debug && ASAN_OPTIONS=detect_leaks=1 ./build/wsic.debug
+
 # Build and run a release build
 make build && ./build
+
+# Build a test build and run unit tests
+make test && ./ci/test.sh
+# Coverage report is now available in build/reports/test
 ```
 
 ##### Git branching conventions
