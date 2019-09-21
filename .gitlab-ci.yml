@@ -41,6 +41,8 @@ test build:
   artifacts:
     paths:
       - build/wsic.test
+      - build/*/*.gcno
+      - build/*/*/*.gcno
 
 benchmark:
   stage: test
@@ -62,3 +64,4 @@ test:
     paths:
       - build/reports/test
     when: always
+  coverage: '/Line coverage: (.*)/'
