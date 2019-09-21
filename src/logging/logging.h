@@ -74,9 +74,9 @@
 
 extern uint8_t LOGGING_OUTPUT;
 
-// Automatically start logging
-__attribute__((constructor)) void logging_startSyslog();
-// Automatically deconstruct logging
-__attribute__((destructor)) void logging_stopSyslog();
+// Start logging (should always be called from the main process as soon as possible)
+void logging_startSyslog();
+// Deconstruct logging (not necessarily needed to be called, but should be as late as possible)
+void logging_stopSyslog();
 
 #endif

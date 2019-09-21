@@ -26,6 +26,7 @@ int main(int argc, char const *argv[]) {
   if (geteuid() == 0)
     log(LOG_WARNING, "Running as root. I hope you know what you're doing.");
 
+  logging_startSyslog();
   config_t *config = config_parse((char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
   server_config_t *defaultServerConfig = config_getServerConfig(config, 0);
 
@@ -127,6 +128,7 @@ int main(int argc, char const *argv[]) {
   }
 
   config_free(config);
+  logging_stopSyslog();
   return 0;
 }
 
