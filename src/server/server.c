@@ -199,10 +199,11 @@ int server_acceptConnections() {
 }
 
 void server_handleConnection(connection_t *connection) {
+  // TODO: Parse each line of the header. If something fails, close the connection
   string_t *header = string_create();
   string_t *line = 0;
   while (true) {
-    line = connection_readLine(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_SIZE);
+    line = connection_readLine(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_SIZE - string_getSize(header));
     if (line == 0 || string_getSize(line) == 0)
       break;
     string_append(header, line);
@@ -220,7 +221,8 @@ void server_handleConnection(connection_t *connection) {
   // TODO: Parse HTTP headers here
   log(LOG_DEBUG, "Got headers:\n%s", string_getBuffer(header));
 
-  // TODO: If the headers specify a body, read it here
+  // TODO: If the headers specify a body, read it here,
+  // but fail if there's more than REQUEST_MAX_SIZE - string_getSize(header) bytes to read
 
   // TODO: If the headers specify an "Expect: " then we need to respond
   // (sockets are bidirectional and will stay open for a while)
