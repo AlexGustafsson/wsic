@@ -1,11 +1,13 @@
 #include "unity/unity.h"
 
 #include "list-test.c"
+#include "string-test.c"
 
 int main() {
-    UNITY_BEGIN();
+  UNITY_BEGIN();
 
-    list_test_run();
+  list_test_run();
+  string_test_run();
 
-    return UNITY_END();
+  return UNITY_END();
 }
