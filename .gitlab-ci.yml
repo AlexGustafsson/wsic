@@ -41,6 +41,8 @@ test build:
   artifacts:
     paths:
       - build/wsic.test
+      - build/*/*.gcno
+      - build/*/*/*.gcno
 
 benchmark:
   stage: test
