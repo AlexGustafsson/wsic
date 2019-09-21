@@ -42,6 +42,9 @@ string_t *url_toString(url_t *url) {
     string_free(port);
   }
 
+  if (url->path != 0)
+    string_append(result, url->path);
+
   size_t parameters = hash_table_getLength(url->parameters);
   if (parameters > 0)
     string_appendChar(result, '?');
@@ -128,7 +131,7 @@ string_t *url_getFragment(url_t *url) {
   return url->fragment;
 }
 
-void freeUrl(url_t *url) {
+void url_free(url_t *url) {
   if (url->protocol != 0)
     string_free(url->protocol);
   if (url->subdomain != 0)
