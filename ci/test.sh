@@ -14,6 +14,10 @@ mkdir -p build/reports/test
 # Run tests and save the result
 $wsic &> build/reports/test/report.txt
 
+# Generate coverage report
+fastcov --include src/ --lcov -o build/reports/test/coverage.info > /dev/null 2>&1
+genhtml build/reports/test/coverage.info -o build/reports/test > /dev/null 2>&1
+
 # Output the results with appropriate colors
 echo -e "$(sed -e 's/^\(.*:PASS\)/\\e[32m\1\\e[0m/' -e 's/^\(.*:FAIL\)/\\e[31m\1\\e[0m/' -e 's/^\(.*:IGNORE\)/\\e[33m\1\\e[0m/' build/reports/test/report.txt)"
 
@@ -23,6 +27,13 @@ tests=$(echo "$summary" | awk '{print $1}')
 failures=$(echo "$summary" | awk '{print $2}')
 ignored=$(echo "$summary" | awk '{print $3}')
 
+# Extract coverage
+coverage="$(cat build/reports/test/index.html | tr -d '\n' | grep -o -e '<td class="headerCovTableEntryLo">[0-9]\{1,\}\.\{0,1\}[0-9]\{0,\} %</td>'  | sed -e 's/.*>\(.*\)<.*/\1/' | tr -d ' ' | tr '\n' ' ')"
+lineCoverage="$(echo "$coverage" | awk '{print $1}')"
+functionCoverage="$(echo "$coverage" | awk '{print $2}')"
+
+echo "Line coverage: $lineCoverage"
+echo "Function coverage: $functionCoverage"
 if [[ $failures -gt 0 ]]; then
   echo -e "\e[31m$failures tests out of $tests failed ($ignored ignored)\e[0m"
   exit 1

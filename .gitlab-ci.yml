@@ -62,3 +62,4 @@ test:
     paths:
       - build/reports/test
     when: always
+  coverage: '/Line coverage: (.*)/'

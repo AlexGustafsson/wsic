@@ -57,6 +57,7 @@ debug: build/$(TARGET_NAME)
 # Build wsic with all tests
 test: source := $(filter-out src/main.c, $(source))
 test: objects := $(filter-out build/main.o, $(objects))
+test: BUILD_FLAGS := $(BUILD_FLAGS) --coverage
 test: build/wsic.test
 
 # Executable linking
