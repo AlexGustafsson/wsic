@@ -274,6 +274,7 @@ void server_handleConnection(connection_t *connection) {
   uint8_t exitCode = cgi_waitForExit(process);
   log(LOG_DEBUG, "Process exited with status %d", exitCode);*/
 
+  // Close and free up CGI process and connection
   cgi_freeProcess(process);
   server_closeConnection(connection);
 }
