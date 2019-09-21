@@ -14,8 +14,8 @@ mkdir -p build/reports/test
 # Run tests and save the result
 $wsic &> build/reports/test/report.txt
 
-# Output the results
-cat build/reports/test/report.txt
+# Output the results with appropriate colors
+echo -e "$(sed -e 's/^\(.*:PASS\)/\\e[32m\1\\e[0m/' -e 's/^\(.*:FAIL\)/\\e[31m\1\\e[0m/' -e 's/^\(.*:IGNORE\)/\\e[33m\1\\e[0m/' build/reports/test/report.txt)"
 
 # Extract summary
 summary=$(grep build/reports/test/report.txt -e '[0-9]\+ Tests [0-9]\+ Failures [0-9]\+ Ignored' | sed -e 's/\([0-9]\+\) Tests \([0-9]\+\) Failures \([0-9]\+\) Ignored/\1 \2 \3/')
