@@ -31,6 +31,14 @@ typedef struct {
 
 http_t *http_create();
 
+http_t *http_parseRequest(string_t *request);
+bool http_parseRequestLine(http_t *http, string_t *string);
+bool http_parseHeader(http_t *http, string_t *string);
+void http_parseBody(http_t *http, string_t *string, size_t offset);
+bool http_parseRequestTarget(http_t *http, string_t *requestTarget);
+bool http_parseHost(http_t *http);
+enum httpMethod http_parseMethod(string_t *method);
+
 void http_setMethod(http_t *http, enum httpMethod method);
 void http_setRequestTarget(http_t *http, string_t *requestTarget);
 void http_setVersion(http_t *http, string_t *version);
@@ -38,9 +46,6 @@ void http_setResponsCode(http_t *http, uint16_t code);
 void http_setHeader(http_t *http, string_t *key, string_t *value);
 
 string_t *http_toResponseString(http_t *http);
-http_t *http_parseRequest(string_t *request);
-
-enum httpMethod http_parseMethod(string_t *method);
 
 void http_free(http_t *http);
 

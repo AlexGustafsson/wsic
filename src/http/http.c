@@ -6,13 +6,6 @@
 
 #include "http.h"
 
-// Forward declaration of functions (For internal use Only)
-bool http_parseRequestLine(http_t *http, string_t *string);
-bool http_parseHeader(http_t *http, string_t *string);
-void http_parseBody(http_t *http, string_t *string, size_t offset);
-bool http_parseRequestTarget(http_t *http, string_t *requestTarget);
-bool http_parseHost(http_t *http);
-
 http_t *http_create() {
   http_t *http = malloc(sizeof(http_t));
   if (http == 0)
