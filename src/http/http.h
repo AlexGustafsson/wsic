@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "../url/url.h"
 #include "../string/string.h"
+#include "../url/url.h"
 #include "../datastructures/hash-table/hash-table.h"
 
 #include "response-codes.h"
@@ -37,16 +37,11 @@ void http_setVersion(http_t *http, string_t *version);
 void http_setResponsCode(http_t *http, uint16_t code);
 void http_setHeader(http_t *http, string_t *key, string_t *value);
 
-string_t *http_ToString(http_t *http);
+string_t *http_toResponseString(http_t *http);
 http_t *http_parseRequest(string_t *request);
 
 enum httpMethod http_parseMethod(string_t *method);
 
-<<<<<<< b34c4f94bc24a759cbddfd89a1d9d36a9d6d8ddf
-enum httpMethod parseHttpMethod(char *method);
-=======
 void http_free(http_t *http);
-
->>>>>>> Rewrote http parser
 
 #endif

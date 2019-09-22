@@ -10,6 +10,8 @@
 bool http_parseRequestLine(http_t *http, string_t *string);
 bool http_parseHeader(http_t *http, string_t *string);
 void http_parseBody(http_t *http, string_t *string, size_t offset);
+bool http_parseRequestTarget(http_t *http, string_t *requestTarget);
+bool http_parseHost(http_t *http);
 
 http_t *http_create() {
   http_t *http = malloc(sizeof(http_t));
@@ -51,11 +53,15 @@ void http_setResponsCode(http_t *http, uint16_t code) {
 }
 
 void http_setHeader(http_t *http, string_t *key, string_t *value) {
-  hash_table_setValue(http->headers, key, value);
+  string_t *oldValue = hash_table_setValue(http->headers, key, value);
+  if (oldValue != 0)
+    string_free(oldValue);
 }
 
-string_t *http_ToString(http_t *http) {
+string_t *http_toResponseString(http_t *http) {
   string_t *result = string_create();
+  // First line is roughly 40 bytes, a header entry is roughly 40 bytes - allows for some speedup
+  string_setBufferSize(result, 40 + hash_table_getLength(http->headers) * 40 + string_getSize(http->body));
 
   if (http->version != 0) {
     string_appendBuffer(result, "HTTP/");
@@ -90,14 +96,11 @@ string_t *http_ToString(http_t *http) {
   string_appendBuffer(result, "\r\n");
   // Append body to result
   string_append(result, http->body);
-  // End of body
-  string_appendBuffer(result, "\r\n\r\n");
 
   return result;
 }
 
 http_t *http_parseRequest(string_t *request) {
-  bool correctlyParsed = false;
   http_t *http = http_create();
   http->requestTarget = string_create();
   http->version = string_create();
@@ -106,16 +109,20 @@ http_t *http_parseRequest(string_t *request) {
   string_t *line = string_getNextLine(cursor);
   if (line == 0) {
     log(LOG_ERROR, "Can not parse empty request");
+    string_free(line);
     http_free(http);
     return 0;
   }
   // Parse the first line in the request (METHOD, PATH, VERSION)
-  correctlyParsed = http_parseRequestLine(http, line);
+  bool correctlyParsed = http_parseRequestLine(http, line);
   // Check if the parse was successfull
   if (correctlyParsed == false) {
     log(LOG_ERROR, "Could not parse request");
+    string_free(line);
+    http_free(http);
     return 0;
   }
+  string_free(line);
 
   // Parse all headers (KEY: VALUES)
   while ((line = string_getNextLine(cursor)) != 0) {
@@ -129,6 +136,7 @@ http_t *http_parseRequest(string_t *request) {
     correctlyParsed = http_parseHeader(http, line);
     if (correctlyParsed == false) {
       log(LOG_ERROR, "Could not parse request");
+      string_free(line);
       return 0;
     }
     string_free(line);
@@ -138,18 +146,6 @@ http_t *http_parseRequest(string_t *request) {
   http_parseBody(http, request, string_getOffset(cursor));
   string_freeCursor(cursor);
 
-
-  // http://level1.level2.axgn.se/index/test.html?page=120&test=5
-
-  // GET /index/test.html?page=120&test=5 HTTP/1.1
-  // Host: level1.level2.axgn.se
-  // Host: level1.level2.axgn.se:8080
-  // Upgrade-Insecure-Requests: 1
-  // Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
-  // User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1.2 Safari/605.1.15
-  // Accept-Language: sv-se
-  // Accept-Encoding: gzip, deflate
-  // Connection: keep-alive
 
   // SET URL
   http->url = url_create();
@@ -161,75 +157,21 @@ http_t *http_parseRequest(string_t *request) {
 
   url_setProtocol(http->url, string_fromCopy("http"));
 
-  string_cursor_t *requestCursor = string_createCursor(http->requestTarget);
-  ssize_t offset = string_findNextChar(requestCursor, '?');
-  string_t *path = string_create();
-  string_t *key = string_create();
-  string_t *value = string_create();
-  ssize_t oldOffset = 0;
-
-  if (offset == -1) {
-    path = string_substring(http->requestTarget, 0, string_getSize(http->requestTarget));
-    url_setPath(http->url, path);
-  } else {
-    path = string_substring(http->requestTarget, 0, offset);
-    url_setPath(http->url, path);
-  }
-
-  while (offset != -1) {
-    oldOffset = offset + 1;
-    offset = string_findNextChar(requestCursor, '=');
-    if (offset == -1) { break; }
-    key = string_substring(http->requestTarget, oldOffset, offset);
-
-    oldOffset = offset + 1;
-    offset = string_findNextChar(requestCursor, '&');
-    if (offset == -1) {
-      value = string_substring(http->requestTarget, oldOffset, string_getSize(http->requestTarget));
-      url_setParameter(http->url, key, value);
-      break;
-    }
-    value = string_substring(http->requestTarget, oldOffset, offset);
-
-    url_setParameter(http->url, key, value);
-  }
-
-  string_t *keyHost = string_fromCopy("Host");
-  string_t *host = hash_table_getValue(http->headers, keyHost);
-  if (host == 0) {
-    log(LOG_ERROR, "Can not parse. Host key was not set");
+  // Parse request target
+  correctlyParsed = http_parseRequestTarget(http, http->requestTarget);
+  if (correctlyParsed == false) {
+    log(LOG_ERROR, "Could not parse host");
     http_free(http);
     return 0;
   }
 
-  string_cursor_t *hostCursor = string_createCursor(host);
-  ssize_t parameter = string_findNextChar(hostCursor, ':');
-  string_t *domainName = string_create();
-
-  if (parameter == -1) {
-    url_setPort(http->url, 80);
-    url_setDomainName(http->url, host);
-  } else {
-    // plus one to skip colon
-    string_t *portString = string_substring(host, parameter + 1, string_getSize(host));
-    int port = atoi(string_getBuffer(portString));
-    if (port < 0 || port > 1<<16) {
-      log(LOG_DEBUG, "The port in request was to large");
-      return 0;
-    }
-    url_setPort(http->url, port);
-    domainName = string_substring(host, 0, parameter);
-    url_setDomainName(http->url, domainName);
+  // Parse host from the request in to url
+  correctlyParsed = http_parseHost(http);
+  if (correctlyParsed == false) {
+    log(LOG_ERROR, "Could not parse host");
+    http_free(http);
+    return 0;
   }
-
-  // från key:HOST ska jag hämta hem SUBDOMAIN; DOMAIN; PORT
-  //url_setDomain(url, );
-  //url_setPort(url, );
-
-  // ssize_t offset = string_findNextChar(requestCursor, ':');
-  // if (offset == -1) {
-  //    string_substring(http->port, 0, offset);
-  // }
 
   return http;
 }
@@ -304,13 +246,10 @@ bool http_parseHeader(http_t *http, string_t *string) {
     return false;
   }
 
-  string_t *key = string_create();
-  string_t *value = string_create();
   size_t stringLength = string_getSize(string);
-  key = string_substring(string, 0, offset);
+  string_t *key = string_substring(string, 0, offset);
   // + 2 to skip the space
-  // - 1 because arrays are starting at index zero; string length = amount of chars in string
-  value = string_substring(string, offset + 2, stringLength);
+  string_t *value = string_substring(string, offset + 2, stringLength);
   http_setHeader(http, key, value);
 
   string_freeCursor(cursor);
@@ -320,6 +259,77 @@ bool http_parseHeader(http_t *http, string_t *string) {
 void http_parseBody(http_t *http, string_t *string, size_t offset) {
   // After headers is added we put everything that is left in the request into the body variable
   http->body = string_substring(string, offset, string_getSize(string));
+}
+
+bool http_parseRequestTarget(http_t *http, string_t *requestTarget) {
+  string_cursor_t *requestCursor = string_createCursor(requestTarget);
+  ssize_t firstParameter = string_findNextChar(requestCursor, '?');
+
+  string_t *path = 0;
+  if (firstParameter == -1) {
+    path = string_substring(requestTarget, 0, string_getSize(requestTarget));
+    url_setPath(http->url, path);
+  } else {
+    path = string_substring(requestTarget, 0, firstParameter);
+    url_setPath(http->url, path);
+  }
+
+  ssize_t secondParameter = 0;
+  string_t *value = 0;
+  string_t *key = 0;
+  while (firstParameter != -1) {
+    secondParameter = firstParameter + 1;
+    firstParameter = string_findNextChar(requestCursor, '=');
+    if (firstParameter == -1) {
+      string_freeCursor(requestCursor);
+      return false;
+    }
+    key = string_substring(requestTarget, secondParameter, firstParameter);
+
+    secondParameter = firstParameter + 1;
+    firstParameter = string_findNextChar(requestCursor, '&');
+    if (firstParameter == -1) {
+      value = string_substring(requestTarget, secondParameter, string_getSize(requestTarget));
+      url_setParameter(http->url, key, value);
+      break;
+    }
+
+    value = string_substring(requestTarget, secondParameter, firstParameter);
+    url_setParameter(http->url, key, value);
+  }
+  string_freeCursor(requestCursor);
+  return true;
+}
+
+bool http_parseHost(http_t *http) {
+  string_t *keyHost = string_fromCopy("Host");
+  string_t *host = hash_table_getValue(http->headers, keyHost);
+  string_free(keyHost);
+  if (host == 0) {
+    log(LOG_ERROR, "Can not parse. Host key was not set");
+    return false;
+  }
+
+  string_cursor_t *hostCursor = string_createCursor(host);
+  ssize_t parameter = string_findNextChar(hostCursor, ':');
+  string_freeCursor(hostCursor);
+  if (parameter == -1) {
+    url_setPort(http->url, 80);
+    url_setDomainName(http->url, host);
+  } else {
+    // parameter + 1 to skip colon
+    string_t *portString = string_substring(host, parameter + 1, string_getSize(host));
+    int port = atoi(string_getBuffer(portString));
+    string_free(portString);
+    if (port < 0 || port > 1<<16) {
+      log(LOG_DEBUG, "The port in the request was to large");
+      return false;
+    }
+    url_setPort(http->url, port);
+    string_t *domainName = string_substring(host, 0, parameter);
+    url_setDomainName(http->url, domainName);
+  }
+  return true;
 }
 
 enum httpMethod http_parseMethod(string_t *method) {
@@ -352,5 +362,7 @@ void http_free(http_t *http) {
     string_free(value);
   }
   hash_table_free(http->headers);
+
+  url_free(http->url);
   free(http);
 }
