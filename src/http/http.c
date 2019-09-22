@@ -62,11 +62,10 @@ string_t *http_toResponseString(http_t *http) {
     string_appendChar(result, ' ');
   }
 
-  char responseCodeBuffer[4] = {0};
-  sprintf(responseCodeBuffer, "%d", http->responseCode);
-  size_t responseCodeLength = strlen(responseCodeBuffer);
+  string_t *responseCode = string_fromInt(http->responseCode);
 
-  string_appendBufferWithLength(result, responseCodeBuffer, responseCodeLength);
+  string_append(result, responseCode);
+  string_free(responseCode);
   string_appendChar(result, ' ');
 
   if (http->responseCodeText != 0) {
