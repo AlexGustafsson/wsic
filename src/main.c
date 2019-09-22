@@ -7,6 +7,7 @@
 #include "compile-time-defines.h"
 #include "config/config.h"
 #include "daemon/daemon.h"
+#include "http/http.h"
 #include "logging/logging.h"
 #include "resources/resources.h"
 #include "server/server.h"

@@ -1,6 +1,6 @@
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
 #include "../logging/logging.h"
 
@@ -138,7 +138,6 @@ http_t *http_parseRequest(string_t *request) {
   // Parse body if there is one
   http_parseBody(http, request, string_getOffset(cursor));
   string_freeCursor(cursor);
-
 
   // SET URL
   http->url = url_create();
@@ -314,7 +313,7 @@ bool http_parseHost(http_t *http) {
     string_t *portString = string_substring(host, parameter + 1, string_getSize(host));
     int port = atoi(string_getBuffer(portString));
     string_free(portString);
-    if (port < 0 || port > 1<<16) {
+    if (port < 0 || port > 1 << 16) {
       log(LOG_DEBUG, "The port in the request was to large");
       return false;
     }
