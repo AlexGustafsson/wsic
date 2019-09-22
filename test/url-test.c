@@ -6,8 +6,7 @@ void url_test_canFormatAnURL() {
   url_t *url = url_create();
 
   url_setProtocol(url, string_fromCopy("https"));
-  url_setSubdomain(url, string_fromCopy("wsic"));
-  url_setDomain(url, string_fromCopy("axgn.se"));
+  url_setDomainName(url, string_fromCopy("wsic.axgn.se"));
   url_setPort(url, 80);
   url_setPath(url, string_fromCopy("/index.html"));
   url_setParameter(url, string_fromCopy("q"), string_fromCopy("test"));

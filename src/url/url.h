@@ -9,8 +9,7 @@
 
 typedef struct {
   string_t *protocol;
-  string_t *subdomain;
-  string_t *domain;
+  string_t *domainName;
   uint16_t port;
   string_t *path;
   hash_table_t *parameters;
@@ -24,11 +23,8 @@ string_t *url_toString(url_t *url);
 void url_setProtocol(url_t *url, string_t *protocol);
 string_t *url_getProtocol(url_t *url);
 
-void url_setSubdomain(url_t *url, string_t *subdomain);
-string_t *url_getSubdomain(url_t *url);
-
-void url_setDomain(url_t *url, string_t *domain);
-string_t *url_getDomain(url_t *url);
+void url_setDomainName(url_t *url, string_t *domainName);
+string_t *url_getDomainName(url_t *url);
 
 void url_setPort(url_t *url, uint16_t port);
 uint16_t url_getPort(url_t *url);

@@ -2,6 +2,13 @@
 #define HTTP_H
 
 #include <stdio.h>
+#include <stdint.h>
+
+#include "../string/string.h"
+#include "../url/url.h"
+#include "../datastructures/hash-table/hash-table.h"
+
+#include "response-codes.h"
 
 enum httpMethod { GET,
                   PUT,
@@ -12,24 +19,34 @@ enum httpMethod { GET,
 
 typedef struct {
   enum httpMethod method;
-  char *requestTarget;
-  char *version;
-  size_t headers;
-  char **headerKeys;
-  char **headerValues;
+  string_t *requestTarget;
+  string_t *version;
+  uint16_t responseCode;
+  // Only for internal use
+  string_t *responseCodeText;
+  hash_table_t *headers;
+  string_t *body;
+  url_t *url;
 } http_t;
 
-http_t *createHttp();
+http_t *http_create();
 
-void setHttpMethod(http_t *http, enum httpMethod method);
-void setHttpRequestTarget(http_t *http, const char *requestTarget);
-void setHttpVersion(http_t *http, const char *version);
+http_t *http_parseRequest(string_t *request);
+bool http_parseRequestLine(http_t *http, string_t *string);
+bool http_parseHeader(http_t *http, string_t *string);
+void http_parseBody(http_t *http, string_t *string, size_t offset);
+bool http_parseRequestTarget(http_t *http, string_t *requestTarget);
+bool http_parseHost(http_t *http);
+enum httpMethod http_parseMethod(string_t *method);
 
-http_t *parseHttpRequest(const char *request);
-void addHeader(http_t *http, const char *key, const char *value);
+void http_setMethod(http_t *http, enum httpMethod method);
+void http_setRequestTarget(http_t *http, string_t *requestTarget);
+void http_setVersion(http_t *http, string_t *version);
+void http_setResponsCode(http_t *http, uint16_t code);
+void http_setHeader(http_t *http, string_t *key, string_t *value);
 
-void freeHttp(http_t *http);
+string_t *http_toResponseString(http_t *http);
 
-enum httpMethod parseHttpMethod(char *method);
+void http_free(http_t *http);
 
 #endif

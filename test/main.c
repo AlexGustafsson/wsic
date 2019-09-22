@@ -1,11 +1,11 @@
 #include "unity/unity.h"
 
+#include "hash-table-test.c"
 #include "list-test.c"
-#include "string-test.c"
-#include "url-test.c"
 #include "queue-test.c"
 #include "set-test.c"
-#include "hash-table-test.c"
+#include "string-test.c"
+#include "url-test.c"
 
 int main() {
   UNITY_BEGIN();
