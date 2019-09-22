@@ -36,9 +36,11 @@ void list_test_canStoreValues() {
   // Try to read out of bounds and make sure it fails
   TEST_ASSERT_NULL(list_getValue(list, 2));
 
+  // Ensure that there are no elements left after clearing
   list_clear(list);
-  // Ensure that there are no elements left
   TEST_ASSERT(list_getLength(list) == 0);
+
+  list_free(list);
 }
 
 void list_test_run() {
