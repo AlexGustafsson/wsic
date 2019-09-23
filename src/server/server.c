@@ -10,6 +10,7 @@
 #include "../datastructures/queue/queue.h"
 #include "../http/http.h"
 #include "../logging/logging.h"
+#include "../worker/worker.h"
 
 #include "server.h"
 
@@ -83,7 +84,7 @@ int server_start(set_t *ports) {
   if (socketDescriptorCount == 0) {
     log(LOG_ERROR, "No ports bound by the server, closing");
     free(socketDescriptors);
-    return EXIT_FAILURE;
+    return SERVER_EXIT_FATAL;
   }
 
   if (socketDescriptorCount != list_getLength(ports))
@@ -200,140 +201,24 @@ int server_acceptConnections() {
 }
 
 void server_handleConnection(connection_t *connection) {
-  http_t *http = http_create();
-
-  // Start reading the header from the client
-  string_t *currentLine = 0;
-  size_t line = 0;
-  size_t headerSize = 0;
-  while (true) {
-    currentLine = connection_readLine(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_HEADER_SIZE - headerSize);
-    if (currentLine != 0)
-      log(LOG_DEBUG, "Read line \n<%s>", string_getBuffer(currentLine));
-    // Stop if there was no line read or the line was empty (all headers were read)
-    if (currentLine == 0 || string_getSize(currentLine) == 0)
-      break;
-    headerSize += string_getSize(currentLine);
-    if (line == 0) {
-      // Parse the request line
-      bool parsed = http_parseRequestLine(http, currentLine);
-      if (!parsed) {
-        log(LOG_ERROR, "Failed to parse request line '%s'. Closing connection", string_getBuffer(currentLine));
-        string_free(currentLine);
-        http_free(http);
-        server_closeConnection(connection);
-        return;
-      }
-    } else {
-      // Parse the header
-      bool parsed = http_parseHeader(http, currentLine);
-      if (!parsed) {
-        log(LOG_ERROR, "Failed to parse header '%s'. Closing connection", string_getBuffer(currentLine));
-        string_free(currentLine);
-        http_free(http);
-        server_closeConnection(connection);
-        return;
-      }
-    }
-    string_free(currentLine);
-    currentLine = 0;
-    line++;
-  }
-  bool parsedHost = http_parseHost(http);
-  if (!parsedHost) {
-    log(LOG_DEBUG, "Could not parse Host header");
-    http_free(http);
-    server_closeConnection(connection);
+  log(LOG_DEBUG, "Spawning worker");
+  worker_t *worker = worker_spawn();
+  if (worker == 0) {
+    log(LOG_ERROR, "Failed to spawn worker");
     return;
   }
 
-  if (http->url == 0) {
-    log(LOG_ERROR, "Didn't receive a header from the request");
-    http_free(http);
-    server_closeConnection(connection);
-    return;
-  }
+  log(LOG_DEBUG, "Setting connection and interrupting worker");
+  worker_setConnection(worker, connection);
+  worker_interrupt(worker);
 
-  string_t *expectHeader = string_fromCopy("Expect");
-  string_t *expects = http_getHeader(http, expectHeader);
-  string_free(expectHeader);
-  if (expects != 0) {
-    log(LOG_DEBUG, "Got expect '%s'", string_getBuffer(expects));
-    // TODO: Handle actual expects here
-    connection_write(connection, "HTTP/1.1 100 Continue\r\n", 23);
-  }
-
-  string_t *body = 0;
-  string_t *contentLengthHeader = string_fromCopy("Content-Length");
-  string_t *contentLengthString = http_getHeader(http, contentLengthHeader);
-  string_free(contentLengthHeader);
-  if (contentLengthString != 0) {
-    int contentLength = atoi(string_getBuffer(contentLengthString));
-    log(LOG_DEBUG, "Got content length '%d'", contentLength);
-    if (contentLength > REQUEST_MAX_BODY_SIZE) {
-      log(LOG_WARNING, "The client wanted to write %d bytes which is above maximum %d", contentLength, REQUEST_MAX_BODY_SIZE);
-      http_free(http);
-      server_closeConnection(connection);
-      return;
-    }
-    body = connection_read(connection, REQUEST_READ_TIMEOUT, contentLength);
-  }
-
-  if (body != 0)
-    log(LOG_DEBUG, "Got body:\n<%s>", string_getBuffer(body));
-
-  server_closeConnection(connection);
-  return;
-  /*
-  // Read a request (wait for maximum of one second)
-  string_t *request = connection_read(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_BODY_SIZE);
-  if (request == 0) {
-    log(LOG_ERROR, "Could not get request from connection");
-    server_closeConnection(connection);
-    return;
-  }
-
-  log(LOG_DEBUG, "Got request");
-
-  list_t *arguments = 0;
-  hash_table_t *environment = hash_table_create();
-  hash_table_setValue(environment, string_fromCopy("HTTPS"), string_fromCopy("off"));
-  hash_table_setValue(environment, string_fromCopy("SERVER_SOFTWARE"), string_fromCopy("WSIC"));
-
-  log(LOG_DEBUG, "Spawning CGI process");
-  cgi_process_t *process = cgi_spawn("/Users/alexgustafsson/Documents/GitHub/wsic/cgi-test.sh", arguments, environment);
-  log(LOG_DEBUG, "Spawned process with pid %d", process->pid);
-
-  log(LOG_DEBUG, "Writing request to CGI process");
-  cgi_write(process, string_getBuffer(request), string_getSize(request));
-  // Make sure the process receives EOF
-  cgi_flushStdin(process);
-
-  log(LOG_DEBUG, "Reading response from CGI process");
-  // TODO: Read more than 4096 bytes
-  char buffer[4096] = {0};
-  cgi_read(process, buffer, 4096);
-  buffer[4096 - 1] = 0;
-
-  log(LOG_DEBUG, "Got response from CGI process");
-  connection_write(connection, buffer, 4096);
-
-  // NOTE: Not necessary, but for debugging it's nice to know
-  // that the process is actually exiting (not kept forever)
-  // since we don't currently kill spawned processes
+  worker_close(worker);
+  // Not necessary but nice for debugging:
   log(LOG_DEBUG, "Waiting for process to exit");
-  uint8_t exitCode = cgi_waitForExit(process);
+  uint8_t exitCode = worker_waitForExit(worker);
   log(LOG_DEBUG, "Process exited with status %d", exitCode);
 
-  // Close and free up CGI process and connection
-  cgi_freeProcess(process);
-  server_closeConnection(connection);*/
-}
-
-void server_closeConnection(connection_t *connection) {
-  log(LOG_DEBUG, "Closed socket with id %d", connection->socketId);
-  close(connection->socketId);
-  connection_free(connection);
+  worker_free(worker);
 }
 
 void server_close() {

@@ -26,6 +26,7 @@ int main(int argc, char const *argv[]) {
   if (geteuid() == 0)
     log(LOG_WARNING, "Running as root. I hope you know what you're doing.");
 
+  LOGGING_OUTPUT = LOGGING_CONSOLE | LOGGING_SYSLOG;
   logging_startSyslog();
   config_t *config = config_parse((char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
   server_config_t *defaultServerConfig = config_getServerConfig(config, 0);
@@ -119,6 +120,11 @@ int main(int argc, char const *argv[]) {
     int status;
     if (waitpid(serverInstance, &status, WNOHANG) != 0) {
       int exitCode = WEXITSTATUS(status);
+      if (exitCode == SERVER_EXIT_FATAL) {
+        log(LOG_DEBUG, "Got a fatal exit code from instance, quitting");
+        exit(1);
+      }
+
       log(LOG_WARNING, "Server instance has exited with code %d", exitCode);
       log(LOG_DEBUG, "Recreating server instance");
       pid_t newInstance = server_createInstance(ports);

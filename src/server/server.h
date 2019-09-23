@@ -23,6 +23,8 @@
 // Don't allow bodies larger than 1 MB
 #define REQUEST_MAX_BODY_SIZE 1048576
 
+#define SERVER_EXIT_FATAL 10
+
 pid_t server_createInstance(set_t *ports);
 // Main entrypoint for a server instance
 int server_start();

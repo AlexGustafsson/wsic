@@ -220,7 +220,12 @@ void connection_parseRequest(connection_t *connection, char *buffer, size_t buff
   log(LOG_WARNING, "Not implemented");
 }
 
+void connection_close(connection_t *connection) {
+  close(connection->socketId);
+}
+
 void connection_free(connection_t *connection) {
+  connection_close(connection);
   if (connection->sourceAddress != 0)
     string_free(connection->sourceAddress);
   free(connection);
