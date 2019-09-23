@@ -4,6 +4,11 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "datastructures/hash-table/hash-table.h"
+#include "datastructures/list/list.h"
+#include "datastructures/set/set.h"
+
+#include "cgi/cgi.h"
 #include "compile-time-defines.h"
 #include "config/config.h"
 #include "daemon/daemon.h"
@@ -17,15 +22,11 @@
 #include "main.h"
 
 int main(int argc, char const *argv[]) {
-  signal(SIGINT, handleSignalSIGINT);
-  signal(SIGTERM, handleSignalSIGTERM);
-  signal(SIGKILL, handleSignalSIGKILL);
-  signal(SIGPIPE, handleSignalSIGPIPE);
-
   // Warn if the server is running as root
   if (geteuid() == 0)
     log(LOG_WARNING, "Running as root. I hope you know what you're doing.");
 
+  logging_startSyslog();
   config_t *config = config_parse((char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
   server_config_t *defaultServerConfig = config_getServerConfig(config, 0);
 
@@ -90,28 +91,44 @@ int main(int argc, char const *argv[]) {
     close(STDERR_FILENO);
   }
 
-  server_start(config_getPort(defaultServerConfig));
-  if (!server_getIsRunning()) {
-    log(LOG_ERROR, "Could not start the server");
-    return EXIT_FAILURE;
+  set_t *ports = set_create();
+  // Extract unique ports used by the configuration
+  for (size_t i = 0; i < list_getLength(config->serverConfigs); i++) {
+    server_config_t *serverConfig = config_getServerConfig(config, i);
+    set_addValue(ports, (void *)serverConfig->port);
   }
 
-  string_t *header = string_fromCopy("HTTP/1.1 200 OK\nContent-Type: text/html\n\n");
-  while (true) {
-    connection_t *connection = acceptConnection();
-    string_t *request = connection_read(connection, 1024);
-    log(LOG_DEBUG, "Got request:\n %s", string_getBuffer(request));
+  pid_t serverInstance = server_createInstance(ports);
+  if (serverInstance == 0) {
+    log(LOG_ERROR, "Unable to create server instance");
+    exit(EXIT_FAILURE);
+  }
 
-    connection_write(connection, string_getBuffer(header), string_getSize(header));
-    page_t *page = page_create501();
-    string_t *source = page_getSource(page);
-    connection_write(connection, string_getBuffer(source), string_getSize(page->source));
-    page_free(page);
-    closeConnection(connection);
-    string_free(request);
+  // Setup signal handling for main process
+  signal(SIGINT, handleSignalSIGINT);
+  signal(SIGTERM, handleSignalSIGTERM);
+  signal(SIGKILL, handleSignalSIGKILL);
+  signal(SIGPIPE, handleSignalSIGPIPE);
+  // If a child exits, it will interrupt the sleep and check statuses directly
+  signal(SIGCHLD, handleSignalSIGCHLD);
+
+  // Put the main process into a polling sleep
+  while (true) {
+    // If a child exits, it will interrupt the sleep and check statuses directly, sleep for 10 seconds
+    sleep(10);
+    int status;
+    if (waitpid(serverInstance, &status, WNOHANG) != 0) {
+      int exitCode = WEXITSTATUS(status);
+      log(LOG_WARNING, "Server instance has exited with code %d", exitCode);
+      log(LOG_DEBUG, "Recreating server instance");
+      pid_t newInstance = server_createInstance(ports);
+      if (newInstance != 0)
+        serverInstance = newInstance;
+    }
   }
 
   config_free(config);
+  logging_stopSyslog();
   return 0;
 }
 
@@ -168,4 +185,10 @@ void handleSignalSIGKILL(int signalNumber) {
 void handleSignalSIGPIPE(int signalNumber) {
   // Log and ignore
   log(LOG_WARNING, "Got SIGPIPE - broken pipe");
+}
+
+// Handle SIGCHLD (a child exited)
+void handleSignalSIGCHLD(int signalNumber) {
+  // Log and ignore
+  log(LOG_WARNING, "Got SIGCHLD - child exited");
 }

@@ -269,9 +269,6 @@ void string_test_cannotSetNonExistingChar() {
 }
 
 void string_test_canTrimEnd() {
-  // NOTE: This test relies on code not yet merged to development
-  TEST_IGNORE();
-  /*
   // A base string
   string_t *string = string_fromCopy("Hello world \n\r\t ");
   const char *expected = "Hello world";
@@ -291,7 +288,7 @@ void string_test_canTrimEnd() {
   // Ensure that the contents are the same
   TEST_ASSERT_EQUAL_STRING(expected, string->buffer);
 
-  string_free(string);*/
+  string_free(string);
 }
 
 void string_test_canCanCompareEqualStrings() {

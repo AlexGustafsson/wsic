@@ -1,6 +1,7 @@
+#include <errno.h>
+#include <poll.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
 #include "../logging/logging.h"
@@ -33,22 +34,169 @@ void connection_setSourcePort(connection_t *connection, uint16_t sourcePort) {
   connection->sourcePort = sourcePort;
 }
 
-string_t *connection_read(connection_t *connection, size_t bytes) {
-  char *buffer = malloc(sizeof(char) * bytes);
-  if (buffer == 0)
-    return 0;
+// TODO:
+// This will read indefinitely until timeout.
+// A HTTP stream is bidirectional and will most likely stay open for a while
+// Until it is closed, there's no real specification of how much data there is to read
+// Therefore, try to read headers line by line and act on whether or not to read body bytes
+// No body bytes specified? Tough luck - don't read.
+// THis function is not fully implemented as of now.
+string_t *connection_read(connection_t *connection, int timeout, size_t bytesToRead) {
+  string_t *message = string_create();
 
-  ssize_t bytesReceived = read(connection->socketId, buffer, bytes);
+  while (true) {
+    bool dataIsAvailable = connection_pollForData(connection, timeout);
+    if (!dataIsAvailable)
+      continue;
+
+    // Read the entire message
+    while (true) {
+      ssize_t bytesAvailable = connection_getAvailableBytes(connection);
+      if (bytesAvailable == 0) {
+        // Nothing to read, wait for next event as specified by the polling above
+        break;
+      } else if (bytesAvailable < 0) {
+        // Check failed
+        string_free(message);
+        return 0;
+      } else if (string_getSize(message) + (size_t)bytesAvailable > bytesToRead) {
+        log(LOG_ERROR, "Too many bytes to read");
+        string_free(message);
+        return 0;
+      }
+
+      char *buffer = 0;
+      size_t bytesReceived = connection_readBytes(connection, &buffer, bytesAvailable, READ_FLAGS_NONE);
+      if (buffer != 0)
+        string_appendBufferWithLength(message, buffer, bytesReceived);
+      if (string_getSize(message) == bytesToRead)
+        return message;
+    }
+  }
+}
+
+string_t *connection_readLine(connection_t *connection, int timeout, size_t maxBytes) {
+  size_t offset = 0;
+  while (true) {
+    bool dataIsAvailable = connection_pollForData(connection, timeout);
+    if (!dataIsAvailable)
+      continue;
+
+    ssize_t bytesAvailable = connection_getAvailableBytes(connection);
+    if (bytesAvailable == 0) {
+      // Nothing to read, wait for next event as specified by the polling above
+      continue;
+    } else if (bytesAvailable < 0) {
+      // Failed to get available bytes
+      return 0;
+    } else if ((size_t)bytesAvailable >= maxBytes) {
+      // Don't process more than max bytes
+      bytesAvailable = maxBytes;
+    }
+
+    // Read the request without consuming the content
+    char *buffer = 0;
+    size_t bytesReceived = connection_readBytes(connection, &buffer, bytesAvailable, READ_FLAGS_PEEK);
+    // Nothing read, wait for next event
+    if (buffer == 0)
+      continue;
+
+    // Create a string from the buffer
+    string_t *string = string_fromCopyWithLength(buffer, bytesReceived);
+    free(buffer);
+    buffer = 0;
+
+    string_cursor_t *cursor = string_createCursor(string);
+    // Set the offset to only look through new parts of the message
+    string_setOffset(cursor, offset);
+    // Try to find the end of a line
+    ssize_t lineLength = string_findNextChar(cursor, '\n') + 1;
+    offset = string_getOffset(cursor);
+    string_freeCursor(cursor);
+    string_free(string);
+
+    if (lineLength < 1) {
+      // No line found without looking for more than max bytes
+      if ((size_t)bytesAvailable >= maxBytes)
+        return 0;
+
+      // There's no line available yet, wait for next event
+      continue;
+    }
+
+    bytesReceived = connection_readBytes(connection, &buffer, lineLength, READ_FLAGS_NONE);
+    // Could not read message
+    if (buffer == 0)
+      return 0;
+
+    string_t *line = string_fromCopyWithLength(buffer, bytesReceived);
+    // Remove the trailing newlines
+    string_trimEnd(line);
+    return line;
+  }
+}
+
+bool connection_pollForData(connection_t *connection, int timeout) {
+  // Set up structures necessary for polling
+  struct pollfd descriptors[1];
+  memset(descriptors, 0, sizeof(struct pollfd));
+  descriptors[0].fd = connection->socketId;
+  descriptors[0].events = POLLIN;
+
+  log(LOG_DEBUG, "Waiting for data to be readable");
+
+  // Wait for the connection to be ready to read
+  int status = poll(descriptors, 1, timeout);
+  if (status < -1) {
+    log(LOG_ERROR, "Could not wait for connection to send data");
+    return false;
+  } else if (status == 0) {
+    log(LOG_ERROR, "The connection timed out");
+    return false;
+  }
+
+  return true;
+}
+
+ssize_t connection_getAvailableBytes(connection_t *connection) {
+  // Get the number of bytes immediately available for reading
+  int bytesAvailable = 0;
+  if (ioctl(connection->socketId, FIONREAD, &bytesAvailable) == -1) {
+    log(LOG_ERROR, "Could not check number of bytes available for reading");
+    return -1;
+  }
+
+  log(LOG_DEBUG, "There are %d bytes available for reading", bytesAvailable);
+
+  if (bytesAvailable < 0) {
+    log(LOG_ERROR, "Failed to get number of available bytes");
+    return -1;
+  }
+
+  return (ssize_t)bytesAvailable;
+}
+
+size_t connection_readBytes(connection_t *connection, char **buffer, size_t bytesToRead, int flags) {
+  (*buffer) = malloc(sizeof(char) * bytesToRead);
+  ssize_t bytesReceived = recv(connection->socketId, (*buffer), bytesToRead, flags);
   if (bytesReceived == -1) {
-    log(LOG_ERROR, "Could not receive request from %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
-
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      log(LOG_ERROR, "Reading %zu bytes would block", bytesToRead);
+      free(*buffer);
+      return 0;
+    } else {
+      log(LOG_ERROR, "Could not receive request from %s:%i - code %d", string_getBuffer(connection->sourceAddress), connection->sourcePort, errno);
+      free(*buffer);
+      return 0;
+    }
+  } else if (bytesReceived == 0) {
+    log(LOG_DEBUG, "No bytes read");
+    free(*buffer);
     return 0;
   }
 
-  log(LOG_DEBUG, "Successfully received request");
-  string_t *request = string_fromCopyWithLength(buffer, bytesReceived);
-  free(buffer);
-  return request;
+  log(LOG_DEBUG, "Read %zu bytes", bytesReceived);
+  return bytesReceived;
 }
 
 size_t connection_write(connection_t *connection, const char *buffer, size_t bufferSize) {

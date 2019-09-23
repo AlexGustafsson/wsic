@@ -174,6 +174,24 @@ void string_setCharAt(string_t *string, size_t index, char character) {
   (*characterAddress) = character;
 }
 
+void string_trimEnd(string_t *string) {
+  if (string->size == 0)
+    return;
+
+  for (ssize_t i = string->size - 1; i >= 0; i--) {
+    char *character = string->buffer + i;
+    if (character == 0)
+      break;
+
+    if (*character == '\n' || *character == '\r' || *character == ' ' || *character == '\t') {
+      *character = 0;
+      string->size--;
+    } else {
+      break;
+    }
+  }
+}
+
 string_t *string_substring(string_t *string, size_t firstIndex, size_t lastIndex) {
   // Out of bounds
   if (firstIndex >= string->size || lastIndex > string->size)
