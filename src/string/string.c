@@ -183,9 +183,7 @@ void string_trimEnd(string_t *string) {
     if (character == 0)
       break;
 
-    printf("Checking character %d\n", *character);
     if (*character == '\n' || *character == '\r' || *character == ' ' || *character == '\t') {
-      printf("Removed character %d\n", *character);
       *character = 0;
       string->size--;
     } else {

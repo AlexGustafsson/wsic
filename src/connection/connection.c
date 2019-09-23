@@ -41,7 +41,7 @@ void connection_setSourcePort(connection_t *connection, uint16_t sourcePort) {
 // Therefore, try to read headers line by line and act on whether or not to read body bytes
 // No body bytes specified? Tough luck - don't read.
 // THis function is not fully implemented as of now.
-string_t *connection_read(connection_t *connection, int timeout, size_t maxBytes) {
+string_t *connection_read(connection_t *connection, int timeout, size_t bytesToRead) {
   string_t *message = string_create();
 
   while (true) {
@@ -59,7 +59,7 @@ string_t *connection_read(connection_t *connection, int timeout, size_t maxBytes
         // Check failed
         string_free(message);
         return 0;
-      } else if (string_getSize(message) + (size_t)bytesAvailable > maxBytes) {
+      } else if (string_getSize(message) + (size_t)bytesAvailable > bytesToRead) {
         log(LOG_ERROR, "Too many bytes to read");
         string_free(message);
         return 0;
@@ -69,6 +69,8 @@ string_t *connection_read(connection_t *connection, int timeout, size_t maxBytes
       size_t bytesReceived = connection_readBytes(connection, &buffer, bytesAvailable, READ_FLAGS_NONE);
       if (buffer != 0)
         string_appendBufferWithLength(message, buffer, bytesReceived);
+      if (string_getSize(message) == bytesToRead)
+        return message;
     }
   }
 }
@@ -108,7 +110,7 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
     // Set the offset to only look through new parts of the message
     string_setOffset(cursor, offset);
     // Try to find the end of a line
-    ssize_t lineLength = string_findNextChar(cursor, '\n');
+    ssize_t lineLength = string_findNextChar(cursor, '\n') + 1;
     offset = string_getOffset(cursor);
     string_freeCursor(cursor);
     string_free(string);

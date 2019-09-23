@@ -26,11 +26,8 @@ void http_setMethod(http_t *http, enum httpMethod method) {
   http->method = method;
 }
 
-void http_setRequestTarget(http_t *http, string_t *requestTarget) {
-  if (http->requestTarget != 0)
-    string_free(http->requestTarget);
-
-  http->requestTarget = requestTarget;
+enum httpMethod http_getMethod(http_t *http) {
+  return http->method;
 }
 
 void http_setVersion(http_t *http, string_t *version) {
@@ -40,15 +37,31 @@ void http_setVersion(http_t *http, string_t *version) {
   http->version = version;
 }
 
-void http_setResponsCode(http_t *http, uint16_t code) {
+string_t *http_getVersion(http_t *http) {
+  return http->version;
+}
+
+void http_setResponseCode(http_t *http, uint16_t code) {
   http->responseCode = code;
   http->responseCodeText = http_codeToString(code);
+}
+
+uint16_t http_getResponseCode(http_t *http) {
+  return http->responseCode;
 }
 
 void http_setHeader(http_t *http, string_t *key, string_t *value) {
   string_t *oldValue = hash_table_setValue(http->headers, key, value);
   if (oldValue != 0)
     string_free(oldValue);
+}
+
+string_t *http_getHeader(http_t *http, string_t *key) {
+  return hash_table_getValue(http->headers, key);
+}
+
+url_t *http_getUrl(http_t *http) {
+  return http->url;
 }
 
 string_t *http_toResponseString(http_t *http) {
@@ -94,7 +107,6 @@ string_t *http_toResponseString(http_t *http) {
 
 http_t *http_parseRequest(string_t *request) {
   http_t *http = http_create();
-  http->requestTarget = string_create();
   http->version = string_create();
   string_cursor_t *cursor = string_createCursor(request);
   // First line of the request
@@ -138,32 +150,6 @@ http_t *http_parseRequest(string_t *request) {
   http_parseBody(http, request, string_getOffset(cursor));
   string_freeCursor(cursor);
 
-  // SET URL
-  http->url = url_create();
-  if (http->url == 0) {
-    log(LOG_ERROR, "Could not inizialise https url struct");
-    http_free(http);
-    return 0;
-  }
-
-  url_setProtocol(http->url, string_fromCopy("http"));
-
-  // Parse request target
-  correctlyParsed = http_parseRequestTarget(http, http->requestTarget);
-  if (correctlyParsed == false) {
-    log(LOG_ERROR, "Could not parse host");
-    http_free(http);
-    return 0;
-  }
-
-  // Parse host from the request in to url
-  correctlyParsed = http_parseHost(http);
-  if (correctlyParsed == false) {
-    log(LOG_ERROR, "Could not parse host");
-    http_free(http);
-    return 0;
-  }
-
   return http;
 }
 
@@ -186,18 +172,40 @@ bool http_parseRequestLine(http_t *http, string_t *string) {
   http->method = http_parseMethod(tempString);
   string_free(tempString);
 
+  string_t *requestTarget = string_create();
   // Parse path
   // Reads untill a space is found or null char at end on line
   while ((current = string_getNextChar(cursor)) != ' ' && current != 0)
-    string_appendChar(http->requestTarget, current);
+    string_appendChar(requestTarget, current);
 
   if (current == 0) {
     log(LOG_ERROR, "Could not parse request:target");
     return false;
   }
 
+  // SET URL
+  if (http->url == 0)
+    http->url = url_create();
+  if (http->url == 0) {
+    log(LOG_ERROR, "Could not inizialise https url struct");
+    http_free(http);
+    return 0;
+  }
+
+  url_setProtocol(http->url, string_fromCopy("http"));
+
+  // Parse request target
+  bool correctlyParsed = http_parseRequestTarget(http, requestTarget);
+  if (correctlyParsed == false) {
+    log(LOG_ERROR, "Could not parse host");
+    http_free(http);
+    return 0;
+  }
+  string_free(requestTarget);
+
   // Parse version
   // Reads untill null char at end on line
+  http_setVersion(http, string_create());
   while ((current = string_getNextChar(cursor)) != 0)
     string_appendChar(http->version, current);
   // Free cursor, not in use anny more
@@ -304,6 +312,8 @@ bool http_parseHost(http_t *http) {
   string_cursor_t *hostCursor = string_createCursor(host);
   ssize_t parameter = string_findNextChar(hostCursor, ':');
   string_freeCursor(hostCursor);
+  if (http->url == 0)
+    http->url = url_create();
   if (parameter == -1) {
     url_setPort(http->url, 80);
     url_setDomainName(http->url, host);
@@ -340,8 +350,6 @@ enum httpMethod http_parseMethod(string_t *method) {
 }
 
 void http_free(http_t *http) {
-  if (http->requestTarget != 0)
-    string_free(http->requestTarget);
   if (http->version != 0)
     string_free(http->version);
   if (http->responseCodeText != 0)
@@ -353,7 +361,7 @@ void http_free(http_t *http) {
     string_free(value);
   }
   hash_table_free(http->headers);
-
-  url_free(http->url);
+  if (http->url != 0)
+    url_free(http->url);
   free(http);
 }

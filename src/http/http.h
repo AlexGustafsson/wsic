@@ -19,7 +19,6 @@ enum httpMethod { GET,
 
 typedef struct {
   enum httpMethod method;
-  string_t *requestTarget;
   string_t *version;
   uint16_t responseCode;
   // Only for internal use
@@ -37,13 +36,22 @@ bool http_parseHeader(http_t *http, string_t *string);
 void http_parseBody(http_t *http, string_t *string, size_t offset);
 bool http_parseRequestTarget(http_t *http, string_t *requestTarget);
 bool http_parseHost(http_t *http);
+bool http_parseUrl(http_t *http);
 enum httpMethod http_parseMethod(string_t *method);
 
 void http_setMethod(http_t *http, enum httpMethod method);
-void http_setRequestTarget(http_t *http, string_t *requestTarget);
+enum httpMethod http_getMethod(http_t *http);
+
 void http_setVersion(http_t *http, string_t *version);
-void http_setResponsCode(http_t *http, uint16_t code);
+string_t *http_getVersion(http_t *http);
+
+void http_setResponseCode(http_t *http, uint16_t code);
+uint16_t http_getResponseCode(http_t *http);
+
 void http_setHeader(http_t *http, string_t *key, string_t *value);
+string_t *http_getHeader(http_t *http, string_t *key);
+
+url_t *http_getUrl(http_t *http);
 
 string_t *http_toResponseString(http_t *http);
 

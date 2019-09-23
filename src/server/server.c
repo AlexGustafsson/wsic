@@ -9,6 +9,7 @@
 #include "../datastructures/list/list.h"
 #include "../datastructures/queue/queue.h"
 #include "../logging/logging.h"
+#include "../http/http.h"
 
 #include "server.h"
 
@@ -199,43 +200,93 @@ int server_acceptConnections() {
 }
 
 void server_handleConnection(connection_t *connection) {
-  // TODO: Parse each line of the header. If something fails, close the connection
-  string_t *header = string_create();
-  string_t *line = 0;
-  while (true) {
-    line = connection_readLine(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_SIZE - string_getSize(header));
-    if (line == 0 || string_getSize(line) == 0)
-      break;
-    string_append(header, line);
-    string_free(line);
-    line = 0;
-  }
+  http_t *http = http_create();
 
-  if (string_getSize(header) == 0) {
-    log(LOG_ERROR, "Didn't receive a header from the request");
-    string_free(header);
+  // Start reading the header from the client
+  string_t *currentLine = 0;
+  size_t line = 0;
+  size_t headerSize = 0;
+  while (true) {
+    currentLine = connection_readLine(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_HEADER_SIZE - headerSize);
+    if (currentLine != 0)
+      log(LOG_DEBUG, "Read line \n<%s>", string_getBuffer(currentLine));
+    // Stop if there was no line read or the line was empty (all headers were read)
+    if (currentLine == 0 || string_getSize(currentLine) == 0)
+      break;
+    headerSize += string_getSize(currentLine);
+    if (line == 0) {
+      // Parse the request line
+      bool parsed = http_parseRequestLine(http, currentLine);
+      if (!parsed) {
+        log(LOG_ERROR, "Failed to parse request line '%s'. Closing connection", string_getBuffer(currentLine));
+        string_free(currentLine);
+        http_free(http);
+        server_closeConnection(connection);
+        return;
+      }
+    } else {
+      // Parse the header
+      bool parsed = http_parseHeader(http, currentLine);
+      if (!parsed) {
+        log(LOG_ERROR, "Failed to parse header '%s'. Closing connection", string_getBuffer(currentLine));
+        string_free(currentLine);
+        http_free(http);
+        server_closeConnection(connection);
+        return;
+      }
+    }
+    string_free(currentLine);
+    currentLine = 0;
+    line++;
+  }
+  bool parsedHost = http_parseHost(http);
+  if (!parsedHost) {
+    log(LOG_DEBUG, "Could not parse Host header");
+    http_free(http);
     server_closeConnection(connection);
     return;
   }
 
-  // TODO: Parse HTTP headers here
-  log(LOG_DEBUG, "Got headers:\n%s", string_getBuffer(header));
+  if (http->url == 0) {
+    log(LOG_ERROR, "Didn't receive a header from the request");
+    http_free(http);
+    server_closeConnection(connection);
+    return;
+  }
 
-  // TODO: If the headers specify a body, read it here,
-  // but fail if there's more than REQUEST_MAX_SIZE - string_getSize(header) bytes to read
+  string_t *expectHeader = string_fromCopy("Expect");
+  string_t *expects = http_getHeader(http, expectHeader);
+  string_free(expectHeader);
+  if (expects != 0) {
+    log(LOG_DEBUG, "Got expect '%s'", string_getBuffer(expects));
+    // TODO: Handle actual expects here
+    connection_write(connection, "HTTP/1.1 100 Continue\r\n", 23);
+  }
 
-  // TODO: If the headers specify an "Expect: " then we need to respond
-  // (sockets are bidirectional and will stay open for a while)
+  string_t *body = 0;
+  string_t *contentLengthHeader = string_fromCopy("Content-Length");
+  string_t *contentLengthString = http_getHeader(http, contentLengthHeader);
+  string_free(contentLengthHeader);
+  if (contentLengthString != 0) {
+    int contentLength = atoi(string_getBuffer(contentLengthString));
+    log(LOG_DEBUG, "Got content length '%d'", contentLength);
+    if (contentLength > REQUEST_MAX_BODY_SIZE) {
+      log(LOG_WARNING, "The client wanted to write %d bytes which is above maximum %d", contentLength, REQUEST_MAX_BODY_SIZE);
+      http_free(http);
+      server_closeConnection(connection);
+      return;
+    }
+    body = connection_read(connection, REQUEST_READ_TIMEOUT, contentLength);
+  }
 
-  // Try with:
-  // dd if=/dev/urandom of=test.dat bs=1M count=1
-  // curl -v -X POST -d @test.dat localhost:3000
+  if (body != 0)
+    log(LOG_DEBUG, "Got body:\n<%s>", string_getBuffer(body));
 
   server_closeConnection(connection);
   return;
-
+/*
   // Read a request (wait for maximum of one second)
-  string_t *request = connection_read(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_SIZE);
+  string_t *request = connection_read(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_BODY_SIZE);
   if (request == 0) {
     log(LOG_ERROR, "Could not get request from connection");
     server_closeConnection(connection);
@@ -270,13 +321,13 @@ void server_handleConnection(connection_t *connection) {
   // NOTE: Not necessary, but for debugging it's nice to know
   // that the process is actually exiting (not kept forever)
   // since we don't currently kill spawned processes
-  /*log(LOG_DEBUG, "Waiting for process to exit");
+  log(LOG_DEBUG, "Waiting for process to exit");
   uint8_t exitCode = cgi_waitForExit(process);
-  log(LOG_DEBUG, "Process exited with status %d", exitCode);*/
+  log(LOG_DEBUG, "Process exited with status %d", exitCode);
 
   // Close and free up CGI process and connection
   cgi_freeProcess(process);
-  server_closeConnection(connection);
+  server_closeConnection(connection);*/
 }
 
 void server_closeConnection(connection_t *connection) {

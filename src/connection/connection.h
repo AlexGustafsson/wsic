@@ -23,7 +23,7 @@ void connection_setSocket(connection_t *connection, int socketId);
 void connection_setSourceAddress(connection_t *connection, string_t *sourceAddress);
 void connection_setSourcePort(connection_t *connection, uint16_t sourcePort);
 
-string_t *connection_read(connection_t *connection, int timeout, size_t maxBytes);
+string_t *connection_read(connection_t *connection, int timeout, size_t bytesToRead);
 string_t *connection_readLine(connection_t *connection, int timeout, size_t maxBytes);
 bool connection_pollForData(connection_t *connection, int timeout);
 ssize_t connection_getAvailableBytes(connection_t *connection);
