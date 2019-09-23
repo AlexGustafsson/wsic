@@ -8,8 +8,6 @@
 #define WORKER_STATUS_IDLE 0
 #define WORKER_STATUS_WORKING 1
 
-#define WORKER_SHARED_MEMORY_NAME "wsic_worker"
-
 // Shared memory between parent and worker
 typedef struct {
   // The current status of the worker
