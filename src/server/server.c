@@ -8,8 +8,8 @@
 #include "../datastructures/hash-table/hash-table.h"
 #include "../datastructures/list/list.h"
 #include "../datastructures/queue/queue.h"
-#include "../logging/logging.h"
 #include "../http/http.h"
+#include "../logging/logging.h"
 
 #include "server.h"
 
@@ -284,7 +284,7 @@ void server_handleConnection(connection_t *connection) {
 
   server_closeConnection(connection);
   return;
-/*
+  /*
   // Read a request (wait for maximum of one second)
   string_t *request = connection_read(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_BODY_SIZE);
   if (request == 0) {
