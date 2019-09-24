@@ -221,6 +221,7 @@ void connection_parseRequest(connection_t *connection, char *buffer, size_t buff
 }
 
 void connection_close(connection_t *connection) {
+  shutdown(connection->socketId, SHUT_RDWR);
   close(connection->socketId);
 }
 
