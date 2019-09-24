@@ -12,8 +12,8 @@ BUILD_FLAGS=-O2 -Wall -Wextra -pedantic -Wno-unused-parameter $(BUILD_VARIABLES)
 # Don't optimize, provide all warnings and build with clang's memory checks and support for GDB debugging
 DEBUG_FLAGS=-Wall -Wextra -pedantic -Wno-unused-parameter -fsanitize=address -fno-omit-frame-pointer -g $(BUILD_VARIABLES)
 
-# Link towards the math library (not done by GCC)
-LINKER_FLAGS=-lm
+# Link towards the math library and thread library (not done by GCC)
+LINKER_FLAGS=-lm -lpthread
 
 # Include generated and third-party code
 INCLUDES := -Ibuild -Iincludes

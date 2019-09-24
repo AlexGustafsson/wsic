@@ -24,6 +24,10 @@ int worker_entryPoint();
 void worker_handleConnection(connection_t *connection);
 void worker_handleSignalSIGKILL();
 
+// Locking methods
+void worker_setStatus(worker_t* worker, uint8_t status);
+connection_t *worker_getConnection(worker_t* worker);
+
 // The worker object. Set only in a worker process
 static worker_t *self = 0;
 
@@ -38,6 +42,16 @@ worker_t *worker_spawn() {
   worker->channel = mmap(NULL, sizeof(worker_channel_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   if (worker->channel == 0) {
     log(LOG_ERROR, "Failed to allocate shared memory for worker");
+    free(worker);
+    return 0;
+  }
+
+  // Create a semaphore
+  worker->channelSemaphore = semaphore_create(1);
+  if (worker->channelSemaphore == 0) {
+    log(LOG_ERROR, "Failed to create semaphore for worker channel");
+    semaphore_free(worker->channelSemaphore);
+    munmap(worker->channel, sizeof(worker_channel_t));
     free(worker);
     return 0;
   }
@@ -65,11 +79,33 @@ worker_t *worker_spawn() {
 }
 
 uint8_t worker_getStatus(worker_t *worker) {
-  return worker->channel->status;
+  semaphore_lock(worker->channelSemaphore);
+  uint8_t status = worker->channel->status;
+  semaphore_unlock(worker->channelSemaphore);
+  return status;
 }
 
 void worker_setConnection(worker_t *worker, connection_t *connection) {
+  semaphore_lock(worker->channelSemaphore);
   worker->channel->connection = connection;
+  // Wait for the memory to synchronize
+  msync(worker->channel, sizeof(worker_channel_t), MS_SYNC);
+  semaphore_unlock(worker->channelSemaphore);
+}
+
+void worker_setStatus(worker_t* worker, uint8_t status) {
+  semaphore_lock(worker->channelSemaphore);
+  worker->channel->status = status;
+  // Wait for the memory to synchronize
+  msync(worker->channel, sizeof(worker_channel_t), MS_SYNC);
+  semaphore_unlock(worker->channelSemaphore);
+}
+
+connection_t *worker_getConnection(worker_t* worker) {
+  semaphore_lock(worker->channelSemaphore);
+  connection_t *connection = worker->channel->connection;
+  semaphore_unlock(worker->channelSemaphore);
+  return connection;
 }
 
 int worker_entryPoint() {
@@ -89,7 +125,7 @@ int worker_entryPoint() {
     return 1;
   }
 
-  self->channel->status = WORKER_STATUS_IDLE;
+  worker_setStatus(self, WORKER_STATUS_IDLE);
 
   while (true) {
     // Wait for a signal whitelisted above
@@ -103,21 +139,20 @@ int worker_entryPoint() {
 
     if (signal == SIGUSR1) {
       log(LOG_DEBUG, "Worker was interrupted to handle a connection");
+      connection_t *connection = worker_getConnection(self);
       // If the channel was interrupted without a connection assigned, wait again
-      if (self->channel->connection == 0) {
+      if (connection == 0) {
         log(LOG_WARNING, "Worker interrupted without receiving a connection");
         continue;
       }
 
-      self->channel->status = WORKER_STATUS_WORKING;
-      connection_write(self->channel->connection, "Hello World!", 12);
-      connection_free(self->channel->connection);
-      self->channel->connection = 0;
-      self->channel->status = WORKER_STATUS_IDLE;
+      worker_setStatus(self, WORKER_STATUS_WORKING);
+      connection_write(connection, "Hello World!", 12);
+      connection_free(connection);
+      worker_setConnection(self, 0);
+      worker_setStatus(self, WORKER_STATUS_WORKING);
     } else {
       log(LOG_DEBUG, "Worker was interrupted to shut down");
-      if (self->channel->connection != 0)
-        connection_free(self->channel->connection);
       exit(0);
     }
   }

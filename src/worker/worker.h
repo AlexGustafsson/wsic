@@ -4,8 +4,10 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <semaphore.h>
 
 #include "../connection/connection.h"
+#include "../semaphore/semaphore.h"
 
 // Before a worker has started, it is initializing (right after fork)
 #define WORKER_STATUS_INITIALIZING 0
@@ -27,6 +29,7 @@ typedef struct {
 typedef struct {
   pid_t pid;
   worker_channel_t *channel;
+  semaphore_t *channelSemaphore;
 } worker_t;
 
 worker_t *worker_spawn();
