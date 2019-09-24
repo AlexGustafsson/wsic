@@ -210,15 +210,17 @@ void server_handleConnection(connection_t *connection) {
     return;
   }
 
+  log(LOG_DEBUG, "Connection address: %08x", connection);
+
   log(LOG_DEBUG, "Setting connection and interrupting worker");
   worker_setConnection(worker, connection);
-  worker_interrupt(worker);
 
-  worker_close(worker);
+  sleep(2);
   // Not necessary but nice for debugging:
-  log(LOG_DEBUG, "Waiting for process to exit");
-  uint8_t exitCode = worker_waitForExit(worker);
-  log(LOG_DEBUG, "Process exited with status %d", exitCode);
+  log(LOG_DEBUG, "Waiting for thread to exit");
+  worker_kill(worker);
+  worker_waitForExit(worker);
+  log(LOG_DEBUG, "Thread exited, freeing");
 
   worker_free(worker);
 }

@@ -1,205 +1,119 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
-#include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "../logging/logging.h"
 #include "../string/string.h"
 
 #include "worker.h"
 
-// Not all versions of OS X or macOS seem to have MAP_ANONYMOUS
-// They do however have MAP_ANON
-#ifdef __APPLE__
-#ifndef MAP_ANONYMOUS
-#define MAP_ANONYMOUS MAP_ANON
-#endif
-#endif
-
 // Private methods
 // The main entry point of a worker
 int worker_entryPoint();
-void worker_handleConnection(connection_t *connection);
-void worker_handleSignalSIGKILL();
-
-// Locking methods
-void worker_setStatus(worker_t* worker, uint8_t status);
-connection_t *worker_getConnection(worker_t* worker);
-
-// The worker object. Set only in a worker process
-static worker_t *self = 0;
 
 worker_t *worker_spawn() {
   worker_t *worker = malloc(sizeof(worker_t));
   if (worker == 0)
     return 0;
+  memset(worker, 0, sizeof(worker_t));
 
-  // Map a shared memory address
-  // A NULL address let's the system picks an address for us
-  // Anonymous and a -1 file descriptor indicates that there is no backing file (only the child process can use the mapping)
-  worker->channel = mmap(NULL, sizeof(worker_channel_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-  if (worker->channel == 0) {
-    log(LOG_ERROR, "Failed to allocate shared memory for worker");
+  // Create a condition for when the thread should sleep
+  if (pthread_cond_init(&worker->sleepCondition, NULL) != 0) {
+    log(LOG_ERROR, "Unable to create sleeping condition");
     free(worker);
     return 0;
   }
 
-  // Create a semaphore
-  worker->channelSemaphore = semaphore_create(1);
-  if (worker->channelSemaphore == 0) {
-    log(LOG_ERROR, "Failed to create semaphore for worker channel");
-    semaphore_free(worker->channelSemaphore);
-    munmap(worker->channel, sizeof(worker_channel_t));
+  // Create a mutex locked while working
+  if (pthread_mutex_init(&worker->sleepMutex, NULL) != 0) {
+    log(LOG_ERROR, "Unable to create sleeping mutex");
+    pthread_cond_destroy(&worker->sleepCondition);
     free(worker);
     return 0;
   }
 
-  // Fork the process
-  fflush(stdout);
-  fflush(stderr);
-  worker->pid = fork();
+  pthread_t thread;
 
-  if (worker->pid < 0) {
-    log(LOG_ERROR, "Failed to spawn worker");
-    worker_free(worker);
-
+  if (pthread_create(&thread, NULL, worker_entryPoint, worker) != 0) {
+    log(LOG_ERROR, "Unable to start thread for worker");
+    free(worker);
+    pthread_cond_destroy(&worker->sleepCondition);
+    pthread_mutex_destroy(&worker->sleepMutex);
     return 0;
-  } else if (worker->pid == 0) {
-    // Set the worker object of the process
-    self = worker;
-    log(LOG_DEBUG, "Entering worker entry point");
-    // Put the worker into the entry point
-    int exitCode = worker_entryPoint();
-    // If this is ever returned, then the worker process failed and will exit
-    _exit(exitCode);
   }
+  worker->thread = thread;
 
-  log(LOG_DEBUG, "Spawned worker with pid %d", worker->pid);
+  log(LOG_DEBUG, "Created thread");
   return worker;
 }
 
 uint8_t worker_getStatus(worker_t *worker) {
-  semaphore_lock(worker->channelSemaphore);
-  uint8_t status = worker->channel->status;
-  semaphore_unlock(worker->channelSemaphore);
-  return status;
+  return worker->status;
 }
 
 void worker_setConnection(worker_t *worker, connection_t *connection) {
-  semaphore_lock(worker->channelSemaphore);
-  worker->channel->connection = connection;
-  // Wait for the memory to synchronize
-  msync(worker->channel, sizeof(worker_channel_t), MS_SYNC);
-  semaphore_unlock(worker->channelSemaphore);
+  // TODO: Thread safety
+  pthread_mutex_lock(&worker->sleepMutex);
+  worker->connection = connection;
+  pthread_cond_signal(&worker->sleepCondition);
+  pthread_mutex_unlock(&worker->sleepMutex);
 }
 
 void worker_setStatus(worker_t* worker, uint8_t status) {
-  semaphore_lock(worker->channelSemaphore);
-  worker->channel->status = status;
-  // Wait for the memory to synchronize
-  msync(worker->channel, sizeof(worker_channel_t), MS_SYNC);
-  semaphore_unlock(worker->channelSemaphore);
+  worker->status = status;
 }
 
 connection_t *worker_getConnection(worker_t* worker) {
-  semaphore_lock(worker->channelSemaphore);
-  connection_t *connection = worker->channel->connection;
-  semaphore_unlock(worker->channelSemaphore);
-  return connection;
+  return worker->connection;
 }
 
-int worker_entryPoint() {
-  // Setup signal handling
-  signal(SIGKILL, worker_handleSignalSIGKILL);
-
-  // Setup mask of signals able to wake the process up
-  sigset_t mask;
-  sigemptyset(&mask);
-  // The parent is trying to interrupt worker
-  sigaddset(&mask, SIGUSR1);
-  sigaddset(&mask, SIGINT);
-  sigaddset(&mask, SIGTERM);
-  // Block the above signals (as we want them to be handled by sigwait)
-  if (sigprocmask(SIG_BLOCK, &mask, NULL) == -1) {
-    log(LOG_ERROR, "Could not set signal mask for worker process");
-    return 1;
-  }
-
-  worker_setStatus(self, WORKER_STATUS_IDLE);
+int worker_entryPoint(worker_t *worker) {
+  log(LOG_DEBUG, "Initializing worker");
 
   while (true) {
-    // Wait for a signal whitelisted above
-    int signal;
-    if (sigwait(&mask, &signal) != 0) {
-      log(LOG_ERROR, "Could not wait for signal");
-      return 1;
-    }
+    log(LOG_DEBUG, "Putting worker to sleep");
+    worker->status = WORKER_STATUS_IDLE;
 
-    log(LOG_DEBUG, "Worker process interrupted by parent (%d)", signal);
+    // Lock the thread until a connection is available
+    pthread_mutex_lock(&worker->sleepMutex);
+    while (worker->connection == 0)
+      pthread_cond_wait(&worker->sleepCondition, &worker->sleepMutex);
+    pthread_mutex_unlock(&worker->sleepMutex);
 
-    if (signal == SIGUSR1) {
-      log(LOG_DEBUG, "Worker was interrupted to handle a connection");
-      connection_t *connection = worker_getConnection(self);
-      // If the channel was interrupted without a connection assigned, wait again
-      if (connection == 0) {
-        log(LOG_WARNING, "Worker interrupted without receiving a connection");
-        continue;
-      }
+    log(LOG_DEBUG, "Worker process interrupted by parent to handle a connection");
 
-      worker_setStatus(self, WORKER_STATUS_WORKING);
-      connection_write(connection, "Hello World!", 12);
-      connection_free(connection);
-      worker_setConnection(self, 0);
-      worker_setStatus(self, WORKER_STATUS_WORKING);
-    } else {
-      log(LOG_DEBUG, "Worker was interrupted to shut down");
-      _exit(0);
-    }
+    worker->status = WORKER_STATUS_WORKING;
+
+    // Handle the connection
+    connection_write(worker->connection, "Hello World!", 12);
+
+    log(LOG_DEBUG, "Handled connection - closing it");
+    // Free the connection as it's of no further use
+    connection_free(worker->connection);
+    worker->connection = 0;
   }
 
   return 0;
 }
 
-void worker_handleSignalSIGKILL() {
-  log(LOG_DEBUG, "Worker got SIGKILL - exiting immediately");
-  _exit(0);
-}
-
-uint8_t worker_waitForExit(worker_t *worker) {
-  int status;
-  waitpid(worker->pid, &status, 0);
-
-  return WEXITSTATUS(status);
-}
-
-bool worker_isAlive(worker_t *worker) {
-  int status;
-  pid_t pid = waitpid(worker->pid, &status, WNOHANG);
-
-  return pid == 0;
-}
-
-void worker_interrupt(worker_t *worker) {
-  kill(worker->pid, SIGUSR1);
-}
-
-void worker_close(worker_t *worker) {
-  kill(worker->pid, SIGTERM);
+void worker_waitForExit(worker_t *worker) {
+  pthread_join(worker->thread, NULL);
 }
 
 void worker_kill(worker_t *worker) {
-  kill(worker->pid, SIGKILL);
+  pthread_cancel(worker->thread);
+  // Ensure that the sleep mutex is unlocked
+  pthread_mutex_unlock(&worker->sleepMutex);
+  // Ensure that the condition is destroyed after the threads has exited
+  pthread_cond_destroy(&worker->sleepCondition);
 }
 
 void worker_free(worker_t *worker) {
-  // Kill the process
-  worker_kill(worker);
-
-  // Unmap the memory
-  munmap(worker->channel, sizeof(worker_channel_t));
-
+  if (worker->connection != 0)
+    connection_free(worker->connection);
   // Free the worker itself
   free(worker);
 }
