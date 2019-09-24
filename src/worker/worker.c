@@ -1,9 +1,9 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <string.h>
 
 #include "../logging/logging.h"
 #include "../string/string.h"
@@ -78,11 +78,11 @@ void worker_setConnection(worker_t *worker, connection_t *connection) {
   pthread_mutex_unlock(&worker->sleepMutex);
 }
 
-void worker_setStatus(worker_t* worker, uint8_t status) {
+void worker_setStatus(worker_t *worker, uint8_t status) {
   worker->status = status;
 }
 
-connection_t *worker_getConnection(worker_t* worker) {
+connection_t *worker_getConnection(worker_t *worker) {
   return worker->connection;
 }
 
