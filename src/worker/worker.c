@@ -53,7 +53,7 @@ worker_t *worker_spawn() {
   } else if (worker->pid == 0) {
     // Set the worker object of the process
     self = worker;
-    //log(LOG_DEBUG, "Entering worker entry point");
+    log(LOG_DEBUG, "Entering worker entry point");
     // Put the worker into the entry point
     int exitCode = worker_entryPoint();
     // If this is ever returned, then the worker process failed and will exit
@@ -104,8 +104,10 @@ int worker_entryPoint() {
     if (signal == SIGUSR1) {
       log(LOG_DEBUG, "Worker was interrupted to handle a connection");
       // If the channel was interrupted without a connection assigned, wait again
-      if (self->channel->connection == 0)
+      if (self->channel->connection == 0) {
+        log(LOG_WARNING, "Worker interrupted without receiving a connection");
         continue;
+      }
 
       self->channel->status = WORKER_STATUS_WORKING;
       connection_write(self->channel->connection, "Hello World!", 12);
