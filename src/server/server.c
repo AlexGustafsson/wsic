@@ -203,26 +203,12 @@ int server_acceptConnections() {
 }
 
 void server_handleConnection(connection_t *connection) {
-  log(LOG_DEBUG, "Spawning worker");
-  worker_t *worker = worker_spawn();
+  log(LOG_DEBUG, "Spawning worker in immediate mode");
+  worker_t *worker = worker_spawn(connection);
   if (worker == 0) {
     log(LOG_ERROR, "Failed to spawn worker");
     return;
   }
-
-  log(LOG_DEBUG, "Connection address: %08x", connection);
-
-  log(LOG_DEBUG, "Setting connection and interrupting worker");
-  worker_setConnection(worker, connection);
-
-  sleep(2);
-  // Not necessary but nice for debugging:
-  log(LOG_DEBUG, "Waiting for thread to exit");
-  worker_kill(worker);
-  worker_waitForExit(worker);
-  log(LOG_DEBUG, "Thread exited, freeing");
-
-  worker_free(worker);
 }
 
 void server_close() {
