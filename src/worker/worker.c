@@ -57,6 +57,8 @@ worker_t *worker_spawn() {
   }
 
   // Fork the process
+  fflush(stdout);
+  fflush(stderr);
   worker->pid = fork();
 
   if (worker->pid < 0) {
@@ -71,7 +73,7 @@ worker_t *worker_spawn() {
     // Put the worker into the entry point
     int exitCode = worker_entryPoint();
     // If this is ever returned, then the worker process failed and will exit
-    exit(exitCode);
+    _exit(exitCode);
   }
 
   log(LOG_DEBUG, "Spawned worker with pid %d", worker->pid);
@@ -153,7 +155,7 @@ int worker_entryPoint() {
       worker_setStatus(self, WORKER_STATUS_WORKING);
     } else {
       log(LOG_DEBUG, "Worker was interrupted to shut down");
-      exit(0);
+      _exit(0);
     }
   }
 
@@ -162,7 +164,7 @@ int worker_entryPoint() {
 
 void worker_handleSignalSIGKILL() {
   log(LOG_DEBUG, "Worker got SIGKILL - exiting immediately");
-  exit(0);
+  _exit(0);
 }
 
 uint8_t worker_waitForExit(worker_t *worker) {

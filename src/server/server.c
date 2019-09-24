@@ -37,6 +37,8 @@ bool server_setNonBlocking(int socketDescriptor) {
 
 pid_t server_createInstance(set_t *ports) {
   // Fork the process
+  fflush(stdout);
+  fflush(stderr);
   pid_t pid = fork();
 
   if (pid < 0) {
@@ -47,7 +49,7 @@ pid_t server_createInstance(set_t *ports) {
     int exitCode = server_start(ports);
     // We only get here if there's an error
     log(LOG_ERROR, "The server exited with code %d", exitCode);
-    exit(exitCode);
+    _exit(exitCode);
   } else {
     log(LOG_DEBUG, "Started server instance with pid %d", pid);
     return pid;

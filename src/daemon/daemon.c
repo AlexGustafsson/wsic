@@ -8,6 +8,8 @@
 
 pid_t daemonize() {
   // Fork the process
+  fflush(stdout);
+  fflush(stderr);
   pid_t pid = fork();
   if (pid < 0) {
     // Fail if we're unable to fork

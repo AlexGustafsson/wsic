@@ -39,6 +39,8 @@ cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *e
   }
 
   // Fork the process
+  fflush(stdout);
+  fflush(stderr);
   process->pid = fork();
 
   if (process->pid < 0) {
