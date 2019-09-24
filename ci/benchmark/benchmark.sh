@@ -39,7 +39,7 @@ function benchmark {
   sleep 5
 
   # Perform benchmark
-  ab "$@" -g "build/reports/benchmark/$test/temp-data.p" localhost:8080/index.html > "build/reports/benchmark/$test/report.txt"
+  ab "$@" -g "build/reports/benchmark/$test/temp-data.p" 127.0.0.1:8080/index.html > "build/reports/benchmark/$test/report.txt"
   benchmarkExitCode="$?"
 
   # Kill WSIC
