@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "../logging/logging.h"
 
@@ -221,8 +222,12 @@ void connection_parseRequest(connection_t *connection, char *buffer, size_t buff
 }
 
 void connection_close(connection_t *connection) {
-  shutdown(connection->socketId, SHUT_RDWR);
-  close(connection->socketId);
+  if (shutdown(connection->socketId, SHUT_RDWR) == -1) {
+    if (errno != ENOTCONN && errno != EINVAL)
+      log(LOG_ERROR, "Failed to shutdown connection. Got error %d", errno);
+    if (close(connection->socketId) == -1)
+      log(LOG_ERROR, "Unable to close connection");
+  }
 }
 
 void connection_free(connection_t *connection) {
