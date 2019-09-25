@@ -45,14 +45,14 @@
 #define LOGGING_SYSLOG 2
 
 // A "private" macro for formatting and logging to console
-#define _log_console(level, ...)                                                                                                            \
-  do { \
-    uint64_t elapsedTime = time_getTimeSinceStart(); \
-    uint64_t milliseconds = elapsedTime / 1000000; \
-    uint8_t rest = (elapsedTime - (milliseconds * 1000000)) / 10000;                                                                                                                                   \
+#define _log_console(level, ...)                                                                                                                                            \
+  do {                                                                                                                                                                      \
+    uint64_t elapsedTime = time_getTimeSinceStart();                                                                                                                        \
+    uint64_t milliseconds = elapsedTime / 1000000;                                                                                                                          \
+    uint8_t rest = (elapsedTime - (milliseconds * 1000000)) / 10000;                                                                                                        \
     fprintf(stderr, "%llu.%02dms \x1b[90m[\x1b[%dm%s\x1b[90m][%s@%d][%s]\x1b[0m ", milliseconds, rest, LOG_COLOR_##level, LOG_LABEL_##level, __FILE__, __LINE__, __func__); \
-    fprintf(stderr, __VA_ARGS__);                                                                                                           \
-    fprintf(stderr, "\n");                                                                                                                  \
+    fprintf(stderr, __VA_ARGS__);                                                                                                                                           \
+    fprintf(stderr, "\n");                                                                                                                                                  \
   } while (0)
 
 // Log to all enabled outputs

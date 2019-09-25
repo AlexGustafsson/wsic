@@ -8,10 +8,10 @@
 #include "datastructures/set/set.h"
 
 #include "compile-time-defines.h"
-#include "resources/resources.h"
 #include "config/config.h"
 #include "daemon/daemon.h"
 #include "logging/logging.h"
+#include "resources/resources.h"
 #include "server/server.h"
 #include "string/string.h"
 #include "time/time.h"
