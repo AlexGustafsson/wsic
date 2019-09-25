@@ -4,29 +4,28 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "datastructures/hash-table/hash-table.h"
 #include "datastructures/list/list.h"
 #include "datastructures/set/set.h"
 
-#include "cgi/cgi.h"
 #include "compile-time-defines.h"
+#include "resources/resources.h"
 #include "config/config.h"
 #include "daemon/daemon.h"
-#include "http/http.h"
 #include "logging/logging.h"
-#include "resources/resources.h"
 #include "server/server.h"
 #include "string/string.h"
-#include "www/www.h"
+#include "time/time.h"
 
 #include "main.h"
 
 int main(int argc, char const *argv[]) {
+  // Start internal time keeping
+  time_reset();
+
   // Warn if the server is running as root
   if (geteuid() == 0)
     log(LOG_WARNING, "Running as root. I hope you know what you're doing.");
 
-  LOGGING_OUTPUT = LOGGING_CONSOLE | LOGGING_SYSLOG;
   logging_startSyslog();
   config_t *config = config_parse((char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
   server_config_t *defaultServerConfig = config_getServerConfig(config, 0);
