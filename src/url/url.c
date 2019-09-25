@@ -55,11 +55,6 @@ string_t *url_toString(url_t *url) {
       string_appendChar(result, '&');
   }
 
-  if (url->fragment != 0) {
-    string_appendChar(result, '#');
-    string_append(result, url->fragment);
-  }
-
   return result;
 }
 
@@ -108,17 +103,6 @@ string_t *url_getParameter(url_t *url, string_t *key) {
   return hash_table_getValue(url->parameters, key);
 }
 
-void url_setFragment(url_t *url, string_t *fragment) {
-  if (url->fragment != 0)
-    string_free(url->fragment);
-
-  url->fragment = fragment;
-}
-
-string_t *url_getFragment(url_t *url) {
-  return url->fragment;
-}
-
 void url_free(url_t *url) {
   if (url->protocol != 0)
     string_free(url->protocol);
@@ -132,7 +116,5 @@ void url_free(url_t *url) {
     string_free(value);
   }
   hash_table_free(url->parameters);
-  if (url->fragment != 0)
-    string_free(url->fragment);
   free(url);
 }

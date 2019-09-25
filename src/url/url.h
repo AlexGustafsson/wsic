@@ -13,7 +13,6 @@ typedef struct {
   uint16_t port;
   string_t *path;
   hash_table_t *parameters;
-  string_t *fragment;
 } url_t;
 
 url_t *url_create();
@@ -34,9 +33,6 @@ string_t *url_getPath(url_t *url);
 
 void url_setParameter(url_t *url, string_t *key, string_t *value);
 string_t *url_getParameter(url_t *url, string_t *key);
-
-void url_setFragment(url_t *url, string_t *fragment);
-string_t *url_getFragment(url_t *url);
 
 void url_free(url_t *url);
 

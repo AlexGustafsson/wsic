@@ -60,6 +60,19 @@ string_t *http_getHeader(http_t *http, string_t *key) {
   return hash_table_getValue(http->headers, key);
 }
 
+void http_setBody(http_t *http, string_t *body) {
+  if (http->body != 0)
+    string_free(http->body);
+
+  http->body = body;
+  // Content-Length
+  http_setHeader(http, string_fromCopy("Content-Length"), string_fromInt(string_getSize(http->body)));
+}
+
+string_t *http_getBody(http_t *http) {
+  return http->body;
+}
+
 url_t *http_getUrl(http_t *http) {
   return http->url;
 }
@@ -105,54 +118,6 @@ string_t *http_toResponseString(http_t *http) {
   return result;
 }
 
-http_t *http_parseRequest(string_t *request) {
-  http_t *http = http_create();
-  http->version = string_create();
-  string_cursor_t *cursor = string_createCursor(request);
-  // First line of the request
-  string_t *line = string_getNextLine(cursor);
-  if (line == 0) {
-    log(LOG_ERROR, "Can not parse empty request");
-    string_free(line);
-    http_free(http);
-    return 0;
-  }
-  // Parse the first line in the request (METHOD, PATH, VERSION)
-  bool correctlyParsed = http_parseRequestLine(http, line);
-  // Check if the parse was successfull
-  if (correctlyParsed == false) {
-    log(LOG_ERROR, "Could not parse request");
-    string_free(line);
-    http_free(http);
-    return 0;
-  }
-  string_free(line);
-
-  // Parse all headers (KEY: VALUES)
-  while ((line = string_getNextLine(cursor)) != 0) {
-    // if line is null break
-    if (string_getSize(line) == 0) {
-      string_free(line);
-      break;
-    }
-
-    // Parse headers
-    correctlyParsed = http_parseHeader(http, line);
-    if (correctlyParsed == false) {
-      log(LOG_ERROR, "Could not parse request");
-      string_free(line);
-      return 0;
-    }
-    string_free(line);
-  }
-
-  // Parse body if there is one
-  http_parseBody(http, request, string_getOffset(cursor));
-  string_freeCursor(cursor);
-
-  return http;
-}
-
 bool http_parseRequestLine(http_t *http, string_t *string) {
   char current = 0;
   string_t *tempString = string_create();
@@ -164,66 +129,92 @@ bool http_parseRequestLine(http_t *http, string_t *string) {
     string_appendChar(tempString, current);
 
   if (current == 0) {
-    log(LOG_ERROR, "Could not parse request:method");
+    log(LOG_ERROR, "Could not parse request. Missing path and/or version");
+    string_free(tempString);
+    string_freeCursor(cursor);
     return false;
   }
 
-  // Convert from string to enum
+  // Convert from string to enum and sets method
   http->method = http_parseMethod(tempString);
   string_free(tempString);
 
-  string_t *requestTarget = string_create();
-  // Parse path
+  // Initialize https url struct
+  if (http->url == 0)
+    http->url = url_create();
+  if (http->url == 0) {
+    log(LOG_ERROR, "Could not initialize http's url struct");
+    string_freeCursor(cursor);
+    return false;
+  }
+  url_setProtocol(http->url, string_fromCopy("http"));
+
+  // Get the path and parameters
   // Reads untill a space is found or null char at end on line
+  string_t *requestTarget = string_create();
   while ((current = string_getNextChar(cursor)) != ' ' && current != 0)
     string_appendChar(requestTarget, current);
 
   if (current == 0) {
-    log(LOG_ERROR, "Could not parse request:target");
+    log(LOG_ERROR, "Could not parse request. Missing version");
+    string_freeCursor(cursor);
     return false;
   }
 
-  // SET URL
-  if (http->url == 0)
-    http->url = url_create();
-  if (http->url == 0) {
-    log(LOG_ERROR, "Could not inizialise https url struct");
-    http_free(http);
-    return 0;
-  }
-
-  url_setProtocol(http->url, string_fromCopy("http"));
-
-  // Parse request target
+  // Parse path and parameters (request target)
   bool correctlyParsed = http_parseRequestTarget(http, requestTarget);
   if (correctlyParsed == false) {
-    log(LOG_ERROR, "Could not parse host");
-    http_free(http);
-    return 0;
+    log(LOG_ERROR, "Could not parse path and optional parameters");
+    string_freeCursor(cursor);
+    return false;
   }
   string_free(requestTarget);
 
   // Parse version
   // Reads untill null char at end on line
+  string_t *versionString = string_create();
   http_setVersion(http, string_create());
   while ((current = string_getNextChar(cursor)) != 0)
-    string_appendChar(http->version, current);
+    string_appendChar(versionString, current);
   // Free cursor, not in use anny more
   string_freeCursor(cursor);
 
-  // Saves the first 5 characters of the version
-  string_t *compareString = string_substring(http->version, 0, 4);
+  // Check to see if the version starts with HTTP/
+  string_t *compareString = string_substring(versionString, 0, 5);
   // If the version does not start with "HTTP/" then exit
-  if (string_equalsBuffer(compareString, "HTTP/") != 0) {
-    log(LOG_ERROR, "Could not parse request:version");
-    string_free(compareString);
+  if (string_equalsBuffer(compareString, "HTTP/") == false) {
+    log(LOG_ERROR, "Could not parse request:version. Invalid input missing 'HTTP/''");
+    if (compareString != 0)
+      string_free(compareString);
+    if (versionString != 0)
+      string_free(versionString);
     return false;
   }
   string_free(compareString);
 
-  // Remove "HTTP/" from the version and saves only version index
-  http_setVersion(http, string_substring(http->version, 5, string_getSize(http->version)));
+  string_t *version = string_substring(versionString, 5, 8);
+  if (version == 0) {
+    log(LOG_ERROR, "Could not parse request:version. Invalid input missing 'chars after HTTP/'");
+    string_free(versionString);
+    return false;
+  }
 
+  // The three chars after HTTP/ must be in the order: '[0-9]\.[0-9]'
+  bool firstCharIsNotInt = string_getCharAt(version, 0) < '0' || string_getCharAt(version, 0) > '9';
+  bool secondCharIsNotDot = string_getCharAt(version, 1) != '.';
+  bool thirdCharIsNotInt = string_getCharAt(version, 2) < '0' || string_getCharAt(version, 0) > '9';
+
+  if (firstCharIsNotInt || secondCharIsNotDot || thirdCharIsNotInt) {
+    log(LOG_ERROR, "Could not parse request:version. Invalid input version nuber vas incorect");
+    string_free(version);
+    string_free(versionString);
+    return false;
+  }
+
+  // Set the version
+  http_setVersion(http, version);
+
+  string_free(versionString);
   return true;
 }
 
@@ -271,6 +262,13 @@ bool http_parseRequestTarget(http_t *http, string_t *requestTarget) {
   } else {
     path = string_substring(requestTarget, 0, firstParameter);
     url_setPath(http->url, path);
+
+    // If there is nothing more that a ? at the end, we set the path and return as there is no url parameters
+    char current = 0;
+    if ((current = string_getNextChar(requestCursor)) == 0) {
+      string_freeCursor(requestCursor);
+      return true;
+    }
   }
 
   ssize_t secondParameter = 0;
@@ -316,7 +314,7 @@ bool http_parseHost(http_t *http) {
     http->url = url_create();
   if (parameter == -1) {
     url_setPort(http->url, 80);
-    url_setDomainName(http->url, host);
+    url_setDomainName(http->url, string_fromCopy(string_getBuffer(host)));
   } else {
     // parameter + 1 to skip colon
     string_t *portString = string_substring(host, parameter + 1, string_getSize(host));
@@ -361,7 +359,9 @@ void http_free(http_t *http) {
     string_free(value);
   }
   hash_table_free(http->headers);
+
   if (http->url != 0)
     url_free(http->url);
+
   free(http);
 }

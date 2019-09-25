@@ -212,6 +212,12 @@ void string_test_canAppendBufferWithLength() {
   TEST_ASSERT_EQUAL_STRING(expectedResult, base->buffer);
 
   string_free(base);
+
+  string_t *string = string_fromCopy("Hello Wolrd!");
+  char *b = "";
+  string_appendBufferWithLength(string, b, 1);
+
+  string_free(string);
 }
 
 void string_test_canGetExistingChar() {
@@ -393,6 +399,77 @@ void string_test_canLoopThroughLines() {
   string_free(lines);
 }
 
+void string_test_canFindNextChar() {
+  string_t *string = string_fromCopy("3h43SD#!*()DD*");
+  string_cursor_t *cursor = string_createCursor(string);
+  ssize_t parameter0 = 8;
+  ssize_t parameter1 = 13;
+
+  TEST_ASSERT(string_findNextChar(cursor, '*') == parameter0);
+  TEST_ASSERT(string_findNextChar(cursor, '*') == parameter1);
+  TEST_ASSERT(string_findNextChar(cursor, '*') == -1);
+
+  string_freeCursor(cursor);
+  string_free(string);
+}
+
+void string_test_canGetSubstring() {
+  string_t *string = string_fromCopy("I've got a really good UDP joke to tell you, but I don't know if you'll get it");
+  string_t *stringToCompare = string_substring(string, 23, 26);
+
+  // Testing expected functionality of substring
+  TEST_ASSERT(string_equalsBuffer(stringToCompare, "UDP"));
+
+  string_free(string);
+  string_free(stringToCompare);
+
+  // Read out of bounds (Do not need test for negative numbers because of size_t)
+  string_t *outOfBoundsString = string_substring(string, 0, 512);
+  TEST_ASSERT_NULL(outOfBoundsString);
+  outOfBoundsString = string_substring(string, 512, 0);
+  TEST_ASSERT_NULL(outOfBoundsString);
+  outOfBoundsString = string_substring(string, 512, 1024);
+  TEST_ASSERT_NULL(outOfBoundsString);
+
+  if (outOfBoundsString != 0)
+    string_free(outOfBoundsString);
+}
+
+void string_test_canGetSize() {
+    string_t *string = string_fromCopy("Hello World!");
+
+    TEST_ASSERT(string_getSize(string) == 12);
+
+    string_free(string);
+}
+
+void string_test_canResetCursor() {
+  string_t *string = string_fromCopy("Hello World!");
+  string_cursor_t *cursor = string_createCursor(string);
+
+  // Set cursor to 12
+  TEST_ASSERT(string_findNextChar(cursor, '!') == 11);
+  // Reset cursor to 0
+  string_resetCursor(cursor);
+
+  // Should be able to find the same char again
+  TEST_ASSERT(string_findNextChar(cursor, '!') == 11);
+
+  string_free(string);
+  string_freeCursor(cursor);
+}
+
+void string_test_canShrinkStringSize() {
+  string_t *string = string_fromCopy("Hello World!");
+
+  string_setBufferSize(string, 4);
+
+  TEST_ASSERT(string_equalsBuffer(string, "Hell"));
+  TEST_ASSERT(string->buffer[string->size] == 0);
+
+  string_free(string);
+}
+
 void string_test_run() {
   RUN_TEST(string_test_canCreateStringFromBuffer);
   RUN_TEST(string_test_canCreateStringFromBufferWithLength);
@@ -414,4 +491,9 @@ void string_test_run() {
   RUN_TEST(string_test_canCompareNonEqualStringAndBuffer);
   RUN_TEST(string_test_canLoopThroughCharacters);
   RUN_TEST(string_test_canLoopThroughLines);
+  RUN_TEST(string_test_canFindNextChar);
+  RUN_TEST(string_test_canGetSubstring);
+  RUN_TEST(string_test_canGetSize);
+  RUN_TEST(string_test_canResetCursor);
+  RUN_TEST(string_test_canShrinkStringSize);
 }
