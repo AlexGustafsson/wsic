@@ -162,7 +162,8 @@ int server_acceptConnections() {
   // Wait indefinitely for any incoming socket
   int status = poll(socketDescriptors, socketDescriptorCount, -1);
   if (status <= 0) {
-    log(LOG_ERROR, "An error occured while waiting for an incoming socket");
+    const char *reason = strerror(errno);
+    log(LOG_ERROR, "An error occured while waiting for an incoming socket: %d (%s)", errno, reason);
     return 0;
   }
 

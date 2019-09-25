@@ -16,6 +16,13 @@
 // When the worker is handling a connection, it is working
 #define WORKER_STATUS_WORKING 2
 
+// Don't allow headers larger than 1 MB
+#define REQUEST_MAX_HEADER_SIZE 1048576
+// Don't allow connections to wait for more than one second without sending data when reading
+#define REQUEST_READ_TIMEOUT 1000
+// Don't allow bodies larger than 1 MB
+#define REQUEST_MAX_BODY_SIZE 1048576
+
 typedef struct {
   // Always NULL if in immediate mode
   pthread_t thread;
