@@ -54,6 +54,7 @@ benchmark:
       - build/reports/benchmark/*/plot.png
       - build/reports/benchmark/*/report.txt
     when: always
+  allow_failure: true
 
 test:
   stage: test
