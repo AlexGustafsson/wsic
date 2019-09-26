@@ -138,10 +138,10 @@ ssize_t page_resolveTemplate(page_t *page, size_t offset) {
         string_appendBufferWithLength(page->source, string_getBuffer(oldSource), templateStart);
 
         // Append the template value if it exists
-        if (templateValue != 0)
+        if (templateValue != 0 && templateValueLength != 0)
           string_appendBufferWithLength(page->source, string_getBuffer(templateValue), templateValueLength);
         else
-          log(LOG_ERROR, "No value for template %s", string_getBuffer(templateKey));
+          log(LOG_WARNING, "No value for template %s", string_getBuffer(templateKey));
 
         // Append the source after the template
         string_appendBufferWithLength(page->source, string_getBuffer(oldSource) + templateEnd + 1, string_getSize(oldSource) - templateEnd - 1);
@@ -166,18 +166,29 @@ void page_resolveTemplates(page_t *page) {
   do {
     offset = page_resolveTemplate(page, offset);
   } while (offset > -1);
+
+  page_clearTemplates(page);
 }
 
-void page_free(page_t *page) {
-  if (page->source != 0)
-    string_free(page->source);
+void page_clearTemplates(page_t *page) {
+  if (page->templates == 0)
+    return;
 
   while (hash_table_getLength(page->templates) > 0) {
     string_t *key = hash_table_getKeyByIndex(page->templates, 0);
     string_t *value = hash_table_removeValue(page->templates, key);
     string_free(value);
   }
+
   hash_table_free(page->templates);
+  page->templates = 0;
+}
+
+void page_free(page_t *page) {
+  if (page->source != 0)
+    string_free(page->source);
+
+  page_clearTemplates(page);
 
   free(page);
 }

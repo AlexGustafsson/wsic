@@ -28,6 +28,8 @@ void page_setTemplate(page_t *page, string_t *key, string_t *value);
 ssize_t page_resolveTemplate(page_t *page, size_t offset);
 void page_resolveTemplates(page_t *page);
 
+void page_clearTemplates(page_t *page);
+
 void page_free(page_t *page);
 
 #endif

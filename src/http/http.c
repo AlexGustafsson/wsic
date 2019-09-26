@@ -333,18 +333,18 @@ bool http_parseHost(http_t *http) {
 
 enum httpMethod http_parseMethod(string_t *method) {
   if (string_equalsBuffer(method, "GET") == 1)
-    return GET;
+    return HTTP_METHOD_GET;
   if (string_equalsBuffer(method, "PUT") == 1)
-    return PUT;
+    return HTTP_METHOD_PUT;
   if (string_equalsBuffer(method, "POST") == 1)
-    return POST;
+    return HTTP_METHOD_POST;
   if (string_equalsBuffer(method, "HEAD") == 1)
-    return HEAD;
+    return HTTP_METHOD_HEAD;
   if (string_equalsBuffer(method, "OPTIONS") == 1)
-    return OPTIONS;
+    return HTTP_METHOD_OPTIONS;
 
   log(LOG_ERROR, "Could not parse http method '%s'", string_getBuffer(method));
-  return UNKNOWN;
+  return HTTP_METHOD_UNKNOWN;
 }
 
 void http_free(http_t *http) {

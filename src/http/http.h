@@ -10,12 +10,12 @@
 
 #include "response-codes.h"
 
-enum httpMethod { UNKNOWN,
-                  GET,
-                  PUT,
-                  POST,
-                  HEAD,
-                  OPTIONS };
+enum httpMethod { HTTP_METHOD_UNKNOWN,
+                  HTTP_METHOD_GET,
+                  HTTP_METHOD_PUT,
+                  HTTP_METHOD_POST,
+                  HTTP_METHOD_HEAD,
+                  HTTP_METHOD_OPTIONS };
 
 typedef struct {
   enum httpMethod method;

@@ -95,6 +95,10 @@ void url_setPath(url_t *url, string_t *path) {
   url->path = path;
 }
 
+string_t * url_getPath(url_t *url) {
+  return url->path;
+}
+
 void url_setParameter(url_t *url, string_t *key, string_t *value) {
   hash_table_setValue(url->parameters, key, value);
 }

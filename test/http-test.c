@@ -80,7 +80,7 @@ void http_test_canGetAndSetMethod() {
   // Make sure its empty
   TEST_ASSERT(http_getMethod(http) == 0);
   // Set the method to HEAD 4
-  http_setMethod(http, HEAD);
+  http_setMethod(http, HTTP_METHOD_HEAD);
   // Get the method
   TEST_ASSERT(http_getMethod(http) == 4);
 
@@ -255,11 +255,11 @@ void http_test_canParseHost() {
   // Set the Host header
   http_setHeader(http1, key1, value1);
   // Should be able to parse host
-  TEST_ASSERT(http_parseHost(http) == true);
+  TEST_ASSERT(http_parseHost(http1) == true);
   // Should find that domainname is set to localhost
-  TEST_ASSERT_EQUAL_STRING("localhost", string_getBuffer(url_getDomainName(http->url)));
+  TEST_ASSERT_EQUAL_STRING("localhost", string_getBuffer(url_getDomainName(http1->url)));
   // Should find that port is 80
-  TEST_ASSERT_EQUAL_UINT16(8443, url_getPort(http->url));
+  TEST_ASSERT_EQUAL_UINT16(8443, url_getPort(http1->url));
   http_free(http1);
 
   /*** PARSE HOST WITH INVALID PORT ***/
@@ -271,7 +271,7 @@ void http_test_canParseHost() {
   // Set the Host header
   http_setHeader(http2, key2, value2);
   // Should not parse when port is out of range
-  TEST_ASSERT(http_parseHost(http) == false);
+  TEST_ASSERT(http_parseHost(http2) == false);
   http_free(http2);
 }
 

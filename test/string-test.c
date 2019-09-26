@@ -420,19 +420,25 @@ void string_test_canGetSubstring() {
   // Testing expected functionality of substring
   TEST_ASSERT(string_equalsBuffer(stringToCompare, "UDP"));
 
-  string_free(string);
   string_free(stringToCompare);
 
   // Read out of bounds (Do not need test for negative numbers because of size_t)
   string_t *outOfBoundsString = string_substring(string, 0, 512);
   TEST_ASSERT_NULL(outOfBoundsString);
-  outOfBoundsString = string_substring(string, 512, 0);
-  TEST_ASSERT_NULL(outOfBoundsString);
-  outOfBoundsString = string_substring(string, 512, 1024);
-  TEST_ASSERT_NULL(outOfBoundsString);
-
   if (outOfBoundsString != 0)
     string_free(outOfBoundsString);
+
+  outOfBoundsString = string_substring(string, 512, 0);
+  TEST_ASSERT_NULL(outOfBoundsString);
+  if (outOfBoundsString != 0)
+    string_free(outOfBoundsString);
+
+  outOfBoundsString = string_substring(string, 512, 1024);
+  TEST_ASSERT_NULL(outOfBoundsString);
+  if (outOfBoundsString != 0)
+    string_free(outOfBoundsString);
+
+  string_free(string);
 }
 
 void string_test_canGetSize() {
@@ -470,6 +476,27 @@ void string_test_canShrinkStringSize() {
   string_free(string);
 }
 
+void string_test_canFromCopyOnEmpty() {
+  string_t *string = string_fromCopy("");
+
+  TEST_ASSERT_EQUAL_STRING("", string_getBuffer(string));
+  TEST_ASSERT(string_getSize(string) == 0);
+}
+
+void string_test_canAppendBufferWithLengthOfZero() {
+
+  string_t *string = string_fromCopy("Hello");
+  string_t *buffer = string_fromCopy("");
+  size_t length = string_getSize(buffer);
+
+  string_appendBufferWithLength(string, string_getBuffer(buffer), length);
+  TEST_ASSERT_EQUAL_STRING("Hello", string_getBuffer(string));
+}
+
+void string_test_canCopyStringToNothing() {
+  // kopiera något till en tom sträng
+}
+
 void string_test_run() {
   RUN_TEST(string_test_canCreateStringFromBuffer);
   RUN_TEST(string_test_canCreateStringFromBufferWithLength);
@@ -496,4 +523,6 @@ void string_test_run() {
   RUN_TEST(string_test_canGetSize);
   RUN_TEST(string_test_canResetCursor);
   RUN_TEST(string_test_canShrinkStringSize);
+  RUN_TEST(string_test_canFromCopyOnEmpty);
+  RUN_TEST(string_test_canAppendBufferWithLengthOfZero);
 }
