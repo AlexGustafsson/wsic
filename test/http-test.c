@@ -282,14 +282,14 @@ void http_test_canGetAndSetBody() {
   string_t *expectedContentLength = string_fromCopy("501");
 
   http_setBody(http, body);
-  TEST_ASSERT_EQUAL_STRING(string_getBuffer(body) , string_getBuffer(http_getBody(http)));
+  TEST_ASSERT_EQUAL_STRING(string_getBuffer(body), string_getBuffer(http_getBody(http)));
   TEST_ASSERT_EQUAL_STRING(string_getBuffer(expectedContentLength), string_getBuffer(http_getHeader(http, key)));
   string_free(expectedContentLength);
 
   string_t *body2 = string_fromCopy("A hard problem and the associated back door for the NTRU Public Key Cryptosystem is described and compared/contrasted with the hard problems and back doors associated to other common public key cryptosystems.");
   string_t *expectedContentLength2 = string_fromCopy("208");
   http_setBody(http, body2);
-  TEST_ASSERT_EQUAL_STRING(string_getBuffer(body2) , string_getBuffer(http_getBody(http)));
+  TEST_ASSERT_EQUAL_STRING(string_getBuffer(body2), string_getBuffer(http_getBody(http)));
   TEST_ASSERT_EQUAL_STRING(string_getBuffer(expectedContentLength2), string_getBuffer(http_getHeader(http, key)));
   string_free(expectedContentLength2);
 

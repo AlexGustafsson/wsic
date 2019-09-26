@@ -442,11 +442,11 @@ void string_test_canGetSubstring() {
 }
 
 void string_test_canGetSize() {
-    string_t *string = string_fromCopy("Hello World!");
+  string_t *string = string_fromCopy("Hello World!");
 
-    TEST_ASSERT(string_getSize(string) == 12);
+  TEST_ASSERT(string_getSize(string) == 12);
 
-    string_free(string);
+  string_free(string);
 }
 
 void string_test_canResetCursor() {
@@ -484,7 +484,6 @@ void string_test_canFromCopyOnEmpty() {
 }
 
 void string_test_canAppendBufferWithLengthOfZero() {
-
   string_t *string = string_fromCopy("Hello");
   string_t *buffer = string_fromCopy("");
   size_t length = string_getSize(buffer);

@@ -1,5 +1,5 @@
-#include "unity/unity.h"
 #include "../src/resources/resources.h"
+#include "unity/unity.h"
 
 #include "../src/www/www.h"
 
@@ -143,7 +143,6 @@ void www_test_canSetEmptyTemplate() {
 }
 
 void www_test_page_canClearTemplates() {
-
 }
 
 void www_test_canCreatePage400() {

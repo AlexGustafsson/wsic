@@ -95,7 +95,7 @@ void url_setPath(url_t *url, string_t *path) {
   url->path = path;
 }
 
-string_t * url_getPath(url_t *url) {
+string_t *url_getPath(url_t *url) {
   return url->path;
 }
 

@@ -27,7 +27,6 @@ void url_test_canFormatAnURL() {
   TEST_ASSERT_EQUAL_STRING(expected, string_getBuffer(urlString));
   string_free(urlString);
 
-
   url_free(url);
 }
 
