@@ -218,11 +218,43 @@ int worker_handleConnection(connection_t *connection) {
   hash_table_t *environment = hash_table_create();
   hash_table_setValue(environment, string_fromCopy("HTTPS"), string_fromCopy("off"));
   hash_table_setValue(environment, string_fromCopy("SERVER_SOFTWARE"), string_fromCopy("WSIC"));
+  hash_table_setValue(environment, string_fromCopy("REMOTE_ADDR"), string_fromCopy(string_getBuffer(connection->sourceAddress)));
+  hash_table_setValue(environment, string_fromCopy("REMOTE_PORT"), string_fromInt(connection->sourcePort));
+
   uint8_t method = http_getMethod(http);
   if (method == GET)
     hash_table_setValue(environment, string_fromCopy("REQUEST_METHOD"), string_fromCopy("GET"));
   else if (method == POST)
     hash_table_setValue(environment, string_fromCopy("REQUEST_METHOD"), string_fromCopy("POST"));
+
+  string_t *cookie = http_getHeader(http, string_fromCopy("Cookie"));
+  if (cookie != 0)
+    hash_table_setValue(environment, string_fromCopy("HTTP_COOKIE"), cookie);
+
+  string_t *referer = http_getHeader(http, string_fromCopy("Referer"));
+  if (referer != 0)
+    hash_table_setValue(environment, string_fromCopy("HTTP_REFERER"), referer);
+
+  string_t *userAgent = http_getHeader(http, string_fromCopy("User-Agent"));
+  if (userAgent != 0)
+    hash_table_setValue(environment, string_fromCopy("HTTP_USER_AGENT"), userAgent);
+
+  url_t *url = http_getUrl(http);
+  string_t *domainName = url_getDomainName(url);
+  if (domainName != 0) {
+    hash_table_setValue(environment, string_fromCopy("HTTP_HOST"), domainName);
+    hash_table_setValue(environment, string_fromCopy("SERVER_NAME"), string_fromCopy(string_getBuffer(domainName)));
+  }
+
+  // TODO: This does not seem to work. Due to how we don't read from the pipe dynamically?
+  /*uint16_t port = url_getPort(url);
+  if (port != 0)
+    hash_table_setValue(environment, string_fromCopy("SERVER_PORT"), string_fromInt(port));*/
+
+  // TODO: This should be realtive to the document root
+  /*string_t *path = url_getPath(url);
+  if (path != 0)
+    hash_table_setValue(environment, string_fromCopy("REQUEST_URI"), path);*/
 
   log(LOG_DEBUG, "Spawning CGI process");
   cgi_process_t *process = cgi_spawn("/Users/alexgustafsson/Documents/GitHub/wsic/cgi-test.sh", arguments, environment);
@@ -242,12 +274,12 @@ int worker_handleConnection(connection_t *connection) {
 
   log(LOG_DEBUG, "Reading response from CGI process");
   // TODO: Read more than 4096 bytes
-  char buffer[4096] = {0};
-  cgi_read(process, buffer, 4096);
-  buffer[4096 - 1] = 0;
+  char buffer[2048] = {0};
+  cgi_read(process, buffer, 2048);
+  buffer[2048 - 1] = 0;
 
   log(LOG_DEBUG, "Got response from CGI process");
-  connection_write(connection, buffer, 4096);
+  connection_write(connection, buffer, 2048);
 
   // NOTE: Not necessary, but for debugging it's nice to know
   // that the process is actually exiting (not kept forever)
