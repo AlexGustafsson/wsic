@@ -222,9 +222,9 @@ int worker_handleConnection(connection_t *connection) {
   hash_table_setValue(environment, string_fromCopy("REMOTE_PORT"), string_fromInt(connection->sourcePort));
 
   uint8_t method = http_getMethod(http);
-  if (method == GET)
+  if (method == HTTP_METHOD_GET)
     hash_table_setValue(environment, string_fromCopy("REQUEST_METHOD"), string_fromCopy("GET"));
-  else if (method == POST)
+  else if (method == HTTP_METHOD_POST)
     hash_table_setValue(environment, string_fromCopy("REQUEST_METHOD"), string_fromCopy("POST"));
 
   string_t *cookie = http_getHeader(http, string_fromCopy("Cookie"));
