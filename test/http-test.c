@@ -11,61 +11,62 @@ void http_test_canParseRequestLine() {
   TEST_ASSERT_EQUAL_INT(http->method, 1);
   TEST_ASSERT_EQUAL_STRING(http->url->path->buffer, "/index.html");
   TEST_ASSERT_EQUAL_STRING(http->version->buffer, "1.1");
+  string_free(request);
 
   // Should not be able to parse only a METHOD
-  request = string_fromCopy("POST");
-  TEST_ASSERT(http_parseRequestLine(http, request) == false);
-  string_free(request);
+  string_t *request1 = string_fromCopy("POST");
+  TEST_ASSERT(http_parseRequestLine(http, request1) == false);
+  string_free(request1);
 
   // Should not be able to only parse method and path
-  request = string_fromCopy("HEAD /index.php");
-  TEST_ASSERT(http_parseRequestLine(http, request) == false);
-  string_free(request);
+  string_t *request2 = string_fromCopy("HEAD /index.php");
+  TEST_ASSERT(http_parseRequestLine(http, request2) == false);
+  string_free(request2);
 
   // Should be able to parse path ending with ?
-  request = string_fromCopy("HEAD /index.php? HTTP/1.1");
-  TEST_ASSERT(http_parseRequestLine(http, request) == true);
-  string_free(request);
+  string_t *request3 = string_fromCopy("HEAD /index.php? HTTP/1.1");
+  TEST_ASSERT(http_parseRequestLine(http, request3) == true);
+  string_free(request3);
 
   // Should not be able to parse incorect url parameters
-  request = string_fromCopy("HEAD /index.php?test=10&& HTTP/1.1");
-  TEST_ASSERT(http_parseRequestLine(http, request) == false);
-  string_free(request);
+  string_t *request4 = string_fromCopy("HEAD /index.php?test=10&& HTTP/1.1");
+  TEST_ASSERT(http_parseRequestLine(http, request4) == false);
+  string_free(request4);
 
   // Should not be able to parse incorect url parameters
-  request = string_fromCopy("HEAD /index.php?test10&& HTTP/1.1");
-  TEST_ASSERT(http_parseRequestLine(http, request) == false);
-  string_free(request);
+  string_t *request5 = string_fromCopy("HEAD /index.php?test10&& HTTP/1.1");
+  TEST_ASSERT(http_parseRequestLine(http, request5) == false);
+  string_free(request5);
 
   // Should not be able to parse incorect url parameters
-  request = string_fromCopy("HEAD /index.php?test=10&server=wsic HTTP/1.1");
-  TEST_ASSERT(http_parseRequestLine(http, request) == true);
-  string_free(request);
+  string_t *request6 = string_fromCopy("HEAD /index.php?test=10&server=wsic HTTP/1.1");
+  TEST_ASSERT(http_parseRequestLine(http, request6) == true);
+  string_free(request6);
 
   // Trying to parse incorect http version
-  request = string_fromCopy("HEAD /index.php TTP/1.1");
-  TEST_ASSERT(http_parseRequestLine(http, request) == false);
-  string_free(request);
+  string_t *request7 = string_fromCopy("HEAD /index.php TTP/1.1");
+  TEST_ASSERT(http_parseRequestLine(http, request7) == false);
+  string_free(request7);
 
   // Trying to parse missing chars in version
-  request = string_fromCopy("HEAD /index.php HTTP/");
-  TEST_ASSERT(http_parseRequestLine(http, request) == false);
-  string_free(request);
+  string_t *request8 = string_fromCopy("HEAD /index.php HTTP/");
+  TEST_ASSERT(http_parseRequestLine(http, request8) == false);
+  string_free(request8);
 
   // Trying to parse wrong chars in version
-  request = string_fromCopy("HEAD /index.php HTTP/aaa");
-  TEST_ASSERT(http_parseRequestLine(http, request) == false);
-  string_free(request);
+  string_t *request9 = string_fromCopy("HEAD /index.php HTTP/aaa");
+  TEST_ASSERT(http_parseRequestLine(http, request9) == false);
+  string_free(request9);
 
   // Trying to parse wrong chars in version
-  request = string_fromCopy("HEAD /index.php HTTP/11111");
-  TEST_ASSERT(http_parseRequestLine(http, request) == false);
-  string_free(request);
+  string_t *request10 = string_fromCopy("HEAD /index.php HTTP/11111");
+  TEST_ASSERT(http_parseRequestLine(http, request10) == false);
+  string_free(request10);
 
   // Trying to parse wrong chars in version
-  request = string_fromCopy("HEAD /index.php HTTP/1");
-  TEST_ASSERT(http_parseRequestLine(http, request) == false);
-  string_free(request);
+  string_t *request11 = string_fromCopy("HEAD /index.php HTTP/1");
+  TEST_ASSERT(http_parseRequestLine(http, request11) == false);
+  string_free(request11);
 
   //request = string_fromCopy("HTTP/1.0 200 OK");
   //TEST_ASSERT(http_parseRequestLine(http, request) == false);
@@ -128,9 +129,10 @@ void http_test_canGetAndSetHeader() {
   TEST_ASSERT(string_equals(http_getHeader(http, key), value));
 
   // Try update a key with new value
+  string_t *sameKeyAsBefore = string_fromCopy("Host");
   string_t *newValue = string_fromCopy("wsic.axgn.se:8443");
-  http_setHeader(http, key, newValue);
-  TEST_ASSERT(string_equals(http_getHeader(http, key), newValue));
+  http_setHeader(http, sameKeyAsBefore, newValue);
+  TEST_ASSERT(string_equals(http_getHeader(http, sameKeyAsBefore), newValue));
 
   http_free(http);
 }
@@ -159,6 +161,7 @@ void http_test_canCreateResponseString() {
 
   string_free(responsString);
   string_free(expectedResult);
+  http_free(http);
 }
 
 void http_test_canParseHttpMethod() {
@@ -205,6 +208,7 @@ void http_test_canParseHttpHeaders() {
 
   // Try to parse the headers, should work
   TEST_ASSERT(http_parseHeader(http, header1) == true);
+  string_free(header1);
 
   // Trying to find a value:'wsic.axgn.se:8443' with the key: 'Host', should work
   string_t *keyHost = string_fromCopy("Host");
@@ -223,6 +227,8 @@ void http_test_canParseHttpHeaders() {
   TEST_ASSERT(http_parseHeader(http, header3) == false);
   if (header3 != 0)
     string_free(header3);
+
+  http_free(http);
 }
 
 void http_test_canParseHost() {

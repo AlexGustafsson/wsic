@@ -149,30 +149,40 @@ void www_test_canCreatePage400() {
   page_t *page = page_create400(string_fromCopy("Test description"));
 
   TEST_ASSERT(page->templates == 0);
+
+  page_free(page);
 }
 
 void www_test_canCreatePage403() {
   page_t *page = page_create403();
 
   TEST_ASSERT(page->templates == 0);
+
+  page_free(page);
 }
 
 void www_test_canCreatePage404() {
   page_t *page = page_create404(string_fromCopy("Test path"));
 
   TEST_ASSERT(page->templates == 0);
+
+  page_free(page);
 }
 
 void www_test_canCreatePage500() {
   page_t *page = page_create500(string_fromCopy("Test description"));
 
   TEST_ASSERT(page->templates == 0);
+
+  page_free(page);
 }
 
 void www_test_canCreatePage501() {
   page_t *page = page_create501();
 
   TEST_ASSERT(page->templates == 0);
+
+  page_free(page);
 }
 
 void www_test_run() {

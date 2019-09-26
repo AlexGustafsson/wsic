@@ -481,6 +481,8 @@ void string_test_canFromCopyOnEmpty() {
 
   TEST_ASSERT_EQUAL_STRING("", string_getBuffer(string));
   TEST_ASSERT(string_getSize(string) == 0);
+
+  string_free(string);
 }
 
 void string_test_canAppendBufferWithLengthOfZero() {
@@ -490,6 +492,9 @@ void string_test_canAppendBufferWithLengthOfZero() {
 
   string_appendBufferWithLength(string, string_getBuffer(buffer), length);
   TEST_ASSERT_EQUAL_STRING("Hello", string_getBuffer(string));
+
+  string_free(string);
+  string_free(buffer);
 }
 
 void string_test_canCopyStringToNothing() {

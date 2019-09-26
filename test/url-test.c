@@ -83,6 +83,8 @@ void url_test_canCreateQueryString() {
   char *expectedResult = "username=test&page=home";
 
   TEST_ASSERT_EQUAL_STRING(expectedResult, string_getBuffer(result));
+
+  url_free(url);
 }
 
 void url_test_run() {

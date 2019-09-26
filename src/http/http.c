@@ -294,6 +294,7 @@ bool http_parseRequestTarget(http_t *http, string_t *requestTarget) {
     value = string_substring(requestTarget, secondParameter, firstParameter);
     url_setParameter(http->url, key, value);
   }
+
   string_freeCursor(requestCursor);
   return true;
 }
