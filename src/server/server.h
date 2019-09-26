@@ -16,12 +16,8 @@
        protocol can be specified as 0
 */
 #define PROTOCOL 0
-// Don't allow headers larger than 1 MB
-#define REQUEST_MAX_HEADER_SIZE 1048576
-// Don't allow connections to wait for more than one second without sending data when reading
-#define REQUEST_READ_TIMEOUT 1000
-// Don't allow bodies larger than 1 MB
-#define REQUEST_MAX_BODY_SIZE 1048576
+
+#define SERVER_EXIT_FATAL 10
 
 pid_t server_createInstance(set_t *ports);
 // Main entrypoint for a server instance

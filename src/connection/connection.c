@@ -220,7 +220,17 @@ void connection_parseRequest(connection_t *connection, char *buffer, size_t buff
   log(LOG_WARNING, "Not implemented");
 }
 
+void connection_close(connection_t *connection) {
+  if (shutdown(connection->socketId, SHUT_RDWR) == -1) {
+    if (errno != ENOTCONN && errno != EINVAL)
+      log(LOG_ERROR, "Failed to shutdown connection. Got error %d", errno);
+    if (close(connection->socketId) == -1)
+      log(LOG_ERROR, "Unable to close connection");
+  }
+}
+
 void connection_free(connection_t *connection) {
+  connection_close(connection);
   if (connection->sourceAddress != 0)
     string_free(connection->sourceAddress);
   free(connection);

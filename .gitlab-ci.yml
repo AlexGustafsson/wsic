@@ -46,9 +46,9 @@ test build:
 
 benchmark:
   stage: test
-  script: ./ci/benchmark/benchmark.sh ./build/wsic.debug
+  script: ./ci/benchmark/benchmark.sh ./build/wsic
   dependencies:
-    - debug build
+    - build
   artifacts:
     paths:
       - build/reports/benchmark/*/plot.png

@@ -20,7 +20,6 @@ void response_codes_test_canParseCodeToString() {
     string_free(responseCodeText);
     iterator++;
   }
-
 }
 
 void response_codes_test_run() {

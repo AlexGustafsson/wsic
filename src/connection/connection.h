@@ -30,6 +30,7 @@ ssize_t connection_getAvailableBytes(connection_t *connection);
 size_t connection_readBytes(connection_t *connection, char **buffer, size_t bytesToRead, int flags);
 size_t connection_write(connection_t *connection, const char *buffer, size_t bufferSize);
 
+void connection_close(connection_t *connection);
 void connection_free(connection_t *connection);
 
 #endif

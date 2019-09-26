@@ -4,24 +4,24 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "datastructures/hash-table/hash-table.h"
 #include "datastructures/list/list.h"
 #include "datastructures/set/set.h"
 
-#include "cgi/cgi.h"
 #include "compile-time-defines.h"
 #include "config/config.h"
 #include "daemon/daemon.h"
-#include "http/http.h"
 #include "logging/logging.h"
 #include "resources/resources.h"
 #include "server/server.h"
 #include "string/string.h"
-#include "www/www.h"
+#include "time/time.h"
 
 #include "main.h"
 
 int main(int argc, char const *argv[]) {
+  // Start internal time keeping
+  time_reset();
+
   // Warn if the server is running as root
   if (geteuid() == 0)
     log(LOG_WARNING, "Running as root. I hope you know what you're doing.");
@@ -119,6 +119,11 @@ int main(int argc, char const *argv[]) {
     int status;
     if (waitpid(serverInstance, &status, WNOHANG) != 0) {
       int exitCode = WEXITSTATUS(status);
+      if (exitCode == SERVER_EXIT_FATAL) {
+        log(LOG_DEBUG, "Got a fatal exit code from instance, quitting");
+        exit(1);
+      }
+
       log(LOG_WARNING, "Server instance has exited with code %d", exitCode);
       log(LOG_DEBUG, "Recreating server instance");
       pid_t newInstance = server_createInstance(ports);
