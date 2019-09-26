@@ -47,9 +47,9 @@ cat <<EOF
       <code>$(env)</code>
     </header>
     <main>
-      <form method="post" action="http://localhost:8080">
+      <form method="post" action="/">
         <label for="name">Name</label>
-        <input id="name" type="text" />
+        <input id="name" name="name" type="text" />
         <input type="submit" />
       </form>
     </main>

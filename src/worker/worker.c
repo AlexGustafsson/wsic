@@ -209,8 +209,8 @@ int worker_handleConnection(connection_t *connection) {
       // TODO: Use connection_read when implemented properly - don't use strings this way
       body = string_create();
       connection_readBytes(connection, &body->buffer, contentLength, READ_FLAGS_NONE);
-      string_setBufferSize(body, contentLength);
       body->size = contentLength;
+      string_setBufferSize(body, contentLength);
     }
   }
 
@@ -231,6 +231,7 @@ int worker_handleConnection(connection_t *connection) {
   // Write body to CGI
   if (body != 0) {
     log(LOG_DEBUG, "Writing request to CGI process");
+    log(LOG_DEBUG, "Body content is:\n<%s> of size %zu", string_getBuffer(body), string_getSize(body));
     cgi_write(process, string_getBuffer(body), string_getSize(body));
     // Make sure the process receives EOF
     cgi_flushStdin(process);

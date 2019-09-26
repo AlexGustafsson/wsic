@@ -36,7 +36,6 @@ uint64_t time_getTimeSinceStart() {
 }
 
 uint64_t time_getElapsedTime(struct timespec *timespec) {
-  // TODO: Use an actual start value here
   struct timespec start;
   time_getTimeSinceStartOfEpoch(&start);
 
