@@ -298,7 +298,7 @@ void http_test_canGetAndSetBody() {
   TEST_ASSERT_EQUAL_STRING(string_getBuffer(body2), string_getBuffer(http_getBody(http)));
   TEST_ASSERT_EQUAL_STRING(string_getBuffer(expectedContentLength2), string_getBuffer(http_getHeader(http, key)));
   string_free(expectedContentLength2);
-
+  
   string_free(key);
   http_free(http);
 }

@@ -123,7 +123,9 @@ string_t *url_getPath(url_t *url) {
 }
 
 void url_setParameter(url_t *url, string_t *key, string_t *value) {
-  hash_table_setValue(url->parameters, key, value);
+  string_t *oldValue = hash_table_setValue(url->parameters, key, value);
+  if (oldValue != 0)
+    string_free(oldValue);
 }
 
 string_t *url_getParameter(url_t *url, string_t *key) {

@@ -60,7 +60,7 @@ page_t *page_create500(string_t *description) {
   page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
   page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_500_HTML));
-  page_setTemplate(page, string_fromCopy("description"), string_fromCopy((const char *)description));
+  page_setTemplate(page, string_fromCopy("description"), description);
 
   page_resolveTemplates(page);
 

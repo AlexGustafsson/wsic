@@ -158,6 +158,7 @@ bool http_parseRequestLine(http_t *http, string_t *string) {
   if (current == 0) {
     log(LOG_ERROR, "Could not parse request. Missing version");
     string_freeCursor(cursor);
+    string_free(requestTarget);
     return false;
   }
 
@@ -166,6 +167,7 @@ bool http_parseRequestLine(http_t *http, string_t *string) {
   if (correctlyParsed == false) {
     log(LOG_ERROR, "Could not parse path and optional parameters");
     string_freeCursor(cursor);
+    string_free(requestTarget);
     return false;
   }
   string_free(requestTarget);
@@ -247,6 +249,8 @@ bool http_parseHeader(http_t *http, string_t *string) {
 }
 
 void http_parseBody(http_t *http, string_t *string, size_t offset) {
+  if (http->body != 0)
+    string_free(http->body);
   // After headers is added we put everything that is left in the request into the body variable
   http->body = string_substring(string, offset, string_getSize(string));
 }
@@ -353,6 +357,8 @@ void http_free(http_t *http) {
     string_free(http->version);
   if (http->responseCodeText != 0)
     string_free(http->responseCodeText);
+  if (http->body != 0)
+    string_free(http->body);
 
   while (hash_table_getLength(http->headers) > 0) {
     string_t *key = hash_table_getKeyByIndex(http->headers, 0);

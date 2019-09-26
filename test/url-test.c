@@ -84,6 +84,7 @@ void url_test_canCreateQueryString() {
 
   TEST_ASSERT_EQUAL_STRING(expectedResult, string_getBuffer(result));
 
+  string_free(result);
   url_free(url);
 }
 
