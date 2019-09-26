@@ -43,7 +43,7 @@ resourceSources := $(subst src,build,$(resources:=.c))
 resourceHeaders := $(subst src,build,$(resources:=.h))
 resourceObjects := $(subst src,build,$(resources:=.o))
 
-.PHONY: build clean debug test
+.PHONY: build clean debug test debugTest
 
 # Build wsic, default action
 build: build/$(TARGET_NAME)
@@ -59,6 +59,13 @@ test: source := $(filter-out src/main.c, $(source))
 test: objects := $(filter-out build/main.o, $(objects))
 test: BUILD_FLAGS := $(BUILD_FLAGS) --coverage
 test: build/wsic.test
+
+# Build wsic with all tests
+debugTest: source := $(filter-out src/main.c, $(source))
+debugTest: objects := $(filter-out build/main.o, $(objects))
+debugTest: BUILD_FLAGS := $(DEBUG_FLAGS)
+debugTest: CC := clang
+debugTest: build/wsic.test
 
 # Executable linking
 build/$(TARGET_NAME): $(buildIncludes) $(resourceObjects) $(objects)

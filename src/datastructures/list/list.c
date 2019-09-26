@@ -125,8 +125,9 @@ void *list_setValue(list_t *list, size_t index, void *value) {
 
   list_moveToIndex(list, index);
 
-  return list->current->value;
+  void *oldValue = list->current->value;
   list->current->value = value;
+  return oldValue;
 }
 
 size_t list_getLength(list_t *list) {

@@ -10,12 +10,12 @@
 
 #include "response-codes.h"
 
-enum httpMethod { GET,
-                  PUT,
-                  POST,
-                  HEAD,
-                  OPTIONS,
-                  UNKNOWN };
+enum httpMethod { HTTP_METHOD_UNKNOWN,
+                  HTTP_METHOD_GET,
+                  HTTP_METHOD_PUT,
+                  HTTP_METHOD_POST,
+                  HTTP_METHOD_HEAD,
+                  HTTP_METHOD_OPTIONS };
 
 typedef struct {
   enum httpMethod method;
@@ -50,6 +50,12 @@ uint16_t http_getResponseCode(http_t *http);
 
 void http_setHeader(http_t *http, string_t *key, string_t *value);
 string_t *http_getHeader(http_t *http, string_t *key);
+
+void http_setVersion(http_t *http, string_t *version);
+string_t *http_getVersion(http_t *http);
+
+void http_setBody(http_t *http, string_t *body);
+string_t *http_getBody(http_t *http);
 
 url_t *http_getUrl(http_t *http);
 

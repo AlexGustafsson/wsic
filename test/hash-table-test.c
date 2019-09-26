@@ -23,7 +23,7 @@ void hash_table_test_canStoreValues() {
   TEST_ASSERT_EQUAL_INT(2, hash_table_getLength(hashTable));
 
   // Ensure that values are all available (and that value3 replaced value1)
-  TEST_ASSERT_EQUAL_INT(value3, (int)hash_table_getValue(hashTable, key1));
+  TEST_ASSERT_EQUAL_INT(value3, (int)hash_table_getValue(hashTable, key3));
   TEST_ASSERT_EQUAL_INT(value2, (int)hash_table_getValue(hashTable, key2));
 
   // Remove a pair and ensure that the value is returned

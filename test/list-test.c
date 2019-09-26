@@ -8,6 +8,7 @@ void list_test_canStoreValues() {
   int a = 4;
   int b = 2;
   int c = 0;
+  int d = 1337;
 
   // Add value a and make sure the length increased
   list_addValue(list, (void *)a);
@@ -35,6 +36,19 @@ void list_test_canStoreValues() {
 
   // Try to read out of bounds and make sure it fails
   TEST_ASSERT_NULL(list_getValue(list, 2));
+
+  // Set existing value to a new value 1337
+  TEST_ASSERT_EQUAL_INT(a, (int)list_setValue(list, 0, (void *)d));
+  // Make sure the value hase changed
+  TEST_ASSERT_EQUAL_INT(d, (int)list_getValue(list, 0));
+
+  // Try to set value out of bounds
+  TEST_ASSERT_NULL(list_setValue(list, 2, (void *)a));
+
+  // Remove the last elemnt c to make sure tail is updated
+  TEST_ASSERT_EQUAL_INT(c, (int)list_removeValue(list, 1));
+  // Read the new tail
+  TEST_ASSERT_EQUAL_INT(d, (int)list_getValue(list, 0));
 
   // Ensure that there are no elements left after clearing
   list_clear(list);

@@ -66,6 +66,8 @@ void *hash_table_setValue(hash_table_t *hashTable, string_t *key, void *value) {
   hash_table_entry_t *entry = list_getValue(hashTable->entries, keyIndex);
   void *removedValue = entry->value;
   entry->value = value;
+  string_free(entry->key);
+  entry->key = key;
   return removedValue;
 }
 
@@ -138,11 +140,9 @@ size_t hash_table_getLength(hash_table_t *hashTable) {
 
 // NOTE: Does not free values
 void hash_table_clear(hash_table_t *hashTable) {
-  for (size_t i = 0; i < hashTable->entries->length; i++) {
-    size_t index =
-        (hashTable->entries->currentIndex + i) % hashTable->entries->length;
-    hash_table_entry_t *entry = list_removeValue(hashTable->entries, index);
-
+  while (hashTable->entries->length > 0) {
+    hash_table_entry_t *entry = list_removeValue(hashTable->entries, 0);
+    string_free(entry->key);
     free(entry);
   }
 }

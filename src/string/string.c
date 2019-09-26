@@ -127,7 +127,7 @@ void string_appendBufferWithLength(string_t *string, const char *buffer, size_t 
     string->bufferSize = newSize + 1;
   }
 
-  if (buffer[bufferSize - 1] == 0)
+  if (bufferSize > 0 && buffer[bufferSize - 1] == 0)
     memcpy(string->buffer + string->size, buffer, bufferSize - 1);
   else
     memcpy(string->buffer + string->size, buffer, bufferSize);

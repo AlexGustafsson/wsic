@@ -55,9 +55,27 @@ string_t *url_toString(url_t *url) {
       string_appendChar(result, '&');
   }
 
-  if (url->fragment != 0) {
-    string_appendChar(result, '#');
-    string_append(result, url->fragment);
+  return result;
+}
+
+string_t *url_toQueryString(url_t *url) {
+  if (url->parameters == 0) {
+    return 0;
+  }
+
+  string_t *result = string_create();
+  size_t parameters = hash_table_getLength(url->parameters);
+
+  for (size_t i = 0; i < parameters; i++) {
+    string_t *key = (string_t *)hash_table_getKeyByIndex(url->parameters, i);
+    string_t *value = (string_t *)hash_table_getValueByIndex(url->parameters, i);
+
+    string_append(result, key);
+    string_appendChar(result, '=');
+    string_append(result, value);
+
+    if (i + 1 < parameters)
+      string_appendChar(result, '&');
   }
 
   return result;
@@ -100,23 +118,18 @@ void url_setPath(url_t *url, string_t *path) {
   url->path = path;
 }
 
+string_t *url_getPath(url_t *url) {
+  return url->path;
+}
+
 void url_setParameter(url_t *url, string_t *key, string_t *value) {
-  hash_table_setValue(url->parameters, key, value);
+  string_t *oldValue = hash_table_setValue(url->parameters, key, value);
+  if (oldValue != 0)
+    string_free(oldValue);
 }
 
 string_t *url_getParameter(url_t *url, string_t *key) {
   return hash_table_getValue(url->parameters, key);
-}
-
-void url_setFragment(url_t *url, string_t *fragment) {
-  if (url->fragment != 0)
-    string_free(url->fragment);
-
-  url->fragment = fragment;
-}
-
-string_t *url_getFragment(url_t *url) {
-  return url->fragment;
 }
 
 void url_free(url_t *url) {
@@ -132,7 +145,5 @@ void url_free(url_t *url) {
     string_free(value);
   }
   hash_table_free(url->parameters);
-  if (url->fragment != 0)
-    string_free(url->fragment);
   free(url);
 }
