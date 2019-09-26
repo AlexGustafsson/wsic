@@ -58,6 +58,29 @@ string_t *url_toString(url_t *url) {
   return result;
 }
 
+string_t *url_toQueryString(url_t *url) {
+  if (url->parameters == 0) {
+    return 0;
+  }
+
+  string_t *result = string_create();
+  size_t parameters = hash_table_getLength(url->parameters);
+
+  for (size_t i = 0; i < parameters; i++) {
+    string_t *key = (string_t *)hash_table_getKeyByIndex(url->parameters, i);
+    string_t *value = (string_t *)hash_table_getValueByIndex(url->parameters, i);
+
+    string_append(result, key);
+    string_appendChar(result, '=');
+    string_append(result, value);
+
+    if (i + 1 < parameters)
+      string_appendChar(result, '&');
+  }
+
+  return result;
+}
+
 void url_setProtocol(url_t *url, string_t *protocol) {
   if (url->protocol != 0)
     string_free(url->protocol);

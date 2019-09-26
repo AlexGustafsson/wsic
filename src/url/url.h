@@ -18,6 +18,7 @@ typedef struct {
 url_t *url_create();
 
 string_t *url_toString(url_t *url);
+string_t *url_toQueryString(url_t *url);
 
 void url_setProtocol(url_t *url, string_t *protocol);
 string_t *url_getProtocol(url_t *url);

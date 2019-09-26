@@ -74,9 +74,21 @@ void url_test_canGetAndSetProtocol() {
   url_free(url);
 }
 
+void url_test_canCreateQueryString() {
+  url_t *url = url_create();
+  url_setParameter(url, string_fromCopy("username"), string_fromCopy("test"));
+  url_setParameter(url, string_fromCopy("page"), string_fromCopy("home"));
+
+  string_t *result = url_toQueryString(url);
+  char *expectedResult = "username=test&page=home";
+
+  TEST_ASSERT_EQUAL_STRING(expectedResult, string_getBuffer(result));
+}
+
 void url_test_run() {
   RUN_TEST(url_test_canFormatAnURL);
   RUN_TEST(url_test_canGetAndSetParameters);
   RUN_TEST(url_test_canGetAndSetDomainName);
   RUN_TEST(url_test_canGetAndSetProtocol);
+  RUN_TEST(url_test_canCreateQueryString);
 }
