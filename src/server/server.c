@@ -7,7 +7,7 @@
 #include "../cgi/cgi.h"
 #include "../datastructures/hash-table/hash-table.h"
 #include "../datastructures/list/list.h"
-#include "../datastructures/queue/queue.h"
+#include "../datastructures/message-queue/message-queue.h"
 #include "../http/http.h"
 #include "../logging/logging.h"
 #include "../worker/worker.h"
@@ -16,7 +16,9 @@
 
 static struct pollfd *socketDescriptors = 0;
 static size_t socketDescriptorCount = 0;
-static queue_t *connectionQueue = 0;
+static message_queue_t *connectionQueue = 0;
+
+static worker_t *workerPool[WORKER_POOL_SIZE];
 
 bool server_setNonBlocking(int socketDescriptor) {
   // Get the current flags set for the socket
@@ -62,7 +64,7 @@ int server_start(set_t *ports) {
   socketDescriptors = malloc(descriptorsSize);
   memset(socketDescriptors, 0, descriptorsSize);
 
-  connectionQueue = queue_create();
+  connectionQueue = message_queue_create();
   if (connectionQueue == 0) {
     log(LOG_ERROR, "Could not create a connection queue");
     return EXIT_FAILURE;
@@ -92,19 +94,29 @@ int server_start(set_t *ports) {
   if (socketDescriptorCount != list_getLength(ports))
     log(LOG_WARNING, "Not all required ports could be successfully bound (%zu out of %zu)", socketDescriptorCount, list_getLength(ports));
 
+  // TODO: https://stackoverflow.com/questions/70773/pthread-cond-wait-versus-semaphore
+  // https://www.justsoftwaresolutions.co.uk/threading/implementing-a-thread-safe-queue-using-condition-variables.html
+  // Implementd cond wait-based queue (think message queue) with waiting consumers and one producer
+
+  // Setup worker pool
+  log(LOG_DEBUG, "Setting up %d workers in the pool", WORKER_POOL_SIZE);
+  for (uint8_t i = 0; i < WORKER_POOL_SIZE; i++) {
+    worker_t *worker = worker_spawn(i, 0, connectionQueue);
+    if (worker == 0) {
+      log(LOG_ERROR, "Failed to set up worker for the pool");
+      return SERVER_EXIT_FATAL;
+    }
+
+    workerPool[i] = worker;
+  }
+  log(LOG_DEBUG, "Set up %d workers", WORKER_POOL_SIZE);
+
   // Start accepting connections
   while (true) {
     int acceptedPorts = server_acceptConnections();
-    // Try again if the attempt failed
-    if (acceptedPorts == 0)
-      continue;
+    log(LOG_DEBUG, "There were %d port with incoming sockets", acceptedPorts);
 
-    log(LOG_DEBUG, "There were %d port with incoming sockets (currently %zu sockets in total)", acceptedPorts, queue_getLength(connectionQueue));
-
-    connection_t *connection = 0;
-    while ((connection = queue_pop(connectionQueue)) != 0) {
-      server_handleConnection(connection);
-    }
+    // TODO: We can handle scaling of number of workers here
   }
 
   free(socketDescriptors);
@@ -194,22 +206,13 @@ int server_acceptConnections() {
       connection_setSocket(connection, socketId);
       connection_setSourcePort(connection, ntohs(peerAddress.sin_port));
       connection_setSourceAddress(connection, string_fromCopy(inet_ntoa(peerAddress.sin_addr)));
-      queue_push(connectionQueue, connection);
+      message_queue_push(connectionQueue, connection);
 
       log(LOG_DEBUG, "Successfully accepted connection from %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
     }
   }
 
   return status;
-}
-
-void server_handleConnection(connection_t *connection) {
-  log(LOG_DEBUG, "Spawning worker in immediate mode");
-  worker_t *worker = worker_spawn(connection);
-  if (worker == 0) {
-    log(LOG_ERROR, "Failed to spawn worker");
-    return;
-  }
 }
 
 void server_close() {

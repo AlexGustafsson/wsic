@@ -6,8 +6,8 @@
 #include <stdint.h>
 #include <pthread.h>
 
+#include "../datastructures/message-queue/message-queue.h"
 #include "../connection/connection.h"
-#include "../semaphore/semaphore.h"
 
 // Before a worker has started, it is initializing (right after fork)
 #define WORKER_STATUS_INITIALIZING 0
@@ -30,21 +30,16 @@ typedef struct {
   // Written to by the worker, consumed by parent
   uint8_t status;
   // The current connection the worker is handling
-  // Written to by parent, read by the worker, set to null by worker when done
   connection_t *connection;
-  // Control the sleep of the thread
-  pthread_cond_t sleepCondition;
-  pthread_mutex_t sleepMutex;
+  message_queue_t *queue;
+  int id;
 } worker_t;
 
 // Pass a connection to handle it directly and destroy the thread after use (immediate mode)
-// Or pass NULL in order to make the thread listen for incoming connections (pool mode)
+// Or pass NULL and a queue in order to make the thread listen for incoming connections (pool mode)
 // Returns NULL if ran in immediate mode (the thread takes care of the memory)
-worker_t *worker_spawn(connection_t *connection);
-
+worker_t *worker_spawn(int id, connection_t *connection, message_queue_t *queue);
 uint8_t worker_getStatus(worker_t *worker);
-// Set the connection for the worker to handle and alert it of the update (undefined behaviour for immediate mode)
-void worker_setConnection(worker_t *worker, connection_t *connection);
 // Wait for the worker to exit naturally or after killing (undefined behaviour for immediate mode)
 void worker_waitForExit(worker_t *worker);
 // Kill the worker (undefined behaviour for immediate mode)
