@@ -2,8 +2,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <string.h>
 #include <signal.h>
+#include <string.h>
 
 #include "../cgi/cgi.h"
 #include "../datastructures/hash-table/hash-table.h"
