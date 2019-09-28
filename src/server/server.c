@@ -5,6 +5,8 @@
 #include <signal.h>
 #include <string.h>
 
+#include <openssl/ssl.h>
+
 #include "../cgi/cgi.h"
 #include "../datastructures/hash-table/hash-table.h"
 #include "../datastructures/list/list.h"
@@ -20,6 +22,8 @@ static size_t socketDescriptorCount = 0;
 static message_queue_t *connectionQueue = 0;
 
 static worker_t *workerPool[WORKER_POOL_SIZE];
+
+static SSL_CTX *tlsContext = 0;
 
 void server_handleSignalSIGPIPE();
 
@@ -38,6 +42,11 @@ bool server_setNonBlocking(int socketDescriptor) {
   }
 
   return true;
+}
+
+static int always_true_callback(X509_STORE_CTX *ctx, void *arg)
+{
+    return 1;
 }
 
 pid_t server_createInstance(set_t *ports) {
@@ -100,9 +109,29 @@ int server_start(set_t *ports) {
   if (socketDescriptorCount != list_getLength(ports))
     log(LOG_WARNING, "Not all required ports could be successfully bound (%zu out of %zu)", socketDescriptorCount, list_getLength(ports));
 
-  // TODO: https://stackoverflow.com/questions/70773/pthread-cond-wait-versus-semaphore
-  // https://www.justsoftwaresolutions.co.uk/threading/implementing-a-thread-safe-queue-using-condition-variables.html
-  // Implementd cond wait-based queue (think message queue) with waiting consumers and one producer
+  // Setup TLS
+  OpenSSL_add_ssl_algorithms();
+  const SSL_METHOD *method = SSLv23_server_method();
+  tlsContext = SSL_CTX_new(method);
+  if (!tlsContext) {
+    log(LOG_ERROR, "Unable to create TLS context");
+  	return SERVER_EXIT_FATAL;
+  }
+  SSL_CTX_set_ecdh_auto(tlsContext, 1);
+  // NOTE: Highly temporary! For debugging only
+  // Allow all certificates
+  SSL_CTX_set_verify(tlsContext, SSL_VERIFY_NONE, NULL);
+  SSL_CTX_set_cert_verify_callback(tlsContext, always_true_callback, NULL);
+
+  if (SSL_CTX_use_PrivateKey_file(tlsContext, "server.key", SSL_FILETYPE_PEM) <= 0 ) {
+    log(LOG_ERROR, "Unable to create TLS context");
+  	return SERVER_EXIT_FATAL;
+  }
+
+  if (SSL_CTX_use_certificate_file(tlsContext, "server.cert", SSL_FILETYPE_PEM) <= 0) {
+    log(LOG_ERROR, "Unable to create TLS context");
+  	return SERVER_EXIT_FATAL;
+  }
 
   // Setup worker pool
   log(LOG_DEBUG, "Setting up %d workers in the pool", WORKER_POOL_SIZE);
@@ -207,9 +236,67 @@ int server_acceptConnections() {
         continue;
       }
 
+      SSL *ssl = SSL_new(tlsContext);
+      SSL_set_fd(ssl, socketId);
+
+      // TODO: Actual polling etc. here
+      // https://stackoverflow.com/questions/24312228/openssl-nonblocking-socket-accept-and-connect-failed
+      // https://stackoverflow.com/questions/13751458/openssl-ssl-error-want-write-never-recovers-during-ssl-write
+      // https://github.com/darrenjs/openssl_examples/blob/master/ssl_server_nonblock.c
+
+      // TODO: Move this into the workers
+
+      // Set up structures necessary for polling
+      struct pollfd readDescriptors[1];
+      memset(readDescriptors, 0, sizeof(struct pollfd));
+      readDescriptors[0].fd = socketId;
+      readDescriptors[0].events = POLLIN;
+
+      struct pollfd writeDescriptors[1];
+      memset(writeDescriptors, 0, sizeof(struct pollfd));
+      writeDescriptors[0].fd = socketId;
+      writeDescriptors[0].events = POLLOUT;
+
+      bool success = false;
+      while (true) {
+        ERR_clear_error();
+        int status = SSL_accept(ssl);
+        if (status <= 0) {
+          int error = SSL_get_error(ssl, status);
+          if (error == SSL_ERROR_WANT_READ) {
+            log(LOG_DEBUG, "TLS socket wants READ, waiting");
+            // Wait for the connection to be ready to read
+            int status = poll(readDescriptors, 1, -1);
+            if (status < -1) {
+              log(LOG_ERROR, "Could not wait for connection to send data");
+              break;
+            }
+          } else if (error != SSL_ERROR_WANT_WRITE) {
+            log(LOG_DEBUG, "TLS socket wants WRITE, waiting");
+            // Wait for the connection to be ready to read
+            int status = poll(writeDescriptors, 1, -1);
+            if (status < -1) {
+              log(LOG_ERROR, "Could not wait for connection to send data");
+              break;
+            }
+            sleep(1);
+          } else {
+            log(LOG_ERROR, "Unable to accept TLS socket. Got code %d", error);
+            break;
+          }
+        } else {
+          success = true;
+          break;
+        }
+      }
+      if (!success) {
+        SSL_free(ssl);
+        continue;
+      }
+
       // Add a connection to the queue
       connection_t *connection = connection_create();
-      connection_setSocket(connection, socketId);
+      connection_setSocket(connection, socketId, ssl);
       connection_setSourcePort(connection, ntohs(peerAddress.sin_port));
       connection_setSourceAddress(connection, string_fromCopy(inet_ntoa(peerAddress.sin_addr)));
       message_queue_push(connectionQueue, connection);
@@ -227,4 +314,6 @@ void server_handleSignalSIGPIPE() {
 
 void server_close() {
   log(LOG_INFO, "Closing server");
+  SSL_CTX_free(tlsContext);
+  EVP_cleanup();
 }

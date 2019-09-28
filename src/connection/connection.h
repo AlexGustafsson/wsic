@@ -5,12 +5,15 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include <openssl/ssl.h>
+
 #include "../string/string.h"
 
 #define READ_FLAGS_NONE 0
 #define READ_FLAGS_PEEK MSG_PEEK
 
 typedef struct {
+  SSL *ssl;
   int socketId;
   string_t *sourceAddress;
   uint16_t sourcePort;
@@ -19,7 +22,7 @@ typedef struct {
 connection_t *connection_create();
 void connection_parseRequest(connection_t *connection, char *buffer, size_t bufferSize);
 
-void connection_setSocket(connection_t *connection, int socketId);
+void connection_setSocket(connection_t *connection, int socketId, SSL *ssl);
 void connection_setSourceAddress(connection_t *connection, string_t *sourceAddress);
 void connection_setSourcePort(connection_t *connection, uint16_t sourcePort);
 

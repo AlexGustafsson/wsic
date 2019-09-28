@@ -3,3 +3,5 @@ build
 test/florian/results
 compile_commands.json
 config.toml
+*.cert
+*.key
