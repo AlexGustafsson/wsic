@@ -18,6 +18,7 @@
 #define PROTOCOL 0
 
 #define SERVER_EXIT_FATAL 10
+#define WORKER_POOL_SIZE 10
 
 pid_t server_createInstance(set_t *ports);
 // Main entrypoint for a server instance
@@ -26,7 +27,6 @@ int server_start();
 int server_listen(uint16_t port);
 // Block until at least one of the bound ports receives a request. Returns the number of sockets to handle (0 if failed)
 int server_acceptConnections();
-void server_handleConnection(connection_t *connection);
 void server_closeConnection(connection_t *connection);
 
 void server_close();

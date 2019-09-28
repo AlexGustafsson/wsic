@@ -71,8 +71,6 @@ page_t *page_create501() {
   page_t *page = page_create();
   page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
-  // TODO: It seems like the key is not properly freed here, neither is the value?
-  // The free loops only once through templates, should be at least twice?
   page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_501_HTML));
 
   page_resolveTemplates(page);

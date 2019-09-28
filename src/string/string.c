@@ -85,6 +85,9 @@ string_t *string_fromCopy(const char *buffer) {
 }
 
 string_t *string_fromInt(int number) {
+  if (number == 0)
+    return string_fromCopy("0");
+
   string_t *string = string_create();
   // Get the rough number of digits in the number
   int digits = (int)log10(abs(number)) + 1;

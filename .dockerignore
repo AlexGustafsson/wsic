@@ -7,3 +7,5 @@ test
 README.md
 config.toml
 compile_commands.json
+includes/unity
+.gitlab

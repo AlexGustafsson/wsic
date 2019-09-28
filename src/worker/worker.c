@@ -5,10 +5,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "../cgi/cgi.h"
 #include "../http/http.h"
 #include "../logging/logging.h"
 #include "../string/string.h"
+#include "../www/www.h"
 
 #include "worker.h"
 
@@ -17,40 +17,21 @@
 int worker_entryPoint();
 int worker_handleConnection(connection_t *connection);
 
-worker_t *worker_spawn(connection_t *connection) {
+worker_t *worker_spawn(int id, connection_t *connection, message_queue_t *queue) {
   worker_t *worker = malloc(sizeof(worker_t));
   if (worker == 0)
     return 0;
   memset(worker, 0, sizeof(worker_t));
 
-  if (connection == 0) {
-    // Create a condition for when the thread should sleep
-    if (pthread_cond_init(&worker->sleepCondition, NULL) != 0) {
-      log(LOG_ERROR, "Unable to create sleeping condition");
-      free(worker);
-      return 0;
-    }
-
-    // Create a mutex locked while working
-    if (pthread_mutex_init(&worker->sleepMutex, NULL) != 0) {
-      log(LOG_ERROR, "Unable to create sleeping mutex");
-      pthread_cond_destroy(&worker->sleepCondition);
-      free(worker);
-      return 0;
-    }
-  } else {
-    worker->connection = connection;
-  }
+  worker->id = id;
+  worker->connection = connection;
+  worker->queue = queue;
 
   pthread_t thread;
 
   if (pthread_create(&thread, NULL, worker_entryPoint, worker) != 0) {
     log(LOG_ERROR, "Unable to start thread for worker");
     free(worker);
-    if (connection != 0) {
-      pthread_cond_destroy(&worker->sleepCondition);
-      pthread_mutex_destroy(&worker->sleepMutex);
-    }
     return 0;
   }
 
@@ -72,22 +53,6 @@ uint8_t worker_getStatus(worker_t *worker) {
   return worker->status;
 }
 
-void worker_setConnection(worker_t *worker, connection_t *connection) {
-  // TODO: Thread safety
-  pthread_mutex_lock(&worker->sleepMutex);
-  worker->connection = connection;
-  pthread_cond_signal(&worker->sleepCondition);
-  pthread_mutex_unlock(&worker->sleepMutex);
-}
-
-void worker_setStatus(worker_t *worker, uint8_t status) {
-  worker->status = status;
-}
-
-connection_t *worker_getConnection(worker_t *worker) {
-  return worker->connection;
-}
-
 int worker_entryPoint(worker_t *worker) {
   // If a connection is already set, handle it directly (immediate mode)
   if (worker->connection != 0) {
@@ -106,16 +71,13 @@ int worker_entryPoint(worker_t *worker) {
 
   // Run the thread continously to handle multiple connections (pool mode)
   while (true) {
-    log(LOG_DEBUG, "Putting worker to sleep");
+    log(LOG_DEBUG, "Putting worker to sleep, waiting for a connection");
     worker->status = WORKER_STATUS_IDLE;
 
-    // Lock the thread until a connection is available
-    pthread_mutex_lock(&worker->sleepMutex);
-    while (worker->connection == 0)
-      pthread_cond_wait(&worker->sleepCondition, &worker->sleepMutex);
-    pthread_mutex_unlock(&worker->sleepMutex);
+    // Wait for a connection to be available (may lock indefinitely)
+    worker->connection = message_queue_pop(worker->queue);
 
-    log(LOG_DEBUG, "Worker process interrupted by parent to handle a connection");
+    log(LOG_DEBUG, "Worker process interrupted by parent to handle a connection (worker %d)", worker->id);
 
     worker->status = WORKER_STATUS_WORKING;
 
@@ -123,7 +85,6 @@ int worker_entryPoint(worker_t *worker) {
     log(LOG_DEBUG, "Handled connection - closing it");
     // Free the connection as it's of no further use
     connection_free(worker->connection);
-
     worker->connection = 0;
   }
 
@@ -131,7 +92,7 @@ int worker_entryPoint(worker_t *worker) {
 }
 
 int worker_handleConnection(connection_t *connection) {
-  http_t *http = http_create();
+  http_t *request = http_create();
 
   // Start reading the header from the client
   string_t *currentLine = 0;
@@ -139,27 +100,28 @@ int worker_handleConnection(connection_t *connection) {
   size_t headerSize = 0;
   while (true) {
     currentLine = connection_readLine(connection, REQUEST_READ_TIMEOUT, REQUEST_MAX_HEADER_SIZE - headerSize);
-    log(LOG_DEBUG, "Got line %s", string_getBuffer(currentLine));
+    if (currentLine != 0)
+      log(LOG_DEBUG, "Got line %s", string_getBuffer(currentLine));
     // Stop if there was no line read or the line was empty (all headers were read)
     if (currentLine == 0 || string_getSize(currentLine) == 0)
       break;
     headerSize += string_getSize(currentLine);
     if (line == 0) {
       // Parse the request line
-      bool parsed = http_parseRequestLine(http, currentLine);
+      bool parsed = http_parseRequestLine(request, currentLine);
       if (!parsed) {
         log(LOG_ERROR, "Failed to parse request line '%s'. Closing connection", string_getBuffer(currentLine));
         string_free(currentLine);
-        http_free(http);
+        http_free(request);
         return 1;
       }
     } else {
       // Parse the header
-      bool parsed = http_parseHeader(http, currentLine);
+      bool parsed = http_parseHeader(request, currentLine);
       if (!parsed) {
         log(LOG_ERROR, "Failed to parse header '%s'. Closing connection", string_getBuffer(currentLine));
         string_free(currentLine);
-        http_free(http);
+        http_free(request);
         return 1;
       }
     }
@@ -167,22 +129,22 @@ int worker_handleConnection(connection_t *connection) {
     currentLine = 0;
     line++;
   }
-  bool parsedHost = http_parseHost(http);
+  bool parsedHost = http_parseHost(request);
   if (!parsedHost) {
     log(LOG_DEBUG, "Could not parse Host header");
-    http_free(http);
+    http_free(request);
     return 1;
   }
 
-  if (http->url == 0) {
+  if (request->url == 0) {
     log(LOG_ERROR, "Didn't receive a header from the request");
-    http_free(http);
+    http_free(request);
     return 1;
   }
 
   // Handle expect header (rudimentary support)
   string_t *expectHeader = string_fromCopy("Expect");
-  string_t *expects = http_getHeader(http, expectHeader);
+  string_t *expects = http_getHeader(request, expectHeader);
   string_free(expectHeader);
   if (expects != 0) {
     log(LOG_DEBUG, "Got expect '%s'", string_getBuffer(expects));
@@ -193,7 +155,7 @@ int worker_handleConnection(connection_t *connection) {
   // Read the body if one exists
   string_t *body = 0;
   string_t *contentLengthHeader = string_fromCopy("Content-Length");
-  string_t *contentLengthString = http_getHeader(http, contentLengthHeader);
+  string_t *contentLengthString = http_getHeader(request, contentLengthHeader);
   string_free(contentLengthHeader);
   if (contentLengthString != 0) {
     log(LOG_DEBUG, "Content-Length: %s", string_getBuffer(contentLengthString));
@@ -201,7 +163,7 @@ int worker_handleConnection(connection_t *connection) {
     log(LOG_DEBUG, "The request has a body size of %d bytes", contentLength);
     if (contentLength > REQUEST_MAX_BODY_SIZE) {
       log(LOG_WARNING, "The client wanted to write %d bytes which is above maximum %d", contentLength, REQUEST_MAX_BODY_SIZE);
-      http_free(http);
+      http_free(request);
       return 1;
     } else if (contentLength == 0) {
       log(LOG_WARNING, "Got empty body");
@@ -221,25 +183,25 @@ int worker_handleConnection(connection_t *connection) {
   hash_table_setValue(environment, string_fromCopy("REMOTE_ADDR"), string_fromCopy(string_getBuffer(connection->sourceAddress)));
   hash_table_setValue(environment, string_fromCopy("REMOTE_PORT"), string_fromInt(connection->sourcePort));
 
-  uint8_t method = http_getMethod(http);
+  uint8_t method = http_getMethod(request);
   if (method == HTTP_METHOD_GET)
     hash_table_setValue(environment, string_fromCopy("REQUEST_METHOD"), string_fromCopy("GET"));
   else if (method == HTTP_METHOD_POST)
     hash_table_setValue(environment, string_fromCopy("REQUEST_METHOD"), string_fromCopy("POST"));
 
-  string_t *cookie = http_getHeader(http, string_fromCopy("Cookie"));
+  string_t *cookie = http_getHeader(request, string_fromCopy("Cookie"));
   if (cookie != 0)
     hash_table_setValue(environment, string_fromCopy("HTTP_COOKIE"), cookie);
 
-  string_t *referer = http_getHeader(http, string_fromCopy("Referer"));
+  string_t *referer = http_getHeader(request, string_fromCopy("Referer"));
   if (referer != 0)
     hash_table_setValue(environment, string_fromCopy("HTTP_REFERER"), referer);
 
-  string_t *userAgent = http_getHeader(http, string_fromCopy("User-Agent"));
+  string_t *userAgent = http_getHeader(request, string_fromCopy("User-Agent"));
   if (userAgent != 0)
     hash_table_setValue(environment, string_fromCopy("HTTP_USER_AGENT"), userAgent);
 
-  url_t *url = http_getUrl(http);
+  url_t *url = http_getUrl(request);
   string_t *domainName = url_getDomainName(url);
   if (domainName != 0) {
     hash_table_setValue(environment, string_fromCopy("HTTP_HOST"), domainName);
@@ -256,40 +218,23 @@ int worker_handleConnection(connection_t *connection) {
   if (path != 0)
     hash_table_setValue(environment, string_fromCopy("REQUEST_URI"), path);*/
 
-  log(LOG_DEBUG, "Spawning CGI process");
-  cgi_process_t *process = cgi_spawn("/Users/alexgustafsson/Documents/GitHub/wsic/cgi-test.sh", arguments, environment);
-  log(LOG_DEBUG, "Spawned process with pid %d", process->pid);
+  http_t *response = http_create();
 
-  // Write body to CGI
-  if (body != 0) {
-    log(LOG_DEBUG, "Writing request to CGI process");
-    log(LOG_DEBUG, "Body content is:\n<%s> of size %zu", string_getBuffer(body), string_getSize(body));
-    cgi_write(process, string_getBuffer(body), string_getSize(body));
-    // Make sure the process receives EOF
-    cgi_flushStdin(process);
-  } else {
-    // Close the input to the CGI process
-    cgi_flushStdin(process);
-  }
+  page_t *page = page_create501();
+  string_t *source = page_getSource(page);
+  http_setBody(response, source);
+  http_setResponseCode(response, 501);
+  http_setVersion(response, string_fromCopy("1.1"));
 
-  log(LOG_DEBUG, "Reading response from CGI process");
-  // TODO: Read more than 4096 bytes
-  char buffer[2048] = {0};
-  cgi_read(process, buffer, 2048);
-  buffer[2048 - 1] = 0;
-
-  log(LOG_DEBUG, "Got response from CGI process");
-  connection_write(connection, buffer, 2048);
-
-  // NOTE: Not necessary, but for debugging it's nice to know
-  // that the process is actually exiting (not kept forever)
-  // since we don't currently kill spawned processes
-  log(LOG_DEBUG, "Waiting for process to exit");
-  uint8_t exitCode = cgi_waitForExit(process);
-  log(LOG_DEBUG, "Process exited with status %d", exitCode);
-
-  // Close and free up CGI process and connection
-  cgi_freeProcess(process);
+  string_t *responseString = http_toResponseString(response);
+  connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
+  string_free(responseString);
+  page_free(page);
+  // Freeing the page also frees the source, which we gave to http.
+  // Not having this line would cause a double free
+  response->body = 0;
+  http_free(response);
+  http_free(request);
 
   return 0;
 }
@@ -300,10 +245,6 @@ void worker_waitForExit(worker_t *worker) {
 
 void worker_kill(worker_t *worker) {
   pthread_cancel(worker->thread);
-  // Ensure that the sleep mutex is unlocked
-  pthread_mutex_unlock(&worker->sleepMutex);
-  // Ensure that the condition is destroyed after the threads has exited
-  pthread_cond_destroy(&worker->sleepCondition);
 }
 
 void worker_free(worker_t *worker) {
