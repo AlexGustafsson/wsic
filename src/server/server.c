@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <string.h>
+#include <signal.h>
 
 #include "../cgi/cgi.h"
 #include "../datastructures/hash-table/hash-table.h"
@@ -19,6 +20,8 @@ static size_t socketDescriptorCount = 0;
 static message_queue_t *connectionQueue = 0;
 
 static worker_t *workerPool[WORKER_POOL_SIZE];
+
+void server_handleSignalSIGPIPE();
 
 bool server_setNonBlocking(int socketDescriptor) {
   // Get the current flags set for the socket
@@ -59,6 +62,9 @@ pid_t server_createInstance(set_t *ports) {
 }
 
 int server_start(set_t *ports) {
+  // Set up signals
+  signal(SIGPIPE, server_handleSignalSIGPIPE);
+
   // Set up file structures necessary for polling state of socket queues
   size_t descriptorsSize = sizeof(struct pollfd) * set_getLength(ports);
   socketDescriptors = malloc(descriptorsSize);
@@ -213,6 +219,10 @@ int server_acceptConnections() {
   }
 
   return status;
+}
+
+void server_handleSignalSIGPIPE() {
+  // Do nothing
 }
 
 void server_close() {

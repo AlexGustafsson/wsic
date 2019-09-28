@@ -77,8 +77,11 @@ string_t *connection_read(connection_t *connection, int timeout, size_t bytesToR
 
 string_t *connection_readLine(connection_t *connection, int timeout, size_t maxBytes) {
   size_t offset = 0;
+  uint8_t timeouts = 0;
   while (true) {
     bool dataIsAvailable = connection_pollForData(connection, timeout);
+    if (timeouts++ > 5)
+      return 0;
     if (!dataIsAvailable)
       continue;
 
@@ -162,7 +165,12 @@ ssize_t connection_getAvailableBytes(connection_t *connection) {
   // Get the number of bytes immediately available for reading
   int bytesAvailable = 0;
   if (ioctl(connection->socketId, FIONREAD, &bytesAvailable) == -1) {
-    log(LOG_ERROR, "Could not check number of bytes available for reading");
+    if (errno == EBADF) {
+      log(LOG_ERROR, "Could not check number of bytes available for reading. The socket had closed");
+    } else {
+      const char *reason = strerror(errno);
+      log(LOG_ERROR, "Could not check number of bytes available for reading. Got code %d (%s)", errno, reason);
+    }
     return -1;
   }
 
@@ -182,16 +190,20 @@ size_t connection_readBytes(connection_t *connection, char **buffer, size_t byte
   if (bytesReceived == -1) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       log(LOG_ERROR, "Reading %zu bytes would block", bytesToRead);
-      free(*buffer);
-      return 0;
+    } else if (errno == EBADF) {
+      log(LOG_ERROR, "Could not read bytes from %s:%i - the connection is closed", string_getBuffer(connection->sourceAddress), connection->sourcePort);
     } else {
-      log(LOG_ERROR, "Could not receive request from %s:%i - code %d", string_getBuffer(connection->sourceAddress), connection->sourcePort, errno);
-      free(*buffer);
-      return 0;
+      const char *reason = strerror(errno);
+      log(LOG_ERROR, "Could not read bytes from %s:%i. Got code %d (%s)", string_getBuffer(connection->sourceAddress), connection->sourcePort, errno, reason);
     }
+
+    free(*buffer);
+    *buffer = 0;
+    return 0;
   } else if (bytesReceived == 0) {
     log(LOG_DEBUG, "No bytes read");
     free(*buffer);
+    *buffer = 0;
     return 0;
   }
 
@@ -200,15 +212,19 @@ size_t connection_readBytes(connection_t *connection, char **buffer, size_t byte
 }
 
 size_t connection_write(connection_t *connection, const char *buffer, size_t bufferSize) {
-  // Use the flag MSG_NOSIGNAL to try to stop SIGPIPE on supported platforms
-  ssize_t bytesSent = send(connection->socketId, buffer, bufferSize, MSG_NOSIGNAL);
+  // Use the flag MSG_NOSIGNAL to try to stop SIGPIPE on supported platforms (there is a signal handler catching other cases)
+  ssize_t bytesSent = send(connection->socketId, buffer, strlen(buffer), MSG_NOSIGNAL);
 
   const char *sourceAddress = string_getBuffer(connection->sourceAddress);
   uint16_t sourcePort = connection->sourcePort;
 
   if (bytesSent == -1) {
-    log(LOG_ERROR, "Could not write to %s:%i", sourceAddress, sourcePort);
-
+    if (errno == EBADF) {
+      log(LOG_ERROR, "Could not write to %s:%i. The connection had already closed", sourceAddress, sourcePort);
+    } else {
+      const char *reason = strerror(errno);
+      log(LOG_ERROR, "Could not write to %s:%i. Got error %d (%s)", sourceAddress, sourcePort, errno, reason);
+    }
     return 0;
   }
 
@@ -222,10 +238,19 @@ void connection_parseRequest(connection_t *connection, char *buffer, size_t buff
 
 void connection_close(connection_t *connection) {
   if (shutdown(connection->socketId, SHUT_RDWR) == -1) {
-    if (errno != ENOTCONN && errno != EINVAL)
-      log(LOG_ERROR, "Failed to shutdown connection. Got error %d", errno);
-    if (close(connection->socketId) == -1)
-      log(LOG_ERROR, "Unable to close connection");
+    if (errno != ENOTCONN && errno != EINVAL) {
+      if (errno == ENOTSOCK || errno == EBADF) {
+        log(LOG_ERROR, "Failed to shutdown connection. It was likely already closed");
+      } else {
+        const char *reason = strerror(errno);
+        log(LOG_ERROR, "Failed to shutdown connection. Got error %d (%s)", errno, reason);
+      }
+    }
+  } else {
+    if (close(connection->socketId) == -1) {
+      const char *reason = strerror(errno);
+      log(LOG_ERROR, "Unable to close connection. Got error %d (%s)", errno, reason);
+    }
   }
 }
 

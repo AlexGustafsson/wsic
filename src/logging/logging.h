@@ -49,8 +49,9 @@
   do {                                                                                                                                                                      \
     uint64_t elapsedTime = time_getTimeSinceStart();                                                                                                                        \
     uint64_t milliseconds = elapsedTime / 1000000;                                                                                                                          \
-    uint8_t rest = (elapsedTime - (milliseconds * 1000000)) / 10000;                                                                                                        \
-    fprintf(stderr, "%llu.%02dms \x1b[90m[\x1b[%dm%s\x1b[90m][%s@%d][%s]\x1b[0m ", milliseconds, rest, LOG_COLOR_##level, LOG_LABEL_##level, __FILE__, __LINE__, __func__); \
+    uint8_t rest = (elapsedTime - (milliseconds * 1000000)) / 10000; \
+    /* The cast for %llu is due to a difference between Linux and macOS */ \
+    fprintf(stderr, "%llu.%02dms \x1b[90m[\x1b[%dm%s\x1b[90m][%s@%d][%s]\x1b[0m ", (unsigned long long)milliseconds, rest, LOG_COLOR_##level, LOG_LABEL_##level, __FILE__, __LINE__, __func__); \
     fprintf(stderr, __VA_ARGS__);                                                                                                                                           \
     fprintf(stderr, "\n");                                                                                                                                                  \
   } while (0)
