@@ -29,6 +29,7 @@ int main(int argc, char const *argv[]) {
   logging_startSyslog();
   config_t *config = config_parse((char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
   server_config_t *defaultServerConfig = config_getServerConfig(config, 0);
+  config_setGlobalConfig(config);
 
   bool showHelp = false;
   bool showVersion = false;
@@ -132,7 +133,7 @@ int main(int argc, char const *argv[]) {
     }
   }
 
-  config_free(config);
+  config_freeGlobalConfig();
   logging_stopSyslog();
   return 0;
 }

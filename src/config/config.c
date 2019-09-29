@@ -1,8 +1,24 @@
 #include <string.h>
+#include <stdbool.h>
 
 #include "../logging/logging.h"
 
 #include "config.h"
+
+static config_t *config_globalConfig = 0;
+
+config_t *config_getGlobalConfig() {
+  return config_globalConfig;
+}
+
+void config_setGlobalConfig(config_t *config) {
+  config_globalConfig = config;
+}
+
+void config_freeGlobalConfig() {
+  if (config_globalConfig != 0)
+    config_free(config_globalConfig);
+}
 
 config_t *config_parse(char *configString) {
   char parseError[200];
@@ -52,7 +68,31 @@ config_t *config_parse(char *configString) {
         log(LOG_ERROR, "Got a corrupt server table when parsing config");
       } else {
         server_config_t *serverConfig = config_parseServerTable(serverTable);
-        list_addValue(config->serverConfigs, serverConfig);
+        if (serverConfig == 0) {
+          log(LOG_ERROR, "Could not parse server config %d", i + 1);
+          continue;
+        }
+
+        bool duplicate = false;
+        for (int j = 0; j < serversTables; j++) {
+          if (j == i)
+            continue;
+
+          server_config_t *otherConfig = list_getValue(config->serverConfigs, j);
+          if (otherConfig == 0)
+            continue;
+
+          bool isSameDomain = string_equals(serverConfig->domain, otherConfig->domain);
+          bool bothHaveSSL = serverConfig->sslContext != 0 && otherConfig->sslContext != 0;
+          if (isSameDomain && bothHaveSSL) {
+            log(LOG_ERROR, "Multiple server configuration listening to domain '%s'. Configuration '%s' will be disabled", string_getBuffer(serverConfig->domain), string_getBuffer(serverConfig->name));
+            duplicate = true;
+            break;
+          }
+        }
+
+        if (!duplicate)
+          list_addValue(config->serverConfigs, serverConfig);
       }
     }
   }
@@ -66,6 +106,7 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
   server_config_t *config = malloc(sizeof(server_config_t));
   if (config == 0)
     return 0;
+  memset(config, 0, sizeof(server_config_t));
 
   const char *rawName = toml_table_key(serverTable);
   string_t *name = string_fromCopy(rawName);
@@ -82,6 +123,40 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
       log(LOG_ERROR, "The port in config for server '%s' was unexpected", string_getBuffer(config->name));
     else
       config->port = port;
+  }
+
+  string_t *privateKey = config_parseString(serverTable, "privateKey");
+  string_t *certificate = config_parseString(serverTable, "certificate");
+  if ((privateKey == 0 && certificate != 0) || (privateKey != 0 && certificate == 0)) {
+    log(LOG_ERROR, "Both 'privateKey' and 'certificate' must be set in order to use TLS");
+    return 0;
+  }
+
+  if (privateKey != 0 && certificate != 0) {
+    log(LOG_DEBUG, "Setting up TLS configuration");
+
+    // Setup TLS
+    OpenSSL_add_ssl_algorithms();
+    const SSL_METHOD *method = TLS_method();
+    config->sslContext = SSL_CTX_new(method);
+    if (!config->sslContext) {
+      log(LOG_ERROR, "Unable to create TLS context");
+    	return 0;
+    }
+    SSL_CTX_set_ecdh_auto(config->sslContext, 1);
+    // NOTE: Highly temporary! For debugging only
+    // Allow all certificates
+    SSL_CTX_set_verify(config->sslContext, SSL_VERIFY_NONE, NULL);
+
+    if (SSL_CTX_use_PrivateKey_file(config->sslContext, string_getBuffer(privateKey), SSL_FILETYPE_PEM) <= 0 ) {
+      log(LOG_ERROR, "Unable to create TLS context - could not read server private key");
+    	return 0;
+    }
+
+    if (SSL_CTX_use_certificate_file(config->sslContext, string_getBuffer(certificate), SSL_FILETYPE_PEM) <= 0) {
+      log(LOG_ERROR, "Unable to create TLS context - could not read server certificate");
+    	return 0;
+    }
   }
 
   return config;
@@ -163,6 +238,23 @@ server_config_t *config_getServerConfig(config_t *config, size_t index) {
   return list_getValue(config->serverConfigs, index);
 }
 
+server_config_t *config_getServerConfigBySNI(config_t *config, string_t *domain) {
+  size_t servers = list_getLength(config->serverConfigs);
+  for (size_t i = 0; i < servers; i++) {
+    server_config_t *serverConfig = config_getServerConfig(config, i);
+    bool isSameDomain = string_equals(config_getDomain(serverConfig), domain);
+    bool hasSSL = serverConfig->sslContext != 0;
+    if (isSameDomain && hasSSL)
+      return serverConfig;
+  }
+
+  return 0;
+}
+
+size_t config_getServers(config_t *config) {
+  return list_getLength(config->serverConfigs);
+}
+
 string_t *config_getName(server_config_t *config) {
   return config->name;
 }
@@ -201,6 +293,10 @@ string_t *config_getLogfile(server_config_t *config) {
 
 void config_setLogfile(server_config_t *config, string_t *logfile) {
   config->logfile = logfile;
+}
+
+SSL_CTX *config_getSSLContext(server_config_t *config) {
+  return config->sslContext;
 }
 
 void config_free(config_t *config) {

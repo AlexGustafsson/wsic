@@ -27,6 +27,7 @@ int server_start();
 int server_listen(uint16_t port);
 // Block until at least one of the bound ports receives a request. Returns the number of sockets to handle (0 if failed)
 int server_acceptConnections();
+SSL *server_handleSSL(connection_t *connection);
 void server_closeConnection(connection_t *connection);
 
 void server_close();

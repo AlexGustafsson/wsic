@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include <openssl/ssl.h>
+
 #include "tomlc99/toml.h"
 
 #include "../datastructures/list/list.h"
@@ -21,6 +23,7 @@ typedef struct {
   string_t *logfile;
   // -1 if not set, 0 or 1 otherwise
   int8_t enabled;
+  SSL_CTX *sslContext;
 } server_config_t;
 
 typedef struct {
@@ -32,6 +35,11 @@ typedef struct {
 
 config_t *config_parse(char *configString);
 
+// Get and set the globally defined config
+config_t *config_getGlobalConfig();
+void config_setGlobalConfig(config_t *config);
+void config_freeGlobalConfig();
+
 server_config_t *config_parseServerTable(toml_table_t *serverTable);
 
 enum parallelMode config_getParallelMode(config_t *config);
@@ -41,6 +49,8 @@ int16_t config_getIsDaemon(config_t *config);
 void config_setIsDaemon(config_t *config, int16_t isDaemon);
 
 server_config_t *config_getServerConfig(config_t *config, size_t index);
+server_config_t *config_getServerConfigBySNI(config_t *config, string_t *domain);
+size_t config_getServers(config_t *config);
 
 string_t *config_getName(server_config_t *config);
 void config_setName(server_config_t *config, string_t *name);
@@ -56,6 +66,8 @@ void config_setPort(server_config_t *config, int16_t port);
 
 string_t *config_getLogfile(server_config_t *config);
 void config_setLogfile(server_config_t *config, string_t *logfile);
+
+SSL_CTX *config_getSSLContext(server_config_t *config);
 
 string_t *config_parseString(toml_table_t *table, const char *key);
 int64_t config_parseInt(toml_table_t *table, const char *key);

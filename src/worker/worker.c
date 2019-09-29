@@ -74,8 +74,9 @@ int worker_entryPoint(worker_t *worker) {
     log(LOG_DEBUG, "Putting worker to sleep, waiting for a connection");
     worker->status = WORKER_STATUS_IDLE;
 
-    // Wait for a connection to be available (may lock indefinitely)
     worker->connection = message_queue_pop(worker->queue);
+    if (worker->connection == 0)
+      continue;
 
     log(LOG_DEBUG, "Worker process interrupted by parent to handle a connection (worker %d)", worker->id);
 
@@ -85,7 +86,6 @@ int worker_entryPoint(worker_t *worker) {
     log(LOG_DEBUG, "Handled connection - closing it");
     // Free the connection as it's of no further use
     connection_free(worker->connection);
-    worker->connection = 0;
   }
 
   return 0;
