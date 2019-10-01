@@ -38,6 +38,7 @@ bool http_parseRequestTarget(http_t *http, string_t *requestTarget);
 bool http_parseHost(http_t *http);
 bool http_parseUrl(http_t *http);
 enum httpMethod http_parseMethod(string_t *method);
+string_t *http_methodToString(enum httpMethod method);
 
 void http_setMethod(http_t *http, enum httpMethod method);
 enum httpMethod http_getMethod(http_t *http);

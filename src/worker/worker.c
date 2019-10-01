@@ -229,6 +229,8 @@ int worker_handleConnection(connection_t *connection) {
 
   string_t *responseString = http_toResponseString(response);
   connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), url_getPath(http_getUrl(request)), http_getVersion(request), http_getResponseCode(response), string_getSize(responseString));
+  // void logging_request(string_t *remoteHost, enum httpMethod method, string_t *path, string_t *version, uint16_t responseCode, size_t bytesSent)
   string_free(responseString);
   page_free(page);
   // Freeing the page also frees the source, which we gave to http.
