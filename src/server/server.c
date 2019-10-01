@@ -5,17 +5,17 @@
 #include <signal.h>
 #include <string.h>
 
-#include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 
 #include "../cgi/cgi.h"
+#include "../config/config.h"
 #include "../datastructures/hash-table/hash-table.h"
 #include "../datastructures/list/list.h"
 #include "../datastructures/message-queue/message-queue.h"
 #include "../http/http.h"
 #include "../logging/logging.h"
 #include "../worker/worker.h"
-#include "../config/config.h"
 
 #include "server.h"
 
@@ -300,7 +300,7 @@ SSL *server_handleSSL(connection_t *connection) {
   // It is then replaced by server_handleServerNameIdentification with
   // the appropriate certificate before sending server hello
   const SSL_METHOD *method = TLS_method();
-  SSL_CTX* context = SSL_CTX_new(method);
+  SSL_CTX *context = SSL_CTX_new(method);
   SSL_CTX_set_tlsext_servername_callback(context, server_handleServerNameIdentification);
   SSL *ssl = SSL_new(context);
   SSL_set_fd(ssl, connection->socket);

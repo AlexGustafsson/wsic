@@ -246,7 +246,6 @@ size_t connection_readBytes(connection_t *connection, char **buffer, size_t byte
   return bytesReceived;
 }
 
-
 size_t connection_readSSLBytes(connection_t *connection, char **buffer, size_t bytesToRead, int flags) {
   (*buffer) = malloc(sizeof(char) * bytesToRead);
   size_t bytesReceived = 0;

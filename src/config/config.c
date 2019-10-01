@@ -1,5 +1,5 @@
-#include <string.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include "../logging/logging.h"
 
@@ -124,7 +124,7 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
     config->sslContext = SSL_CTX_new(method);
     if (!config->sslContext) {
       log(LOG_ERROR, "Unable to create TLS context");
-    	return 0;
+      return 0;
     }
 
     // Only allow TLS 1.2 and above (TLS 1.3)
@@ -140,8 +140,9 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
 
     // Disable server certificate validation if validateCertificate is false
     int8_t verifyCertificates = config_parseBool(serverTable, "validateCertificate");
-    if (verifyCertificates == 0);
-      SSL_CTX_set_verify(config->sslContext, SSL_VERIFY_NONE, NULL);
+    if (verifyCertificates == 0)
+      ;
+    SSL_CTX_set_verify(config->sslContext, SSL_VERIFY_NONE, NULL);
 
     // Configure the TLS cipher suite
     string_t *cipherSuite = config_parseString(serverTable, "cipherSuite");
@@ -171,14 +172,14 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
       string_free(dhparams);
     }
 
-    if (SSL_CTX_use_PrivateKey_file(config->sslContext, string_getBuffer(privateKey), SSL_FILETYPE_PEM) <= 0 ) {
+    if (SSL_CTX_use_PrivateKey_file(config->sslContext, string_getBuffer(privateKey), SSL_FILETYPE_PEM) <= 0) {
       log(LOG_ERROR, "Unable to create TLS context - could not read server private key");
-    	return 0;
+      return 0;
     }
 
     if (SSL_CTX_use_certificate_file(config->sslContext, string_getBuffer(certificate), SSL_FILETYPE_PEM) <= 0) {
       log(LOG_ERROR, "Unable to create TLS context - could not read server certificate");
-    	return 0;
+      return 0;
     }
   }
 
