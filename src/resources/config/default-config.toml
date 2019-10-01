@@ -1,5 +1,4 @@
 [server]
-  parallelMode = "fork"
   daemon = false
 
 [servers]
