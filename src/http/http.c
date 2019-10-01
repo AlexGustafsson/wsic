@@ -352,6 +352,22 @@ enum httpMethod http_parseMethod(string_t *method) {
   return HTTP_METHOD_UNKNOWN;
 }
 
+string_t *http_methodToString(enum httpMethod method) {
+  if (method == 1)
+    return string_fromCopy("GET");
+  if (method == 2)
+    return string_fromCopy("PUT");
+  if (method == 3)
+    return string_fromCopy("POST");
+  if (method == 4)
+    return string_fromCopy("HEAD");
+  if (method == 5)
+    return string_fromCopy("OPTIONS");
+
+  log(LOG_ERROR, "Cound not go from method to string '%d'", method);
+  return 0;
+}
+
 void http_free(http_t *http) {
   if (http->version != 0)
     string_free(http->version);

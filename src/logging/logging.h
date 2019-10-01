@@ -7,6 +7,8 @@
 #include <syslog.h>
 #include <stdint.h>
 
+#include "../string/string.h"
+#include "../http/http.h"
 #include "../time/time.h"
 
 // Define clean code comptaitble aliases for syslog's constants
@@ -71,8 +73,8 @@
 #define logRaw(level, ...)                        \
   do {                                            \
     if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0) { \
-      fprintf(stderr, __VA_ARGS__);               \
-      fprintf(stderr, "\n");                      \
+      fprintf(stdout, __VA_ARGS__);               \
+      fprintf(stdout, "\n");                      \
     }                                             \
     if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0) {  \
       syslog(level, __VA_ARGS__);                 \
@@ -85,5 +87,7 @@ extern uint8_t LOGGING_OUTPUT;
 void logging_startSyslog();
 // Deconstruct logging (not necessarily needed to be called, but should be as late as possible)
 void logging_stopSyslog();
+// Log the request in format CLF
+void logging_request(string_t *remoteHost, enum httpMethod method, string_t *path, string_t *version, uint16_t responseCode, size_t bytesSent);
 
 #endif
