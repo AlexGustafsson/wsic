@@ -4,6 +4,8 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <openssl/err.h>
+
 #include "../logging/logging.h"
 
 #include "connection.h"
@@ -22,16 +24,32 @@ connection_t *connection_create() {
   return connection;
 }
 
-void connection_setSocket(connection_t *connection, int socketId) {
-  connection->socketId = socketId;
+void connection_setSocket(connection_t *connection, int socket) {
+  connection->socket = socket;
+}
+
+int connection_getSocket(connection_t *connection) {
+  return connection->socket;
+}
+
+void connection_setSSL(connection_t *connection, SSL *ssl) {
+  connection->ssl = ssl;
 }
 
 void connection_setSourceAddress(connection_t *connection, string_t *sourceAddress) {
   connection->sourceAddress = sourceAddress;
 }
 
+string_t *connection_getSourceAddress(connection_t *connection) {
+  return connection->sourceAddress;
+}
+
 void connection_setSourcePort(connection_t *connection, uint16_t sourcePort) {
   connection->sourcePort = sourcePort;
+}
+
+uint16_t connection_getSourcePort(connection_t *connection) {
+  return connection->sourcePort;
 }
 
 // TODO:
@@ -86,6 +104,7 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
       continue;
 
     ssize_t bytesAvailable = connection_getAvailableBytes(connection);
+    bytesAvailable = 1024;
     if (bytesAvailable == 0) {
       // Nothing to read, wait for next event as specified by the polling above
       continue;
@@ -99,7 +118,11 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
 
     // Read the request without consuming the content
     char *buffer = 0;
-    size_t bytesReceived = connection_readBytes(connection, &buffer, bytesAvailable, READ_FLAGS_PEEK);
+    size_t bytesReceived = 0;
+    if (connection->ssl == 0)
+      bytesReceived = connection_readBytes(connection, &buffer, bytesAvailable, READ_FLAGS_PEEK);
+    else
+      bytesReceived = connection_readSSLBytes(connection, &buffer, bytesAvailable, READ_FLAGS_PEEK);
     // Nothing read, wait for next event
     if (buffer == 0)
       continue;
@@ -127,7 +150,11 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
       continue;
     }
 
-    bytesReceived = connection_readBytes(connection, &buffer, lineLength, READ_FLAGS_NONE);
+    bytesReceived = 0;
+    if (connection->ssl == 0)
+      bytesReceived = connection_readBytes(connection, &buffer, lineLength, READ_FLAGS_NONE);
+    else
+      bytesReceived = connection_readSSLBytes(connection, &buffer, lineLength, READ_FLAGS_NONE);
     // Could not read message
     if (buffer == 0)
       return 0;
@@ -140,10 +167,13 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
 }
 
 bool connection_pollForData(connection_t *connection, int timeout) {
+  if (connection->ssl != 0 && SSL_pending(connection->ssl) > 0)
+    return true;
+
   // Set up structures necessary for polling
   struct pollfd descriptors[1];
   memset(descriptors, 0, sizeof(struct pollfd));
-  descriptors[0].fd = connection->socketId;
+  descriptors[0].fd = connection->socket;
   descriptors[0].events = POLLIN;
 
   log(LOG_DEBUG, "Waiting for data to be readable");
@@ -163,22 +193,27 @@ bool connection_pollForData(connection_t *connection, int timeout) {
 
 ssize_t connection_getAvailableBytes(connection_t *connection) {
   // Get the number of bytes immediately available for reading
-  int bytesAvailable = 0;
-  if (ioctl(connection->socketId, FIONREAD, &bytesAvailable) == -1) {
-    if (errno == EBADF) {
-      log(LOG_ERROR, "Could not check number of bytes available for reading. The socket had closed");
-    } else {
-      const char *reason = strerror(errno);
-      log(LOG_ERROR, "Could not check number of bytes available for reading. Got code %d (%s)", errno, reason);
+  int bytesAvailable = -1;
+  if (connection->ssl == 0) {
+    if (ioctl(connection->socket, FIONREAD, &bytesAvailable) == -1) {
+      if (errno == EBADF) {
+        log(LOG_ERROR, "Could not check number of bytes available for reading. The socket had closed");
+      } else {
+        const char *reason = strerror(errno);
+        log(LOG_ERROR, "Could not check number of bytes available for reading. Got code %d (%s)", errno, reason);
+      }
+      return -1;
     }
-    return -1;
-  }
 
-  log(LOG_DEBUG, "There are %d bytes available for reading", bytesAvailable);
+    log(LOG_DEBUG, "There are %d bytes available for reading", bytesAvailable);
+  } else {
+    bytesAvailable = SSL_pending(connection->ssl);
+    if (bytesAvailable < 0) {
+      log(LOG_ERROR, "Failed to get number of available bytes from TLS connection");
+      return -1;
+    }
 
-  if (bytesAvailable < 0) {
-    log(LOG_ERROR, "Failed to get number of available bytes");
-    return -1;
+    log(LOG_DEBUG, "There are %d bytes available for reading from TLS connection", bytesAvailable);
   }
 
   return (ssize_t)bytesAvailable;
@@ -186,7 +221,7 @@ ssize_t connection_getAvailableBytes(connection_t *connection) {
 
 size_t connection_readBytes(connection_t *connection, char **buffer, size_t bytesToRead, int flags) {
   (*buffer) = malloc(sizeof(char) * bytesToRead);
-  ssize_t bytesReceived = recv(connection->socketId, (*buffer), bytesToRead, flags);
+  ssize_t bytesReceived = recv(connection->socket, (*buffer), bytesToRead, flags);
   if (bytesReceived == -1) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       log(LOG_ERROR, "Reading %zu bytes would block", bytesToRead);
@@ -211,24 +246,61 @@ size_t connection_readBytes(connection_t *connection, char **buffer, size_t byte
   return bytesReceived;
 }
 
-size_t connection_write(connection_t *connection, const char *buffer, size_t bufferSize) {
-  // Use the flag MSG_NOSIGNAL to try to stop SIGPIPE on supported platforms (there is a signal handler catching other cases)
-  ssize_t bytesSent = send(connection->socketId, buffer, strlen(buffer), MSG_NOSIGNAL);
+size_t connection_readSSLBytes(connection_t *connection, char **buffer, size_t bytesToRead, int flags) {
+  (*buffer) = malloc(sizeof(char) * bytesToRead);
+  size_t bytesReceived = 0;
+  if (flags == READ_FLAGS_PEEK) {
+    ERR_clear_error();
+    if (SSL_peek_ex(connection->ssl, (*buffer), bytesToRead, &bytesReceived) <= 0) {
+      log(LOG_ERROR, "Could not read bytes from %s:%i (TLS)", string_getBuffer(connection->sourceAddress), connection->sourcePort);
+      free(*buffer);
+      *buffer = 0;
+      return 0;
+    }
 
+    log(LOG_DEBUG, "Peeked %zu bytes (TLS)", bytesReceived);
+  } else {
+    ERR_clear_error();
+    if (SSL_read_ex(connection->ssl, (*buffer), bytesToRead, &bytesReceived) <= 0) {
+      log(LOG_ERROR, "Could not read bytes from %s:%i (TLS)", string_getBuffer(connection->sourceAddress), connection->sourcePort);
+      free(*buffer);
+      *buffer = 0;
+      return 0;
+    }
+
+    log(LOG_DEBUG, "Read %zu bytes (TLS)", bytesReceived);
+  }
+
+  return bytesReceived;
+}
+
+size_t connection_write(connection_t *connection, const char *buffer, size_t bufferSize) {
   const char *sourceAddress = string_getBuffer(connection->sourceAddress);
   uint16_t sourcePort = connection->sourcePort;
 
-  if (bytesSent == -1) {
-    if (errno == EBADF) {
-      log(LOG_ERROR, "Could not write to %s:%i. The connection had already closed", sourceAddress, sourcePort);
-    } else {
-      const char *reason = strerror(errno);
-      log(LOG_ERROR, "Could not write to %s:%i. Got error %d (%s)", sourceAddress, sourcePort, errno, reason);
+  ssize_t bytesSent = -1;
+  if (connection->ssl == 0) {
+    // Use the flag MSG_NOSIGNAL to try to stop SIGPIPE on supported platforms (there is a signal handler catching other cases)
+    ssize_t bytesSent = send(connection->socket, buffer, strlen(buffer), MSG_NOSIGNAL);
+    if (bytesSent == -1) {
+      if (errno == EBADF) {
+        log(LOG_ERROR, "Could not write to %s:%i. The connection had already closed", sourceAddress, sourcePort);
+      } else {
+        const char *reason = strerror(errno);
+        log(LOG_ERROR, "Could not write to %s:%i. Got error %d (%s)", sourceAddress, sourcePort, errno, reason);
+      }
+      return 0;
     }
-    return 0;
+  } else {
+    ERR_clear_error();
+    if (SSL_write_ex(connection->ssl, buffer, strlen(buffer), (size_t *)&bytesSent) < 0) {
+      log(LOG_ERROR, "Could not write to %s:%i (TLS)", sourceAddress, sourcePort);
+      return 0;
+    }
   }
 
-  log(LOG_DEBUG, "Successfully wrote %zu bytes to %s:%i", bufferSize, sourceAddress, sourcePort);
+  if (bytesSent != -1)
+    log(LOG_DEBUG, "Successfully wrote %zu (out of %zu) bytes to %s:%i", bytesSent, bufferSize, sourceAddress, sourcePort);
   return bytesSent;
 }
 
@@ -237,7 +309,10 @@ void connection_parseRequest(connection_t *connection, char *buffer, size_t buff
 }
 
 void connection_close(connection_t *connection) {
-  if (shutdown(connection->socketId, SHUT_RDWR) == -1) {
+  if (connection->ssl != 0)
+    SSL_free(connection->ssl);
+
+  if (shutdown(connection->socket, SHUT_RDWR) == -1) {
     if (errno != ENOTCONN && errno != EINVAL) {
       if (errno == ENOTSOCK || errno == EBADF) {
         log(LOG_ERROR, "Failed to shutdown connection. It was likely already closed");
@@ -247,11 +322,24 @@ void connection_close(connection_t *connection) {
       }
     }
   } else {
-    if (close(connection->socketId) == -1) {
+    if (close(connection->socket) == -1) {
       const char *reason = strerror(errno);
       log(LOG_ERROR, "Unable to close connection. Got error %d (%s)", errno, reason);
     }
   }
+}
+
+// Detect if TLS was used
+bool connection_isSSL(connection_t *connection) {
+  char *buffer = 0;
+  connection_readBytes(connection, &buffer, 6, READ_FLAGS_PEEK);
+  if (buffer == 0)
+    return 0;
+
+  bool isHandshakeRecord = buffer[0] == 0x16;
+  bool isClientHello = buffer[5] == 0x01;
+
+  return isHandshakeRecord && isClientHello;
 }
 
 void connection_free(connection_t *connection) {

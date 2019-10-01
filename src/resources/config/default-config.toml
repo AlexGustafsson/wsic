@@ -1,5 +1,4 @@
 [server]
-  parallelMode = "fork"
   daemon = false
 
 [servers]
@@ -7,7 +6,12 @@
     domain = "localhost"
     rootDirectory = "www"
     port = 8080
-  [servers.default2]
+  [servers.defaultTLS]
     domain = "localhost"
     rootDirectory = "www"
-    port = 3000
+    port = 8443
+    certificate = "server.cert"
+    privateKey = "server.key"
+    ellipticCurves = "P-384:P-521"
+    validateCertificate = false
+    dhparams = "dhparams.pem"

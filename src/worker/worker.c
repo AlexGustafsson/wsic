@@ -74,8 +74,9 @@ int worker_entryPoint(worker_t *worker) {
     log(LOG_DEBUG, "Putting worker to sleep, waiting for a connection");
     worker->status = WORKER_STATUS_IDLE;
 
-    // Wait for a connection to be available (may lock indefinitely)
     worker->connection = message_queue_pop(worker->queue);
+    if (worker->connection == 0)
+      continue;
 
     log(LOG_DEBUG, "Worker process interrupted by parent to handle a connection (worker %d)", worker->id);
 
@@ -85,7 +86,6 @@ int worker_entryPoint(worker_t *worker) {
     log(LOG_DEBUG, "Handled connection - closing it");
     // Free the connection as it's of no further use
     connection_free(worker->connection);
-    worker->connection = 0;
   }
 
   return 0;
@@ -180,7 +180,8 @@ int worker_handleConnection(connection_t *connection) {
   hash_table_t *environment = hash_table_create();
   hash_table_setValue(environment, string_fromCopy("HTTPS"), string_fromCopy("off"));
   hash_table_setValue(environment, string_fromCopy("SERVER_SOFTWARE"), string_fromCopy("WSIC"));
-  hash_table_setValue(environment, string_fromCopy("REMOTE_ADDR"), string_fromCopy(string_getBuffer(connection->sourceAddress)));
+  if (connection->sourceAddress != 0)
+    hash_table_setValue(environment, string_fromCopy("REMOTE_ADDR"), string_fromCopy(string_getBuffer(connection->sourceAddress)));
   hash_table_setValue(environment, string_fromCopy("REMOTE_PORT"), string_fromInt(connection->sourcePort));
 
   uint8_t method = http_getMethod(request);

@@ -48,6 +48,9 @@ docker run -it -p8080:8080 wsic/wsic
 
 ##### Installing from prebuilt binaries
 
+Make sure you meet the following prerequisites:
+* `openssl 1.1.1` is installed (`apt install libssl1.1` on macOS `brew install openssl@1.1` on macOS)
+
 You can download the latest build build [here](https://gitlab.axgn.se/wsic/wsic/builds/artifacts/development/download?job=build). Note however that this is a development build and will only run on an amd64 architecture on Ubuntu.  
 
 ##### Installing from source
@@ -56,8 +59,9 @@ Make sure you meet the following prerequisites:
 * `$CC` refers to `gcc` 9 (`brew install gcc` on macOS) or `clang` 7
 * `xxd` is installed (default on many distributions)
 * `gnu sed` is installed and available as `sed` (default on many distributions, `brew install gnu-sed` on macOS)
+* `openssl 1.1.1` is available in the system include path or `/usr/local/opt/openssl@1.1/include` (`apt install libssl-dev` on Ubuntu, `brew install openssl@1.1` on macOS)
 
-_NOTE: for instructions on how to install all the prerequisites on Ubuntu, refer to the CI image used by WSIC over at https://gitlab.axgn.se/wsic/ci-image (see `Dockerfile`)._
+_NOTE: For instructions on how to install all the prerequisites and building on Ubuntu, refer to the [Dockerfile](https://gitlab.axgn.se/wsic/wsic/blob/development/Dockerfile)._
 
 ```Bash
 # Clone the repository (or download it)
@@ -90,8 +94,9 @@ Make sure you meet the following prerequisites:
 * `fastcov` is installed (`pip3 install fastcov`)
 * `scan-build` refers to version 7 which comes with `clang`
 * `clang-format` refers to version 7 which comes with `clang`
+* `openssl 1.1.1` is available in the system include path or `/usr/local/opt/openssl@1.1/include` (`apt install libssl-dev` on Ubuntu, `brew install openssl@1.1` on macOS)
 
-_NOTE: for instructions on how to install all the prerequisites on Ubuntu, refer to the CI image used by WSIC over at https://gitlab.axgn.se/wsic/ci-image (see `Dockerfile`)._
+_NOTE: For instructions on how to install all the prerequisites on Ubuntu, refer to the CI image used by WSIC over at https://gitlab.axgn.se/wsic/ci-image (see `Dockerfile`)._
 
 ```Bash
 # Clone the repository

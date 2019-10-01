@@ -29,6 +29,7 @@ int main(int argc, char const *argv[]) {
   logging_startSyslog();
   config_t *config = config_parse((char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
   server_config_t *defaultServerConfig = config_getServerConfig(config, 0);
+  config_setGlobalConfig(config);
 
   bool showHelp = false;
   bool showVersion = false;
@@ -45,17 +46,6 @@ int main(int argc, char const *argv[]) {
     } else if (strcmp(argv[i], "-l") == 0) {
       string_t *logfile = string_fromCopy(argv[++i]);
       config_setLogfile(defaultServerConfig, logfile);
-    } else if (strcmp(argv[i], "-s") == 0) {
-      const char *mode = argv[++i];
-      if (strcmp(mode, "fork")) {
-        config_setParallelMode(config, PARALLEL_MODE_FORK);
-      } else if (strcmp(mode, "pre-fork")) {
-        config_setParallelMode(config, PARALLEL_MODE_FORK);
-      } else {
-        log(LOG_ERROR, "Unsupported parallel mode '%s'", mode);
-        config_free(config);
-        return 3;
-      }
     }
   }
 
@@ -132,7 +122,7 @@ int main(int argc, char const *argv[]) {
     }
   }
 
-  config_free(config);
+  config_freeGlobalConfig();
   logging_stopSyslog();
   return 0;
 }

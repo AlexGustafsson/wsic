@@ -4,7 +4,7 @@ MAKEFLAGS += --silent
 WSIC_VERSION := 0.0.1
 
 # Build variables (such as version etc.)
-BUILD_VARIABLES=-D WSIC_VERSION='"$(WSIC_VERSION)"' -D COMPILER_VERSION='"$(shell $(CC) --version | head -1)"' -D COMPILE_TIME='"$(shell LC_ALL=en_US date)"'
+BUILD_VARIABLES=-D WSIC_VERSION='"$(WSIC_VERSION)"' -D COMPILER_VERSION='"$(shell $(CC) --version | head -1)"' -D COMPILE_TIME='"$(shell LC_ALL=en_US date)"' -D OPENSSL_NO_DEPRECATED
 
 # Optimize the code and show all warnings (except unused parameters)
 BUILD_FLAGS=-O2 -Wall -Wextra -pedantic -Wno-unused-parameter $(BUILD_VARIABLES)
@@ -12,11 +12,11 @@ BUILD_FLAGS=-O2 -Wall -Wextra -pedantic -Wno-unused-parameter $(BUILD_VARIABLES)
 # Don't optimize, provide all warnings and build with clang's memory checks and support for GDB debugging
 DEBUG_FLAGS=-Wall -Wextra -pedantic -Wno-unused-parameter -fsanitize=address -fno-omit-frame-pointer -g $(BUILD_VARIABLES)
 
-# Link towards the math library and thread library (not done by GCC)
-LINKER_FLAGS=-lm -lpthread
+# Link towards the math library and thread library as well as libraries for TLS
+LINKER_FLAGS=-lm -lpthread -L/usr/local/opt/openssl@1.1/lib -lssl -lcrypto
 
 # Include generated and third-party code
-INCLUDES := -Ibuild -Iincludes
+INCLUDES := -Ibuild -Iincludes -I/usr/local/opt/openssl@1.1/include
 
 # The name of the target binary
 TARGET_NAME := "wsic"

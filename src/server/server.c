@@ -5,7 +5,11 @@
 #include <signal.h>
 #include <string.h>
 
+#include <openssl/err.h>
+#include <openssl/ssl.h>
+
 #include "../cgi/cgi.h"
+#include "../config/config.h"
 #include "../datastructures/hash-table/hash-table.h"
 #include "../datastructures/list/list.h"
 #include "../datastructures/message-queue/message-queue.h"
@@ -17,11 +21,13 @@
 
 static struct pollfd *socketDescriptors = 0;
 static size_t socketDescriptorCount = 0;
-static message_queue_t *connectionQueue = 0;
+static message_queue_t *server_connectionQueue = 0;
 
 static worker_t *workerPool[WORKER_POOL_SIZE];
 
 void server_handleSignalSIGPIPE();
+int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg);
+DH *server_handleDiffieHellmanParameters(SSL *ssl, int isExport, int keyLength);
 
 bool server_setNonBlocking(int socketDescriptor) {
   // Get the current flags set for the socket
@@ -62,6 +68,9 @@ pid_t server_createInstance(set_t *ports) {
 }
 
 int server_start(set_t *ports) {
+  // Initialize OpenSSL
+  OpenSSL_add_ssl_algorithms();
+
   // Set up signals
   signal(SIGPIPE, server_handleSignalSIGPIPE);
 
@@ -70,8 +79,8 @@ int server_start(set_t *ports) {
   socketDescriptors = malloc(descriptorsSize);
   memset(socketDescriptors, 0, descriptorsSize);
 
-  connectionQueue = message_queue_create();
-  if (connectionQueue == 0) {
+  server_connectionQueue = message_queue_create();
+  if (server_connectionQueue == 0) {
     log(LOG_ERROR, "Could not create a connection queue");
     return EXIT_FAILURE;
   }
@@ -100,14 +109,10 @@ int server_start(set_t *ports) {
   if (socketDescriptorCount != list_getLength(ports))
     log(LOG_WARNING, "Not all required ports could be successfully bound (%zu out of %zu)", socketDescriptorCount, list_getLength(ports));
 
-  // TODO: https://stackoverflow.com/questions/70773/pthread-cond-wait-versus-semaphore
-  // https://www.justsoftwaresolutions.co.uk/threading/implementing-a-thread-safe-queue-using-condition-variables.html
-  // Implementd cond wait-based queue (think message queue) with waiting consumers and one producer
-
   // Setup worker pool
   log(LOG_DEBUG, "Setting up %d workers in the pool", WORKER_POOL_SIZE);
   for (uint8_t i = 0; i < WORKER_POOL_SIZE; i++) {
-    worker_t *worker = worker_spawn(i, 0, connectionQueue);
+    worker_t *worker = worker_spawn(i, 0, server_connectionQueue);
     if (worker == 0) {
       log(LOG_ERROR, "Failed to set up worker for the pool");
       return SERVER_EXIT_FATAL;
@@ -116,6 +121,19 @@ int server_start(set_t *ports) {
     workerPool[i] = worker;
   }
   log(LOG_DEBUG, "Set up %d workers", WORKER_POOL_SIZE);
+
+  // Setup TLS
+  config_t *config = config_getGlobalConfig();
+  for (size_t i = 0; i < config_getServers(config); i++) {
+    server_config_t *serverConfig = config_getServerConfig(config, i);
+    SSL_CTX *sslContext = config_getSSLContext(serverConfig);
+    if (sslContext != 0) {
+      // Setup Diffie Hellman parameter generator
+      DH *dhparams = config_getDiffieHellmanParameters(serverConfig);
+      if (dhparams != 0)
+        SSL_CTX_set_tmp_dh_callback(sslContext, server_handleDiffieHellmanParameters);
+    }
+  }
 
   // Start accepting connections
   while (true) {
@@ -198,27 +216,135 @@ int server_acceptConnections() {
     // Accept each waiting socket
     struct sockaddr_in peerAddress;
     socklen_t addressLength = sizeof(peerAddress);
-    int socketId = -1;
-    while ((socketId = accept(socketDescriptors[i].fd, (struct sockaddr *)&peerAddress, &addressLength)) != -1) {
-      bool isNonBlocking = server_setNonBlocking(socketId);
+    int socket = -1;
+    while ((socket = accept(socketDescriptors[i].fd, (struct sockaddr *)&peerAddress, &addressLength)) != -1) {
+      bool isNonBlocking = server_setNonBlocking(socket);
       if (!isNonBlocking) {
         log(LOG_ERROR, "Unable to make socket non-blocking");
-        close(socketId);
+        close(socket);
         continue;
       }
 
-      // Add a connection to the queue
+      // Setup the connection
       connection_t *connection = connection_create();
-      connection_setSocket(connection, socketId);
+      if (connection == 0) {
+        log(LOG_ERROR, "Failed to create connection");
+        continue;
+      }
+      connection_setSocket(connection, socket);
       connection_setSourcePort(connection, ntohs(peerAddress.sin_port));
       connection_setSourceAddress(connection, string_fromCopy(inet_ntoa(peerAddress.sin_addr)));
-      message_queue_push(connectionQueue, connection);
 
-      log(LOG_DEBUG, "Successfully accepted connection from %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
+      log(LOG_DEBUG, "Setting up connection for %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
+
+      connection_pollForData(connection, 100);
+      bool isSSL = connection_isSSL(connection);
+      if (isSSL) {
+        log(LOG_DEBUG, "Handling TLS setup for %s:%d", string_getBuffer(connection_getSourceAddress(connection)), connection_getSourcePort(connection));
+        connection->ssl = server_handleSSL(connection);
+        if (connection->ssl == 0) {
+          log(LOG_DEBUG, "Failed to setup TLS");
+          connection_free(connection);
+          continue;
+        }
+
+        log(LOG_DEBUG, "Successfully setup TLS for connection");
+      }
+
+      // Add the connection to the worker pool
+      message_queue_push(server_connectionQueue, connection);
     }
   }
 
   return status;
+}
+
+int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg) {
+  const char *rawDomain = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+  if (rawDomain == 0) {
+    log(LOG_ERROR, "No SNI set for client connection");
+    return SSL_TLSEXT_ERR_NOACK;
+  }
+
+  config_t *config = config_getGlobalConfig();
+  string_t *domain = string_fromCopy(rawDomain);
+  server_config_t *serverConfig = config_getServerConfigBySNI(config, domain);
+  string_free(domain);
+  if (serverConfig == 0) {
+    log(LOG_ERROR, "Got unknown domain '%s' for TLS handshake", rawDomain);
+    return SSL_TLSEXT_ERR_NOACK;
+  }
+
+  SSL_CTX *sslContext = config_getSSLContext(serverConfig);
+  SSL_set_SSL_CTX(ssl, sslContext);
+
+  return SSL_TLSEXT_ERR_OK;
+}
+
+DH *server_handleDiffieHellmanParameters(SSL *ssl, int isExport, int keyLength) {
+  SSL_CTX *sslContext = SSL_get_SSL_CTX(ssl);
+
+  config_t *config = config_getGlobalConfig();
+  server_config_t *serverConfig = config_getServerConfigBySSLContext(config, sslContext);
+  if (serverConfig == 0) {
+    log(LOG_ERROR, "Got unknown TLS context");
+    return 0;
+  }
+
+  DH *dhparams = config_getDiffieHellmanParameters(serverConfig);
+  return dhparams;
+}
+
+SSL *server_handleSSL(connection_t *connection) {
+  // Create a temporary TLS context used only to receive a client hello
+  // It is then replaced by server_handleServerNameIdentification with
+  // the appropriate certificate before sending server hello
+  const SSL_METHOD *method = TLS_method();
+  SSL_CTX *context = SSL_CTX_new(method);
+  SSL_CTX_set_tlsext_servername_callback(context, server_handleServerNameIdentification);
+  SSL *ssl = SSL_new(context);
+  SSL_set_fd(ssl, connection->socket);
+
+  // Set up structures necessary for polling
+  struct pollfd readDescriptors[1];
+  memset(readDescriptors, 0, sizeof(struct pollfd));
+  readDescriptors[0].fd = connection->socket;
+  readDescriptors[0].events = POLLIN;
+
+  struct pollfd writeDescriptors[1];
+  memset(writeDescriptors, 0, sizeof(struct pollfd));
+  writeDescriptors[0].fd = connection->socket;
+  writeDescriptors[0].events = POLLOUT;
+
+  while (true) {
+    ERR_clear_error();
+    int status = SSL_accept(ssl);
+    if (status <= 0) {
+      int error = SSL_get_error(ssl, status);
+      if (error == SSL_ERROR_WANT_READ) {
+        log(LOG_DEBUG, "Waiting for TLS connection to be readable");
+        // Wait for the connection to be ready to read
+        int status = poll(readDescriptors, 1, -1);
+        if (status < -1) {
+          log(LOG_ERROR, "Could not wait for connection to be readable");
+          return 0;
+        }
+      } else if (error == SSL_ERROR_WANT_WRITE) {
+        log(LOG_DEBUG, "Waiting for TLS connection to be writable");
+        // Wait for the connection to be ready to write
+        int status = poll(writeDescriptors, 1, -1);
+        if (status < -1) {
+          log(LOG_ERROR, "Could not wait for connection to be writable");
+          return 0;
+        }
+      } else {
+        log(LOG_ERROR, "Unable to accept TLS socket. Got code %d", error);
+        return 0;
+      }
+    } else {
+      return ssl;
+    }
+  }
 }
 
 void server_handleSignalSIGPIPE() {
@@ -227,4 +353,5 @@ void server_handleSignalSIGPIPE() {
 
 void server_close() {
   log(LOG_INFO, "Closing server");
+  EVP_cleanup();
 }
