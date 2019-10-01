@@ -36,24 +36,8 @@ config_t *config_parse(char *configString) {
 
   // Parse the server table if it exists
   toml_table_t *serverTable = toml_table_in(toml, "server");
-  if (serverTable != 0) {
-    // Parse the parallel mode string into the parallel mode enum
-    string_t *parallelModeString = config_parseString(serverTable, "parallelMode");
-    enum parallelMode parallelMode = PARALLEL_MODE_UNKNOWN;
-    if (parallelModeString != 0) {
-      if (string_equalsBuffer(parallelModeString, "fork"))
-        parallelMode = PARALLEL_MODE_FORK;
-      else if (string_equalsBuffer(parallelModeString, "pre-fork"))
-        parallelMode = PARALLEL_MODE_PRE_FORK;
-      else
-        log(LOG_WARNING, "Unknown parallel mode '%s'", string_getBuffer(parallelModeString));
-    }
-
-    string_free(parallelModeString);
-    config->parallelMode = parallelMode;
-
+  if (serverTable != 0)
     config->daemon = config_parseBool(serverTable, "daemon");
-  }
 
   toml_table_t *serversTable = toml_table_in(toml, "servers");
   if (serversTable == 0) {
@@ -136,17 +120,56 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
     log(LOG_DEBUG, "Setting up TLS configuration");
 
     // Setup TLS
-    OpenSSL_add_ssl_algorithms();
     const SSL_METHOD *method = TLS_method();
     config->sslContext = SSL_CTX_new(method);
     if (!config->sslContext) {
       log(LOG_ERROR, "Unable to create TLS context");
     	return 0;
     }
-    SSL_CTX_set_ecdh_auto(config->sslContext, 1);
-    // NOTE: Highly temporary! For debugging only
-    // Allow all certificates
-    SSL_CTX_set_verify(config->sslContext, SSL_VERIFY_NONE, NULL);
+
+    // Only allow TLS 1.2 and above (TLS 1.3)
+    SSL_CTX_set_min_proto_version(config->sslContext, TLS1_2_VERSION);
+
+    string_t *ellipticCurves = config_parseString(serverTable, "ellipticCurves");
+    if (ellipticCurves == 0) {
+      SSL_CTX_set1_curves_list(config->sslContext, CONFIG_TLS_DEFAULT_ELLIPTIC_CURVES);
+    } else {
+      SSL_CTX_set1_curves_list(config->sslContext, string_getBuffer(ellipticCurves));
+      string_free(ellipticCurves);
+    }
+
+    // Disable server certificate validation if validateCertificate is false
+    int8_t verifyCertificates = config_parseBool(serverTable, "validateCertificate");
+    if (verifyCertificates == 0);
+      SSL_CTX_set_verify(config->sslContext, SSL_VERIFY_NONE, NULL);
+
+    // Configure the TLS cipher suite
+    string_t *cipherSuite = config_parseString(serverTable, "cipherSuite");
+    if (cipherSuite == 0) {
+      // Set the cipher suite to use for TLS 1.2
+      SSL_CTX_set_cipher_list(config->sslContext, CONFIG_TLS_DEFAULT_TLS_1_2_CIPHER_SUITE);
+      // Set the cipher suite to use for TLS 1.3
+      SSL_CTX_set_ciphersuites(config->sslContext, CONFIG_TLS_DEFAULT_TLS_1_3_CIPHER_SUITE);
+    } else {
+      // Set the cipher suite to use for TLS 1.2
+      SSL_CTX_set_cipher_list(config->sslContext, string_getBuffer(cipherSuite));
+      string_free(cipherSuite);
+    }
+
+    // Setup Diffie Hellman (DH) parameters from a file
+    // Use openssl dhparam -out dh_param_1024.pem -2 1024 or the like
+    string_t *dhparams = config_parseString(serverTable, "dhparams");
+    if (dhparams != 0) {
+      FILE *file = fopen(string_getBuffer(dhparams), "r");
+      if (file) {
+        config->dhparams = PEM_read_DHparams(file, NULL, NULL, NULL);
+        fclose(file);
+      } else {
+        log(LOG_ERROR, "Unable to read Diffie Hellman parameters file '%s'", string_getBuffer(dhparams));
+        return 0;
+      }
+      string_free(dhparams);
+    }
 
     if (SSL_CTX_use_PrivateKey_file(config->sslContext, string_getBuffer(privateKey), SSL_FILETYPE_PEM) <= 0 ) {
       log(LOG_ERROR, "Unable to create TLS context - could not read server private key");
@@ -218,14 +241,6 @@ int config_parseBool(toml_table_t *table, const char *key) {
   return value;
 }
 
-enum parallelMode config_getParallelMode(config_t *config) {
-  return config->parallelMode;
-}
-
-void config_setParallelMode(config_t *config, enum parallelMode parallelMode) {
-  config->parallelMode = parallelMode;
-}
-
 int16_t config_getIsDaemon(config_t *config) {
   return config->daemon;
 }
@@ -245,6 +260,18 @@ server_config_t *config_getServerConfigBySNI(config_t *config, string_t *domain)
     bool isSameDomain = string_equals(config_getDomain(serverConfig), domain);
     bool hasSSL = serverConfig->sslContext != 0;
     if (isSameDomain && hasSSL)
+      return serverConfig;
+  }
+
+  return 0;
+}
+
+server_config_t *config_getServerConfigBySSLContext(config_t *config, SSL_CTX *sslContext) {
+  size_t servers = list_getLength(config->serverConfigs);
+  for (size_t i = 0; i < servers; i++) {
+    server_config_t *serverConfig = config_getServerConfig(config, i);
+    SSL_CTX *context = config_getSSLContext(serverConfig);
+    if (sslContext == context)
       return serverConfig;
   }
 
@@ -297,6 +324,10 @@ void config_setLogfile(server_config_t *config, string_t *logfile) {
 
 SSL_CTX *config_getSSLContext(server_config_t *config) {
   return config->sslContext;
+}
+
+DH *config_getDiffieHellmanParameters(server_config_t *config) {
+  return config->dhparams;
 }
 
 void config_free(config_t *config) {

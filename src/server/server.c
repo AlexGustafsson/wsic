@@ -26,7 +26,8 @@ static message_queue_t *server_connectionQueue = 0;
 static worker_t *workerPool[WORKER_POOL_SIZE];
 
 void server_handleSignalSIGPIPE();
-int server_handleServerNameIdentification(SSL *context, int *alert, void *arg);
+int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg);
+DH *server_handleDiffieHellmanParameters(SSL *ssl, int isExport, int keyLength);
 
 bool server_setNonBlocking(int socketDescriptor) {
   // Get the current flags set for the socket
@@ -67,6 +68,9 @@ pid_t server_createInstance(set_t *ports) {
 }
 
 int server_start(set_t *ports) {
+  // Initialize OpenSSL
+  OpenSSL_add_ssl_algorithms();
+
   // Set up signals
   signal(SIGPIPE, server_handleSignalSIGPIPE);
 
@@ -117,6 +121,19 @@ int server_start(set_t *ports) {
     workerPool[i] = worker;
   }
   log(LOG_DEBUG, "Set up %d workers", WORKER_POOL_SIZE);
+
+  // Setup TLS
+  config_t *config = config_getGlobalConfig();
+  for (size_t i = 0; i < config_getServers(config); i++) {
+    server_config_t *serverConfig = config_getServerConfig(config, i);
+    SSL_CTX *sslContext = config_getSSLContext(serverConfig);
+    if (sslContext != 0) {
+      // Setup Diffie Hellman parameter generator
+      DH *dhparams = config_getDiffieHellmanParameters(serverConfig);
+      if (dhparams != 0)
+        SSL_CTX_set_tmp_dh_callback(sslContext, server_handleDiffieHellmanParameters);
+    }
+  }
 
   // Start accepting connections
   while (true) {
@@ -264,7 +281,24 @@ int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg) {
   return SSL_TLSEXT_ERR_OK;
 }
 
+DH *server_handleDiffieHellmanParameters(SSL *ssl, int isExport, int keyLength) {
+  SSL_CTX *sslContext = SSL_get_SSL_CTX(ssl);
+
+  config_t *config = config_getGlobalConfig();
+  server_config_t *serverConfig = config_getServerConfigBySSLContext(config, sslContext);
+  if (serverConfig == 0) {
+    log(LOG_ERROR, "Got unknown TLS context");
+    return 0;
+  }
+
+  DH *dhparams = config_getDiffieHellmanParameters(serverConfig);
+  return dhparams;
+}
+
 SSL *server_handleSSL(connection_t *connection) {
+  // Create a temporary TLS context used only to receive a client hello
+  // It is then replaced by server_handleServerNameIdentification with
+  // the appropriate certificate before sending server hello
   const SSL_METHOD *method = TLS_method();
   SSL_CTX* context = SSL_CTX_new(method);
   SSL_CTX_set_tlsext_servername_callback(context, server_handleServerNameIdentification);
