@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #include "../cgi/cgi.h"
 #include "../datastructures/hash-table/hash-table.h"
@@ -25,7 +26,7 @@ static message_queue_t *server_connectionQueue = 0;
 static worker_t *workerPool[WORKER_POOL_SIZE];
 
 void server_handleSignalSIGPIPE();
-int server_handleServerNameIdentification(SSL *context, int *al, void *arg);
+int server_handleServerNameIdentification(SSL *context, int *alert, void *arg);
 
 bool server_setNonBlocking(int socketDescriptor) {
   // Get the current flags set for the socket
@@ -219,7 +220,6 @@ int server_acceptConnections() {
 
       log(LOG_DEBUG, "Setting up connection for %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
 
-      // TODO: Polling slows things down
       connection_pollForData(connection, 100);
       bool isSSL = connection_isSSL(connection);
       if (isSSL) {
@@ -243,14 +243,10 @@ int server_acceptConnections() {
 }
 
 int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg) {
-  // TODO: This always returns 0 even though SNI is set
-  // TODO: Set alert appropriately when returning 0
   const char *rawDomain = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
   if (rawDomain == 0) {
     log(LOG_ERROR, "No SNI set for client connection");
     return SSL_TLSEXT_ERR_NOACK;
-  } else {
-    log(LOG_DEBUG, "SNI for TLS socket is '%s'", rawDomain);
   }
 
   config_t *config = config_getGlobalConfig();
@@ -275,53 +271,38 @@ SSL *server_handleSSL(connection_t *connection) {
   SSL *ssl = SSL_new(context);
   SSL_set_fd(ssl, connection->socket);
 
-  // TODO: Actual polling etc. here
-  // https://stackoverflow.com/questions/24312228/openssl-nonblocking-socket-accept-and-connect-failed
-  // https://stackoverflow.com/questions/13751458/openssl-ssl-error-want-write-never-recovers-during-ssl-write
-  // https://github.com/darrenjs/openssl_examples/blob/master/ssl_server_nonblock.c
-
-  // TODO: Move this into the workers
-  // Thread safety (comments):
-  // https://stackoverflow.com/questions/5113333/how-to-implement-server-name-indication-sni
-
   // Set up structures necessary for polling
   struct pollfd readDescriptors[1];
   memset(readDescriptors, 0, sizeof(struct pollfd));
-  readDescriptors[0].fd = socket;
+  readDescriptors[0].fd = connection->socket;
   readDescriptors[0].events = POLLIN;
 
   struct pollfd writeDescriptors[1];
   memset(writeDescriptors, 0, sizeof(struct pollfd));
-  writeDescriptors[0].fd = socket;
+  writeDescriptors[0].fd = connection->socket;
   writeDescriptors[0].events = POLLOUT;
 
-  bool success = false;
   while (true) {
     ERR_clear_error();
     int status = SSL_accept(ssl);
     if (status <= 0) {
       int error = SSL_get_error(ssl, status);
       if (error == SSL_ERROR_WANT_READ) {
-        log(LOG_DEBUG, "TLS socket wants READ, waiting");
+        log(LOG_DEBUG, "Waiting for TLS connection to be readable");
         // Wait for the connection to be ready to read
         int status = poll(readDescriptors, 1, -1);
         if (status < -1) {
           log(LOG_ERROR, "Could not wait for connection to be readable");
           return 0;
         }
-        log(LOG_DEBUG, "Woke up with status %d", status);
       } else if (error == SSL_ERROR_WANT_WRITE) {
-        log(LOG_DEBUG, "TLS socket wants WRITE, waiting");
+        log(LOG_DEBUG, "Waiting for TLS connection to be writable");
         // Wait for the connection to be ready to write
         int status = poll(writeDescriptors, 1, -1);
         if (status < -1) {
           log(LOG_ERROR, "Could not wait for connection to be writable");
           return 0;
         }
-        log(LOG_DEBUG, "Woke up with status %d", status);
-      } else if (error == SSL_ERROR_WANT_CLIENT_HELLO_CB) {
-        log(LOG_ERROR, "Could not accept client hello");
-        return 0;
       } else {
         log(LOG_ERROR, "Unable to accept TLS socket. Got code %d", error);
         return 0;

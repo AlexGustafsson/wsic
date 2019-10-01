@@ -4,6 +4,8 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <openssl/err.h>
+
 #include "../logging/logging.h"
 
 #include "connection.h"
@@ -247,7 +249,7 @@ size_t connection_readBytes(connection_t *connection, char **buffer, size_t byte
 
 size_t connection_readSSLBytes(connection_t *connection, char **buffer, size_t bytesToRead, int flags) {
   (*buffer) = malloc(sizeof(char) * bytesToRead);
-  ssize_t bytesReceived = -1;
+  size_t bytesReceived = 0;
   if (flags == READ_FLAGS_PEEK) {
     ERR_clear_error();
     if (SSL_peek_ex(connection->ssl, (*buffer), bytesToRead, &bytesReceived) <= 0) {
@@ -292,7 +294,7 @@ size_t connection_write(connection_t *connection, const char *buffer, size_t buf
     }
   } else {
     ERR_clear_error();
-    if (SSL_write_ex(connection->ssl, buffer, strlen(buffer), &bytesSent) < 0) {
+    if (SSL_write_ex(connection->ssl, buffer, strlen(buffer), (size_t *)&bytesSent) < 0) {
       log(LOG_ERROR, "Could not write to %s:%i (TLS)", sourceAddress, sourcePort);
       return 0;
     }
@@ -328,8 +330,8 @@ void connection_close(connection_t *connection) {
   }
 }
 
+// Detect if TLS was used
 bool connection_isSSL(connection_t *connection) {
-  // Detect if TLS was used
   char *buffer = 0;
   connection_readBytes(connection, &buffer, 6, READ_FLAGS_PEEK);
   if (buffer == 0)
