@@ -219,7 +219,7 @@ int server_acceptConnections() {
 
       log(LOG_DEBUG, "Setting up connection for %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
 
-      // TODO: Quite brittle due to no polling? - But polling would slow things down
+      // TODO: Polling slows things down
       connection_pollForData(connection, 100);
       bool isSSL = connection_isSSL(connection);
       if (isSSL) {
@@ -230,6 +230,8 @@ int server_acceptConnections() {
           connection_free(connection);
           continue;
         }
+
+        log(LOG_DEBUG, "Successfully setup TLS for connection");
       }
 
       // Add the connection to the worker pool
@@ -246,7 +248,9 @@ int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg) {
   const char *rawDomain = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
   if (rawDomain == 0) {
     log(LOG_ERROR, "No SNI set for client connection");
-    return 0;
+    return SSL_TLSEXT_ERR_NOACK;
+  } else {
+    log(LOG_DEBUG, "SNI for TLS socket is '%s'", rawDomain);
   }
 
   config_t *config = config_getGlobalConfig();
@@ -255,22 +259,21 @@ int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg) {
   string_free(domain);
   if (serverConfig == 0) {
     log(LOG_ERROR, "Got unknown domain '%s' for TLS handshake", rawDomain);
-    return 0;
+    return SSL_TLSEXT_ERR_NOACK;
   }
 
   SSL_CTX *sslContext = config_getSSLContext(serverConfig);
   SSL_set_SSL_CTX(ssl, sslContext);
 
-  return 1;
+  return SSL_TLSEXT_ERR_OK;
 }
 
 SSL *server_handleSSL(connection_t *connection) {
   const SSL_METHOD *method = TLS_method();
   SSL_CTX* context = SSL_CTX_new(method);
-  SSL_CTX_set_client_hello_cb(context, server_handleServerNameIdentification, 0);
+  SSL_CTX_set_tlsext_servername_callback(context, server_handleServerNameIdentification);
   SSL *ssl = SSL_new(context);
   SSL_set_fd(ssl, connection->socket);
-
 
   // TODO: Actual polling etc. here
   // https://stackoverflow.com/questions/24312228/openssl-nonblocking-socket-accept-and-connect-failed
@@ -303,18 +306,19 @@ SSL *server_handleSSL(connection_t *connection) {
         // Wait for the connection to be ready to read
         int status = poll(readDescriptors, 1, -1);
         if (status < -1) {
-          log(LOG_ERROR, "Could not wait for connection to send data");
+          log(LOG_ERROR, "Could not wait for connection to be readable");
           return 0;
         }
+        log(LOG_DEBUG, "Woke up with status %d", status);
       } else if (error == SSL_ERROR_WANT_WRITE) {
         log(LOG_DEBUG, "TLS socket wants WRITE, waiting");
-        // Wait for the connection to be ready to read
+        // Wait for the connection to be ready to write
         int status = poll(writeDescriptors, 1, -1);
         if (status < -1) {
-          log(LOG_ERROR, "Could not wait for connection to send data");
+          log(LOG_ERROR, "Could not wait for connection to be writable");
           return 0;
         }
-        sleep(1);
+        log(LOG_DEBUG, "Woke up with status %d", status);
       } else if (error == SSL_ERROR_WANT_CLIENT_HELLO_CB) {
         log(LOG_ERROR, "Could not accept client hello");
         return 0;
@@ -322,10 +326,10 @@ SSL *server_handleSSL(connection_t *connection) {
         log(LOG_ERROR, "Unable to accept TLS socket. Got code %d", error);
         return 0;
       }
+    } else {
+      return ssl;
     }
   }
-
-  return ssl;
 }
 
 void server_handleSignalSIGPIPE() {

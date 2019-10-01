@@ -116,7 +116,11 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
 
     // Read the request without consuming the content
     char *buffer = 0;
-    size_t bytesReceived = connection_readBytes(connection, &buffer, bytesAvailable, READ_FLAGS_PEEK);
+    size_t bytesReceived = 0;
+    if (connection->ssl == 0)
+      bytesReceived = connection_readBytes(connection, &buffer, bytesAvailable, READ_FLAGS_PEEK);
+    else
+      bytesReceived = connection_readSSLBytes(connection, &buffer, bytesAvailable, READ_FLAGS_PEEK);
     // Nothing read, wait for next event
     if (buffer == 0)
       continue;
@@ -144,7 +148,11 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
       continue;
     }
 
-    bytesReceived = connection_readBytes(connection, &buffer, lineLength, READ_FLAGS_NONE);
+    bytesReceived = 0;
+    if (connection->ssl == 0)
+      bytesReceived = connection_readBytes(connection, &buffer, lineLength, READ_FLAGS_NONE);
+    else
+      bytesReceived = connection_readSSLBytes(connection, &buffer, lineLength, READ_FLAGS_NONE);
     // Could not read message
     if (buffer == 0)
       return 0;
@@ -194,15 +202,17 @@ ssize_t connection_getAvailableBytes(connection_t *connection) {
       }
       return -1;
     }
+
+    log(LOG_DEBUG, "There are %d bytes available for reading", bytesAvailable);
   } else {
     bytesAvailable = SSL_pending(connection->ssl);
     if (bytesAvailable < 0) {
-      log(LOG_ERROR, "Failed to get number of available bytes");
+      log(LOG_ERROR, "Failed to get number of available bytes from TLS connection");
       return -1;
     }
-  }
 
-  log(LOG_DEBUG, "There are %d bytes available for reading", bytesAvailable);
+    log(LOG_DEBUG, "There are %d bytes available for reading from TLS connection", bytesAvailable);
+  }
 
   return (ssize_t)bytesAvailable;
 }
@@ -241,23 +251,23 @@ size_t connection_readSSLBytes(connection_t *connection, char **buffer, size_t b
   if (flags == READ_FLAGS_PEEK) {
     ERR_clear_error();
     if (SSL_peek_ex(connection->ssl, (*buffer), bytesToRead, &bytesReceived) <= 0) {
-      log(LOG_ERROR, "Could not read bytes from %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
+      log(LOG_ERROR, "Could not read bytes from %s:%i (TLS)", string_getBuffer(connection->sourceAddress), connection->sourcePort);
       free(*buffer);
       *buffer = 0;
       return 0;
     }
 
-    log(LOG_DEBUG, "Peeked %zu bytes", bytesReceived);
+    log(LOG_DEBUG, "Peeked %zu bytes (TLS)", bytesReceived);
   } else {
     ERR_clear_error();
     if (SSL_read_ex(connection->ssl, (*buffer), bytesToRead, &bytesReceived) <= 0) {
-      log(LOG_ERROR, "Could not read bytes from %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
+      log(LOG_ERROR, "Could not read bytes from %s:%i (TLS)", string_getBuffer(connection->sourceAddress), connection->sourcePort);
       free(*buffer);
       *buffer = 0;
       return 0;
     }
 
-    log(LOG_DEBUG, "Read %zu bytes", bytesReceived);
+    log(LOG_DEBUG, "Read %zu bytes (TLS)", bytesReceived);
   }
 
   return bytesReceived;
@@ -283,7 +293,7 @@ size_t connection_write(connection_t *connection, const char *buffer, size_t buf
   } else {
     ERR_clear_error();
     if (SSL_write_ex(connection->ssl, buffer, strlen(buffer), &bytesSent) < 0) {
-      log(LOG_ERROR, "Could not write to %s:%i", sourceAddress, sourcePort);
+      log(LOG_ERROR, "Could not write to %s:%i (TLS)", sourceAddress, sourcePort);
       return 0;
     }
   }
