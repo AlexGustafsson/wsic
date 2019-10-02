@@ -226,14 +226,14 @@ int worker_handleConnection(connection_t *connection) {
 
   // Write body to CGI
   if (body != 0) {
-  log(LOG_DEBUG, "Writing request to CGI process");
-  log(LOG_DEBUG, "Body content is:\n<%s> of size %zu", string_getBuffer(body), string_getSize(body));
-  cgi_write(process, string_getBuffer(body), string_getSize(body));
-  // Make sure the process receives EOF
-  cgi_flushStdin(process);
+    log(LOG_DEBUG, "Writing request to CGI process");
+    log(LOG_DEBUG, "Body content is:\n<%s> of size %zu", string_getBuffer(body), string_getSize(body));
+    cgi_write(process, string_getBuffer(body), string_getSize(body));
+    // Make sure the process receives EOF
+    cgi_flushStdin(process);
   } else {
-  // Close the input to the CGI process
-  cgi_flushStdin(process);
+    // Close the input to the CGI process
+    cgi_flushStdin(process);
   }
 
   log(LOG_DEBUG, "Reading response from CGI process");
