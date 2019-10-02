@@ -5,8 +5,8 @@
 
 #include "../logging/logging.h"
 
-#include "resources.h"
 #include "mime.h"
+#include "resources.h"
 
 string_t *resources_loadFile(string_t *filePath) {
   FILE *file = fopen(string_getBuffer(filePath), FILE_READ);

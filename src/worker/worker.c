@@ -5,14 +5,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "../cgi/cgi.h"
+#include "../config/config.h"
 #include "../http/http.h"
 #include "../logging/logging.h"
-#include "../string/string.h"
-#include "../www/www.h"
-#include "../config/config.h"
 #include "../path/path.h"
 #include "../resources/resources.h"
+#include "../string/string.h"
+#include "../www/www.h"
 
 #include "worker.h"
 
