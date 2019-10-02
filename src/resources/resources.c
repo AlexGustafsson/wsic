@@ -9,7 +9,8 @@
 #include "resources.h"
 
 string_t *resources_loadFile(string_t *filePath) {
-  FILE *file = fopen(string_getBuffer(filePath), FILE_READ);
+  // Open the file in read mode and fail if the path is a directory
+  FILE *file = fopen(string_getBuffer(filePath), "r+");
   if (file == 0) {
     log(LOG_ERROR, "Could not read file '%s' - got error %d", string_getBuffer(filePath), errno);
     return 0;
