@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "../cgi/cgi.h"
 #include "../http/http.h"
 #include "../logging/logging.h"
 #include "../string/string.h"
@@ -210,35 +211,49 @@ int worker_handleConnection(connection_t *connection) {
   }
 
   // TODO: This does not seem to work. Due to how we don't read from the pipe dynamically?
-  /*uint16_t port = url_getPort(url);
+  uint16_t port = url_getPort(url);
   if (port != 0)
-    hash_table_setValue(environment, string_fromCopy("SERVER_PORT"), string_fromInt(port));*/
+    hash_table_setValue(environment, string_fromCopy("SERVER_PORT"), string_fromInt(port));
 
   // TODO: This should be realtive to the document root
-  /*string_t *path = url_getPath(url);
+  string_t *path = url_getPath(url);
   if (path != 0)
-    hash_table_setValue(environment, string_fromCopy("REQUEST_URI"), path);*/
+    hash_table_setValue(environment, string_fromCopy("REQUEST_URI"), path);
 
-  http_t *response = http_create();
+  log(LOG_DEBUG, "Spawning CGI process");
+  cgi_process_t *process = cgi_spawn("cgi-test.sh", arguments, environment);
+  log(LOG_DEBUG, "Spawned process with pid %d", process->pid);
 
-  page_t *page = page_create501();
-  string_t *source = page_getSource(page);
-  http_setBody(response, source);
-  http_setResponseCode(response, 501);
-  http_setVersion(response, string_fromCopy("1.1"));
+  // Write body to CGI
+  if (body != 0) {
+    log(LOG_DEBUG, "Writing request to CGI process");
+    log(LOG_DEBUG, "Body content is:\n<%s> of size %zu", string_getBuffer(body), string_getSize(body));
+    cgi_write(process, string_getBuffer(body), string_getSize(body));
+    // Make sure the process receives EOF
+    cgi_flushStdin(process);
+  } else {
+    // Close the input to the CGI process
+    cgi_flushStdin(process);
+  }
 
-  string_t *responseString = http_toResponseString(response);
-  connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
-  logging_request(connection_getSourceAddress(connection), http_getMethod(request), url_getPath(http_getUrl(request)), http_getVersion(request), http_getResponseCode(response), string_getSize(responseString));
-  // void logging_request(string_t *remoteHost, enum httpMethod method, string_t *path, string_t *version, uint16_t responseCode, size_t bytesSent)
-  string_free(responseString);
-  page_free(page);
-  // Freeing the page also frees the source, which we gave to http.
-  // Not having this line would cause a double free
-  response->body = 0;
-  http_free(response);
-  http_free(request);
+  log(LOG_DEBUG, "Reading response from CGI process");
+  // TODO: Read more than 4096 bytes
+  char buffer[2048] = {0};
+  cgi_read(process, buffer, 2048);
+  buffer[2048 - 1] = 0;
 
+  log(LOG_DEBUG, "Got response from CGI process");
+  connection_write(connection, buffer, 2048);
+
+  // NOTE: Not necessary, but for debugging it's nice to know
+  // that the process is actually exiting (not kept forever)
+  // since we don't currently kill spawned processes
+  log(LOG_DEBUG, "Waiting for process to exit");
+  uint8_t exitCode = cgi_waitForExit(process);
+  log(LOG_DEBUG, "Process exited with status %d", exitCode);
+
+  // Close and free up CGI process and connection
+  cgi_freeProcess(process);
   return 0;
 }
 
