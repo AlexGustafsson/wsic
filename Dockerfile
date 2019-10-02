@@ -31,6 +31,7 @@ RUN useradd wsic
 WORKDIR /wsic
 COPY server.cert .
 COPY server.key .
+COPY www www
 COPY --from=builder /wsic/build/wsic .
 USER wsic
 CMD ["./wsic"]

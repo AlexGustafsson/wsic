@@ -97,7 +97,17 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
 
   config->name = name;
   config->domain = config_parseString(serverTable, "domain");
-  config->rootDirectory = config_parseString(serverTable, "rootDirectory");
+  // Parse and resolve the root directory
+  string_t *relativePath = config_parseString(serverTable, "rootDirectory");
+  if (relativePath != 0) {
+    char *absolutePathBuffer = realpath(string_getBuffer(relativePath), NULL);
+    if (absolutePathBuffer == 0) {
+      log(LOG_ERROR, "Could not resolve root directory '%s'", string_getBuffer(relativePath));
+      return 0;
+    }
+    string_free(relativePath);
+    config->rootDirectory = string_fromCopy(absolutePathBuffer);
+  }
   config->logfile = config_parseString(serverTable, "logfile");
   config->enabled = config_parseBool(serverTable, "enabled");
 
@@ -261,6 +271,19 @@ server_config_t *config_getServerConfigBySNI(config_t *config, string_t *domain)
     bool isSameDomain = string_equals(config_getDomain(serverConfig), domain);
     bool hasSSL = serverConfig->sslContext != 0;
     if (isSameDomain && hasSSL)
+      return serverConfig;
+  }
+
+  return 0;
+}
+
+server_config_t *config_getServerConfigByDomain(config_t *config, string_t *domain, uint16_t port) {
+  size_t servers = list_getLength(config->serverConfigs);
+  for (size_t i = 0; i < servers; i++) {
+    server_config_t *serverConfig = config_getServerConfig(config, i);
+    string_t *otherDomain = config_getDomain(serverConfig);
+    uint16_t otherPort = config_getPort(serverConfig);
+    if (port == otherPort && string_equals(domain, otherDomain))
       return serverConfig;
   }
 
