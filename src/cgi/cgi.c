@@ -54,22 +54,21 @@ cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *e
     // Try to redirect STDIN
     if (dup2(process->stdin[PIPE_READ], STDIN_FILENO) < 0)
       exit(errno);
-    // Close the old of the pipes
+    // Close the old end of the pipes
     close(process->stdin[PIPE_READ]);
     close(process->stdin[PIPE_WRITE]);
 
     // Try to redirect STDOUT
     if (dup2(process->stdout[PIPE_WRITE], STDOUT_FILENO) < 0)
       exit(errno);
-    // Close the old of the pipes
+    // Close the old end of the pipes
     close(process->stdout[PIPE_READ]);
     close(process->stdout[PIPE_WRITE]);
 
     // Try to redirect STDERR
-    close(STDERR_FILENO);
     if (dup2(process->stderr[PIPE_WRITE], STDERR_FILENO) < 0)
       exit(errno);
-    // Close the old of the pipes
+    // Close the old end of the pipes
     close(process->stderr[PIPE_READ]);
     close(process->stderr[PIPE_WRITE]);
 
@@ -103,7 +102,12 @@ cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *e
     }
 
     // Run the CGI command
-    int exitCode = execve(command, argumentsBuffer, environmentBuffer);
+    int exitCode = execve(command, (char *const *)argumentsBuffer, environmentBuffer);
+
+    if (exitCode == -1) {
+      if (errno == ENOENT)
+        log(LOG_ERROR, "No such file or directory: %s", command);
+    }
 
     exit(exitCode);
   }
