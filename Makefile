@@ -23,8 +23,8 @@ TARGET_NAME := "wsic"
 DEBUG_TARGET_NAME := "wsic.debug"
 
 # Source code
-source := $(shell find src -type f -name "*.c" -not -path "src/resources/*") src/resources/resources.c
-headers := $(shell find src -type f -name "*.h" -not -path "src/resources/*") src/resources/resources.h
+source := $(shell find src -type f -name "*.c" -not -path "src/resources/*") src/resources/resources.c src/resources/mime.c
+headers := $(shell find src -type f -name "*.h" -not -path "src/resources/*") src/resources/resources.h src/resources/mime.h
 objects := $(subst src,build,$(source:.c=.o))
 # Third party includes
 buildIncludes := build/includes/tomlc99/toml.o

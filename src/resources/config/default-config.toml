@@ -14,4 +14,3 @@
     privateKey = "server.key"
     ellipticCurves = "P-384:P-521"
     validateCertificate = false
-    dhparams = "dhparams.pem"

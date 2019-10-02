@@ -16,6 +16,7 @@
 #define FILE_WRITE "w"
 #define FILE_READ_WRITE "rw"
 
-string_t *resources_loadFile(string_t *file);
+string_t *resources_loadFile(string_t *filePath);
+string_t *resources_getMIMEType(string_t *filePath);
 
 #endif

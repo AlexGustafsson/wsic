@@ -17,16 +17,19 @@ void logging_stopSyslog() {
 }
 
 void logging_request(string_t *remoteHost, enum httpMethod method, string_t *path, string_t *version, uint16_t responseCode, size_t bytesSent) {
-  log(LOG_DEBUG, "Successfully logged request in format CLF to syslog");
-
   // Get current time
   time_t rawTime = time(NULL);
   // Convert time to local time
   struct tm *timeInfo = localtime(&rawTime);
 
-  char timeBuffer[80];
+  char timeBuffer[29];
   // Append to buffer the timeformat we want (CLF)
-  strftime(timeBuffer, 80, "[%d/%b/%Y:%H:%M:%S %z]", timeInfo);
+  // The day is 2 characters, the month 3, the year 4, hours 2, minute 2, second 2 and time zone 4
+  // This, space character brackets, etc. and null adds up to 29 characters
+  strftime(timeBuffer, 29, "[%d/%b/%Y:%H:%M:%S %z]", timeInfo);
 
-  logRaw(LOG_NOTICE, "%s - - %s \"%s %s HTTP/%s\" %d %zu", string_getBuffer(remoteHost), timeBuffer, string_getBuffer(http_methodToString(method)), string_getBuffer(path), string_getBuffer(version), responseCode, bytesSent);
+  string_t *methodString = http_methodToString(method);
+  logRaw(LOG_NOTICE, "%s - - %s \"%s %s HTTP/%s\" %d %zu", string_getBuffer(remoteHost), timeBuffer, string_getBuffer(methodString), string_getBuffer(path), string_getBuffer(version), responseCode, bytesSent);
+  free(timeBuffer);
+  string_free(methodString);
 }

@@ -53,6 +53,7 @@ void config_setIsDaemon(config_t *config, int16_t isDaemon);
 
 server_config_t *config_getServerConfig(config_t *config, size_t index);
 server_config_t *config_getServerConfigBySNI(config_t *config, string_t *domain);
+server_config_t *config_getServerConfigByDomain(config_t *config, string_t *domain, uint16_t port);
 server_config_t *config_getServerConfigBySSLContext(config_t *config, SSL_CTX *sslContext);
 size_t config_getServers(config_t *config);
 

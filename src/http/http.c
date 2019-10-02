@@ -112,8 +112,9 @@ string_t *http_toResponseString(http_t *http) {
 
   // End of headers
   string_appendBuffer(result, "\r\n");
-  // Append body to result
-  string_append(result, http->body);
+  // Append body to result if it exists
+  if (http->body != 0)
+    string_append(result, http->body);
 
   return result;
 }
