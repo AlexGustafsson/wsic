@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "../logging/logging.h"
 
@@ -78,4 +79,20 @@ string_t *resources_getMIMEType(string_t *filePath) {
   log(LOG_DEBUG, "Unknown MIME type for extension '%s'", string_getBuffer(extension));
 
   return 0;
+}
+
+bool resources_isExecutable(string_t *filePath) {
+  struct stat info;
+  if (stat(string_getBuffer(filePath), &info) == 0)
+    return info.st_mode & S_IXUSR;
+  else
+    return false;
+}
+
+bool resources_isFile(string_t *filePath) {
+  struct stat info;
+  if (stat(string_getBuffer(filePath), &info) == 0)
+    return S_ISREG(info.st_mode);
+  else
+    return false;
 }
