@@ -222,13 +222,13 @@ int worker_handleConnection(connection_t *connection) {
       for (size_t i = 0; i < list_getLength(directoryIndex); i++) {
         // Append current directory index to resolved path, resolve it again
         string_t *filePath = list_getValue(directoryIndex, i);
-        string_t *indexPath = path_resolve(filePath, rootDirectory);
+        string_t *indexPath = path_resolve(filePath, resolvedPath);
 
         // If the resolved directory index exists, handle it as a regular file
         if (indexPath != 0) {
           if (resolvedPath != 0)
             string_free(resolvedPath);
-          resolvedPath = path_resolve(filePath, rootDirectory);
+          resolvedPath = indexPath;
           isFile = resources_isFile(resolvedPath);
           isExecutable = resources_isExecutable(resolvedPath);
           break;
