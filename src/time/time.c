@@ -5,6 +5,8 @@
 
 #include "time.h"
 
+#include "../logging/logging.h"
+
 static struct timespec time_start;
 
 void time_getTimeSinceStartOfEpoch(struct timespec *timespec) {
@@ -25,14 +27,36 @@ void time_reset() {
   time_getTimeSinceStartOfEpoch(&time_start);
 }
 
-uint64_t time_getTimeSinceStart() {
+void time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds) {
   struct timespec now;
   time_getTimeSinceStartOfEpoch(&now);
 
-  uint64_t startNanoSeconds = (time_start.tv_sec * 1000000000) + time_start.tv_nsec;
-  uint64_t nowNanoSeconds = (now.tv_sec * 1000000000) + now.tv_nsec;
+  if (nanoseconds == 0 && seconds != 0) {
+    // Return time since start in seconds
+    *seconds = now.tv_sec - time_start.tv_sec;
 
-  return nowNanoSeconds - startNanoSeconds;
+  } else if (nanoseconds != 0 && seconds == 0) {
+    // Return time since start in nanoseconds
+    *nanoseconds = (now.tv_nsec + now.tv_sec * 1000000000) - (time_start.tv_nsec + time_start.tv_sec * 1000000000);
+
+  } else if (nanoseconds != 0 && seconds != 0) {
+    // Return time since start in separet seconds and nanoseconds
+    *nanoseconds = now.tv_nsec - time_start.tv_nsec;
+    *seconds = now.tv_sec - time_start.tv_sec;
+
+  } else
+    // If both in patameters was null, do nothing
+    log(LOG_ERROR, "Can get time, inparameters was null");
+}
+
+void time_formatTime(uint64_t nanoseconds, uint64_t seconds, uint64_t *formatedMilliseconds, uint64_t *formatedSeconds, uint64_t *formatedMinutes, uint64_t *formatedHours, uint64_t *formatedDays, uint64_t *formatedNanoseconds) {
+  // modolu 100 because it is just two decimals
+  *formatedNanoseconds = (nanoseconds / (uint64_t)10000) % (uint64_t)100;
+  *formatedMilliseconds = (nanoseconds / (uint64_t)1000000) % (uint64_t)1000;
+  *formatedSeconds = (seconds) % SECONDS_IN_MINUTE;
+  *formatedMinutes = (seconds / MINUTE_IN_SECONDS) % MINUTES_IN_HOUR;
+  *formatedHours = (seconds / HOUR_IN_SECONDS) % HOURS_IN_DAY;
+  *formatedDays = (seconds / DAY_IN_SECONDS);
 }
 
 uint64_t time_getElapsedTime(struct timespec *timespec) {

@@ -6,6 +6,7 @@
 #include "hash-table-test.c"
 #include "http-test.c"
 #include "list-test.c"
+#include "logging-test.c"
 #include "queue-test.c"
 #include "response-codes-test.c"
 #include "set-test.c"

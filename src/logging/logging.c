@@ -1,4 +1,5 @@
 #include <time.h>
+#include <stdarg.h>
 
 #include "logging.h"
 
@@ -14,6 +15,40 @@ void logging_startSyslog() {
 
 void logging_stopSyslog() {
   closelog();
+}
+
+void logging_logConsole(const char* label, int color, const char* file, int line, const char* function, const char* format, ...) {
+  uint64_t rest = 0;
+  uint64_t milliseconds = 0;
+  uint64_t seconds = 0;
+  uint64_t minutes = 0;
+  uint64_t hours = 0;
+  uint64_t days = 0;
+
+  uint64_t nanosecondsSinceStart = 0;
+  uint64_t secondsSinceStart = 0;
+  time_getTimeSinceStart(&nanosecondsSinceStart, &secondsSinceStart);
+
+  time_formatTime(nanosecondsSinceStart, secondsSinceStart, &milliseconds, &seconds, &minutes, &hours, &days, &rest);
+  if (days != 0) {
+    fprintf(stderr, "\x1b[90m[%llud %lluh %llum %llus %llu.%llums]", (uint64_t)days, (uint64_t)hours, (uint64_t)minutes, (uint64_t)seconds, (uint64_t)milliseconds, rest);
+  } else if (hours != 0){
+    fprintf(stderr, "\x1b[90m[%lluh %llum %llus %llu.%llums]", (uint64_t)hours, (uint64_t)minutes, (uint64_t)seconds, (uint64_t)milliseconds, rest);
+  } else if (minutes != 0) {
+    fprintf(stderr, "\x1b[90m[%llum %llus %llu.%llums]", (uint64_t)minutes, (uint64_t)seconds, (uint64_t)milliseconds, rest);
+  } else if (seconds != 0) {
+    fprintf(stderr, "\x1b[90m[%llus %llu.%llums]", (uint64_t)seconds, (uint64_t)milliseconds, rest);
+  } else {
+    fprintf(stderr, "\x1b[90m[%llu.%llums]", (uint64_t)milliseconds, rest);
+  }
+  fprintf(stderr, "[\x1b[%dm%s\x1b[90m][%s@%d][%s]\n    └──\x1b[0m ", color, label, file, line, function);
+
+  va_list arguments;
+  va_start(arguments, format);
+  vfprintf(stderr, format, arguments);
+  va_end(arguments);
+
+  fprintf(stderr, "\n");
 }
 
 void logging_request(string_t *remoteHost, enum httpMethod method, string_t *path, string_t *version, uint16_t responseCode, size_t bytesSent) {
