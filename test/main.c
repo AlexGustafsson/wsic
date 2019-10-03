@@ -2,6 +2,7 @@
 
 #include "../src/logging/logging.h"
 
+#include "config-test.c"
 #include "hash-table-test.c"
 #include "http-test.c"
 #include "list-test.c"
@@ -11,7 +12,6 @@
 #include "string-test.c"
 #include "url-test.c"
 #include "www-test.c"
-#include "config-test.c"
 
 int main() {
   LOGGING_OUTPUT = 0;

@@ -1,9 +1,9 @@
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
 
-#include "unity/unity.h"
 #include "tomlc99/toml.h"
+#include "unity/unity.h"
 
 #include "../src/datastructures/list/list.h"
 
