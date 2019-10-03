@@ -389,7 +389,7 @@ size_t worker_returnCGI(connection_t *connection, http_t *request, string_t *res
   log(LOG_DEBUG, "Spawned process with pid %d", process->pid);
 
   // Write body to CGI
-  /*if (body != 0) {
+  if (body != 0) {
     log(LOG_DEBUG, "Writing request to CGI process");
     log(LOG_DEBUG, "Body content is:\n<%s> of size %zu", string_getBuffer(body), string_getSize(body));
     cgi_write(process, string_getBuffer(body), string_getSize(body));
@@ -398,10 +398,7 @@ size_t worker_returnCGI(connection_t *connection, http_t *request, string_t *res
   } else {
     // Close the input to the CGI process
     cgi_flushStdin(process);
-  }*/
-
-  cgi_write(process, "Hello world", 11);
-  cgi_flushStdin(process);
+  }
 
   log(LOG_DEBUG, "Reading response from CGI process");
   // TODO: Read more than 4096 bytes
