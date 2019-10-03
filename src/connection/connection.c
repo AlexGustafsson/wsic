@@ -52,44 +52,39 @@ uint16_t connection_getSourcePort(connection_t *connection) {
   return connection->sourcePort;
 }
 
-// TODO:
-// This will read indefinitely until timeout.
-// A HTTP stream is bidirectional and will most likely stay open for a while
-// Until it is closed, there's no real specification of how much data there is to read
-// Therefore, try to read headers line by line and act on whether or not to read body bytes
-// No body bytes specified? Tough luck - don't read.
-// THis function is not fully implemented as of now.
 string_t *connection_read(connection_t *connection, int timeout, size_t bytesToRead) {
-  string_t *message = string_create();
-
+  uint8_t timeouts = 0;
   while (true) {
     bool dataIsAvailable = connection_pollForData(connection, timeout);
+    if (timeouts++ > 5)
+      return 0;
     if (!dataIsAvailable)
       continue;
 
-    // Read the entire message
-    while (true) {
-      ssize_t bytesAvailable = connection_getAvailableBytes(connection);
-      if (bytesAvailable == 0) {
-        // Nothing to read, wait for next event as specified by the polling above
-        break;
-      } else if (bytesAvailable < 0) {
-        // Check failed
-        string_free(message);
-        return 0;
-      } else if (string_getSize(message) + (size_t)bytesAvailable > bytesToRead) {
-        log(LOG_ERROR, "Too many bytes to read");
-        string_free(message);
-        return 0;
-      }
-
-      char *buffer = 0;
-      size_t bytesReceived = connection_readBytes(connection, &buffer, bytesAvailable, READ_FLAGS_NONE);
-      if (buffer != 0)
-        string_appendBufferWithLength(message, buffer, bytesReceived);
-      if (string_getSize(message) == bytesToRead)
-        return message;
+    ssize_t bytesAvailable = connection_getAvailableBytes(connection);
+    if (bytesAvailable == 0) {
+      // Nothing to read, wait for next event as specified by the polling above
+      continue;
+    } else if (bytesAvailable < 0) {
+      // Failed to get available bytes
+      return 0;
+    } else if ((size_t)bytesAvailable < bytesToRead) {
+      // Not enough bytes for reading, wait
+      continue;
     }
+
+    char *buffer = 0;
+    size_t bytesReceived = 0;
+    if (connection->ssl == 0)
+      bytesReceived = connection_readBytes(connection, &buffer, bytesToRead, READ_FLAGS_NONE);
+    else
+      bytesReceived = connection_readSSLBytes(connection, &buffer, bytesToRead, READ_FLAGS_NONE);
+    // Could not read message
+    if (buffer == 0)
+      return 0;
+
+    string_t *content = string_fromCopyWithLength(buffer, bytesReceived);
+    return content;
   }
 }
 
@@ -104,7 +99,6 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
       continue;
 
     ssize_t bytesAvailable = connection_getAvailableBytes(connection);
-    bytesAvailable = 1024;
     if (bytesAvailable == 0) {
       // Nothing to read, wait for next event as specified by the polling above
       continue;
@@ -211,6 +205,15 @@ ssize_t connection_getAvailableBytes(connection_t *connection) {
     if (bytesAvailable < 0) {
       log(LOG_ERROR, "Failed to get number of available bytes from TLS connection");
       return -1;
+    } else if (bytesAvailable == 0) {
+      // OpenSSL only returns bytes available for reading. Unless any read has been done,
+      // there will be no bytes process for reading. Therefore we need to read at least once
+      // before we can use SSL_pending()
+      char *buffer = 0;
+      // Read one byte without blocking to make OpenSSL process bytes
+      connection_readSSLBytes(connection, &buffer, 1, READ_FLAGS_PEEK);
+      if (buffer != 0)
+        free(buffer);
     }
 
     log(LOG_DEBUG, "There are %d bytes available for reading from TLS connection", bytesAvailable);
@@ -278,10 +281,10 @@ size_t connection_write(connection_t *connection, const char *buffer, size_t buf
   const char *sourceAddress = string_getBuffer(connection->sourceAddress);
   uint16_t sourcePort = connection->sourcePort;
 
-  ssize_t bytesSent = -1;
+  ssize_t bytesSent = 0;
   if (connection->ssl == 0) {
     // Use the flag MSG_NOSIGNAL to try to stop SIGPIPE on supported platforms (there is a signal handler catching other cases)
-    ssize_t bytesSent = send(connection->socket, buffer, strlen(buffer), MSG_NOSIGNAL);
+    bytesSent = send(connection->socket, buffer, strlen(buffer), MSG_NOSIGNAL);
     if (bytesSent == -1) {
       if (errno == EBADF) {
         log(LOG_ERROR, "Could not write to %s:%i. The connection had already closed", sourceAddress, sourcePort);
@@ -299,8 +302,7 @@ size_t connection_write(connection_t *connection, const char *buffer, size_t buf
     }
   }
 
-  if (bytesSent != -1)
-    log(LOG_DEBUG, "Successfully wrote %zu (out of %zu) bytes to %s:%i", bytesSent, bufferSize, sourceAddress, sourcePort);
+  log(LOG_DEBUG, "Successfully wrote %zu (out of %zu) bytes to %s:%i", bytesSent, bufferSize, sourceAddress, sourcePort);
   return bytesSent;
 }
 

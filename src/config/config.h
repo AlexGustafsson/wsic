@@ -28,6 +28,7 @@ typedef struct {
   int8_t enabled;
   DH *dhparams;
   SSL_CTX *sslContext;
+  list_t *directoryIndex;
 } server_config_t;
 
 typedef struct {
@@ -75,9 +76,12 @@ void config_setLogfile(server_config_t *config, string_t *logfile);
 SSL_CTX *config_getSSLContext(server_config_t *config);
 DH *config_getDiffieHellmanParameters(server_config_t *config);
 
+list_t *config_getDirectoryIndex(server_config_t *config);
+
 string_t *config_parseString(toml_table_t *table, const char *key);
 int64_t config_parseInt(toml_table_t *table, const char *key);
 int config_parseBool(toml_table_t *table, const char *key);
+list_t *config_parseArray(toml_table_t *table, const char *key);
 
 void config_free(config_t *config);
 

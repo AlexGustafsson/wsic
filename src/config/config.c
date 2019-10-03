@@ -119,6 +119,8 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
       config->port = port;
   }
 
+  config->directoryIndex = config_parseArray(serverTable, "directoryIndex");
+
   string_t *privateKey = config_parseString(serverTable, "privateKey");
   string_t *certificate = config_parseString(serverTable, "certificate");
   if ((privateKey == 0 && certificate != 0) || (privateKey != 0 && certificate == 0)) {
@@ -252,6 +254,67 @@ int config_parseBool(toml_table_t *table, const char *key) {
   return value;
 }
 
+list_t *config_parseArray(toml_table_t *table, const char *key) {
+  toml_array_t *array = toml_array_in(table, key);
+  if (array == 0)
+    return 0;
+
+  list_t *list = list_create();
+  if (list == 0)
+    return 0;
+
+  // i = int, d = double, b = bool, s = string, t = time, D = date, T = timestamp, 0 otherwise
+  char type = toml_array_type(array);
+
+  for (int i = 0; i < toml_array_nelem(array); i++) {
+    const char *rawValue = toml_raw_at(array, i);
+    if (rawValue == 0) {
+      log(LOG_ERROR, "Unable to parse array");
+      list_free(list);
+      return 0;
+    }
+
+    if (type == 'i') {
+      int64_t value = 0;
+      if (toml_rtoi(rawValue, &value)) {
+        log(LOG_ERROR, "Bad integer in config: table '%s', key '%s'", toml_table_key(table), key);
+        list_free(list);
+        return 0;
+      }
+
+      list_addValue(list, (void *)value);
+    } else if (type == 's') {
+      char *value;
+      // The value is not a string
+      if (toml_rtos(rawValue, &value)) {
+        log(LOG_ERROR, "Bad string in config array, key '%s'", key);
+        list_free(list);
+        return 0;
+      }
+
+      string_t *string = string_fromCopy(value);
+      free(value);
+
+      // Could not allocate string
+      if (string == 0)
+        return 0;
+
+      list_addValue(list, string);
+    } else if (type == 'b') {
+      int value = 0;
+      if (toml_rtob(rawValue, &value)) {
+        log(LOG_ERROR, "Bad bool in config array, key '%s'", key);
+        list_free(list);
+        return 0;
+      }
+
+      list_addValue(list, (void *)value);
+    }
+  }
+
+  return list;
+}
+
 int16_t config_getIsDaemon(config_t *config) {
   return config->daemon;
 }
@@ -352,6 +415,10 @@ SSL_CTX *config_getSSLContext(server_config_t *config) {
 
 DH *config_getDiffieHellmanParameters(server_config_t *config) {
   return config->dhparams;
+}
+
+list_t *config_getDirectoryIndex(server_config_t *config) {
+  return config->directoryIndex;
 }
 
 void config_free(config_t *config) {

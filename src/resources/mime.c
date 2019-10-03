@@ -1,6 +1,7 @@
 #include "mime.h"
 
 const char *mime_extensions[MIME_TYPES] = {
+    ".html",   // Hyper Text Markup Language
     ".aac",    // AAC audio
     ".abw",    // AbiWord document
     ".arc",    // Archive document (multiple files embedded)
@@ -66,6 +67,7 @@ const char *mime_extensions[MIME_TYPES] = {
 };
 
 const char *mime_types[MIME_TYPES] = {
+    "text/html",                                                                 // Hyper Text Markup Language
     "audio/aac",                                                                 // AAC audio
     "application/x-abiword",                                                     // AbiWord document
     "application/x-freearc",                                                     // Archive document (multiple files embedded)

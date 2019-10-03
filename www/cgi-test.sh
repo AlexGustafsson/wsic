@@ -47,7 +47,7 @@ cat <<EOF
       <code>$(env)</code>
     </header>
     <main>
-      <form method="post" action="/">
+      <form method="post" action="/cgi-test.sh">
         <label for="name">Name</label>
         <input id="name" name="name" type="text" />
         <input type="submit" />

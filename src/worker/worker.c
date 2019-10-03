@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "../cgi/cgi.h"
 #include "../config/config.h"
 #include "../http/http.h"
 #include "../logging/logging.h"
@@ -19,6 +20,11 @@
 // The main entry point of a worker
 int worker_entryPoint();
 int worker_handleConnection(connection_t *connection);
+hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request);
+size_t worker_return500(connection_t *connection, http_t *request, string_t *description);
+size_t worker_return404(connection_t *connection, http_t *request, string_t *path);
+size_t worker_return200(connection_t *connection, http_t *request, string_t *resolvedPath);
+size_t worker_returnCGI(connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body);
 
 worker_t *worker_spawn(int id, connection_t *connection, message_queue_t *queue) {
   worker_t *worker = malloc(sizeof(worker_t));
@@ -171,15 +177,88 @@ int worker_handleConnection(connection_t *connection) {
     } else if (contentLength == 0) {
       log(LOG_WARNING, "Got empty body");
     } else {
-      // TODO: Use connection_read when implemented properly - don't use strings this way
-      body = string_create();
-      connection_readBytes(connection, &body->buffer, contentLength, READ_FLAGS_NONE);
-      body->size = contentLength;
-      string_setBufferSize(body, contentLength);
+      body = connection_read(connection, REQUEST_READ_TIMEOUT, contentLength);
+      if (body == 0) {
+        log(LOG_ERROR, "Reading body timed out or failed");
+        http_free(request);
+        return 0;
+      }
     }
   }
 
-  list_t *arguments = 0;
+  string_t *domainName = url_getDomainName(http_getUrl(request));
+  uint16_t port = url_getPort(http_getUrl(request));
+
+  // Resolve server config - 500 if config not found
+  config_t *config = config_getGlobalConfig();
+  server_config_t *serverConfig = config_getServerConfigByDomain(config, domainName, port);
+  if (serverConfig == 0) {
+    log(LOG_ERROR, "Got request to serve an unknown domain '%s'", string_getBuffer(domainName));
+    worker_return500(connection, request, string_fromCopy("The requested domain is not served by this server"));
+    http_free(request);
+    return 0;
+  }
+
+  string_t *path = url_getPath(http_getUrl(request));
+
+  // Resolve path - 404 if not found or failed
+  string_t *rootDirectory = config_getRootDirectory(serverConfig);
+  string_t *resolvedPath = path_resolve(path, rootDirectory);
+  if (resolvedPath == 0) {
+    worker_return404(connection, request, path);
+    http_free(request);
+    return 0;
+  }
+
+  log(LOG_DEBUG, "Got request for file '%s'", string_getBuffer(resolvedPath));
+
+  bool isFile = resources_isFile(resolvedPath);
+  bool isExecutable = resources_isExecutable(resolvedPath);
+
+  // If the request is to a directory that exists, try to handle directory index
+  if (!isFile) {
+    list_t *directoryIndex = config_getDirectoryIndex(serverConfig);
+    if (directoryIndex != 0) {
+      for (size_t i = 0; i < list_getLength(directoryIndex); i++) {
+        // Append current directory index to resolved path, resolve it again
+        string_t *filePath = list_getValue(directoryIndex, i);
+        string_t *indexPath = path_resolve(filePath, rootDirectory);
+
+        // If the resolved directory index exists, handle it as a regular file
+        if (indexPath != 0) {
+          if (resolvedPath != 0)
+            string_free(resolvedPath);
+          resolvedPath = path_resolve(filePath, rootDirectory);
+          isFile = resources_isFile(resolvedPath);
+          isExecutable = resources_isExecutable(resolvedPath);
+          break;
+        }
+      }
+    }
+  }
+
+  if (isFile && isExecutable) {
+    // The file exists, is a regular file and executable - run it
+    worker_returnCGI(connection, request, resolvedPath, body);
+  } else if (isFile) {
+    // The file exists and is a regular file, serve it
+    worker_return200(connection, request, resolvedPath);
+  } else {
+    // The file exists but is not a regular file - 404 as per
+    // https://en.wikipedia.org/wiki/Webserver_directory_index
+    worker_return404(connection, request, path);
+  }
+
+  // TODO: investigate why this is necessary (double free otherwise)
+  request->url = 0;
+  http_free(request);
+  string_free(resolvedPath);
+  if (body != 0)
+    string_free(body);
+  return 0;
+}
+
+hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request) {
   hash_table_t *environment = hash_table_create();
   hash_table_setValue(environment, string_fromCopy("HTTPS"), string_fromCopy("off"));
   hash_table_setValue(environment, string_fromCopy("SERVER_SOFTWARE"), string_fromCopy("WSIC"));
@@ -212,99 +291,136 @@ int worker_handleConnection(connection_t *connection) {
     hash_table_setValue(environment, string_fromCopy("SERVER_NAME"), string_fromCopy(string_getBuffer(domainName)));
   }
 
-  // TODO: This does not seem to work. Due to how we don't read from the pipe dynamically?
   uint16_t port = url_getPort(url);
   if (port != 0)
     hash_table_setValue(environment, string_fromCopy("SERVER_PORT"), string_fromInt(port));
 
-  // TODO: This should be realtive to the document root
   string_t *path = url_getPath(url);
   if (path != 0)
     hash_table_setValue(environment, string_fromCopy("REQUEST_URI"), path);
 
+  return environment;
+}
+
+size_t worker_return500(connection_t *connection, http_t *request, string_t *description) {
   http_t *response = http_create();
+  page_t *page = page_create500(description);
+  string_t *source = page_getSource(page);
+  http_setBody(response, source);
+  http_setResponseCode(response, 500);
+  http_setVersion(response, string_fromCopy("1.1"));
 
-  config_t *config = config_getGlobalConfig();
-  server_config_t *serverConfig = config_getServerConfigByDomain(config, domainName, port);
-  if (serverConfig == 0) {
-    log(LOG_ERROR, "Got request to server an unknown domain '%s'", string_getBuffer(domainName));
-    page_t *page = page_create500(string_fromCopy("The requested domain is not served by this server"));
-    string_t *source = page_getSource(page);
-    http_setBody(response, source);
-    http_setResponseCode(response, 500);
-    http_setVersion(response, string_fromCopy("1.1"));
+  string_t *responseString = http_toResponseString(response);
+  size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
+  string_t *path = url_getPath(http_getUrl(request));
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 500, bytesWritten);
+  string_free(responseString);
+  page_free(page);
+  // Freeing the page also frees the source, which we gave to http.
+  // Not having this line would cause a double free
+  response->body = 0;
+  http_free(response);
 
-    string_t *responseString = http_toResponseString(response);
-    connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
-    // logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), http_getResponseCode(response), string_getSize(responseString));
-    string_free(responseString);
-    page_free(page);
-    // Freeing the page also frees the source, which we gave to http.
-    // Not having this line would cause a double free
-    response->body = 0;
-    http_free(response);
-    // TODO: Investigate why this is necessary (use after free otherwise)
-    request->url->path = 0;
-    http_free(request);
+  return bytesWritten;
+}
 
-    return 1;
-  }
+size_t worker_return404(connection_t *connection, http_t *request, string_t *path) {
+  http_t *response = http_create();
+  // Copy the path since we want to keep ownership
+  page_t *page = page_create404(string_copy(path));
+  string_t *source = page_getSource(page);
+  http_setBody(response, source);
+  http_setResponseCode(response, 404);
+  http_setVersion(response, string_fromCopy("1.1"));
 
-  string_t *rootDirectory = config_getRootDirectory(serverConfig);
-  string_t *resolvedPath = path_resolve(path, rootDirectory);
-  if (resolvedPath == 0) {
-    page_t *page = page_create404(path);
-    string_t *source = page_getSource(page);
-    http_setBody(response, source);
-    http_setResponseCode(response, 404);
-    http_setVersion(response, string_fromCopy("1.1"));
+  string_t *responseString = http_toResponseString(response);
+  size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 404, bytesWritten);
+  string_free(responseString);
+  page_free(page);
+  // Freeing the page also frees the source, which we gave to http.
+  // Not having this line would cause a double free
+  response->body = 0;
+  http_free(response);
 
-    string_t *responseString = http_toResponseString(response);
-    connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
-    // logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), http_getResponseCode(response), string_getSize(responseString));
-    string_free(responseString);
-    page_free(page);
-    // Freeing the page also frees the source, which we gave to http.
-    // Not having this line would cause a double free
-    response->body = 0;
-    http_free(response);
-    // TODO: Investigate why this is necessary (use after free otherwise)
-    request->url->path = 0;
-    http_free(request);
+  return bytesWritten;
+}
 
-    return 1;
-  }
-
-  log(LOG_DEBUG, "Got request for file '%s'", string_getBuffer(resolvedPath));
+size_t worker_return200(connection_t *connection, http_t *request, string_t *resolvedPath) {
+  http_t *response = http_create();
   http_setResponseCode(response, 200);
   http_setVersion(response, string_fromCopy("1.1"));
+
   string_t *fileContent = resources_loadFile(resolvedPath);
   if (fileContent == 0) {
     log(LOG_ERROR, "Could not read file '%s'", string_getBuffer(resolvedPath));
-    // TODO: 500?
-    // TODO: Memory will surely leak here
+    http_free(response);
+    worker_return500(connection, request, string_fromCopy("Unable to access requested file"));
     return 0;
   }
+
   http_setBody(response, fileContent);
   string_t *mimeType = resources_getMIMEType(resolvedPath);
-
-  if (mimeType != 0) {
+  if (mimeType != 0)
     log(LOG_DEBUG, "MIME type of '%s' is '%s'", string_getBuffer(resolvedPath), string_getBuffer(mimeType));
-    http_setHeader(response, string_fromCopy("Content-Type"), mimeType);
-  }
+  // Default to text/plain if no type was found
+  if (mimeType == 0)
+    mimeType = string_fromCopy("text/plain");
+  http_setHeader(response, string_fromCopy("Content-Type"), mimeType);
 
   string_t *responseString = http_toResponseString(response);
-  connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
-  //logging_request(connection_getSourceAddress(connection), http_getMethod(request), actualPath, http_getVersion(request), http_getResponseCode(response), string_getSize(responseString));
+  size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
+  string_t *path = url_getPath(http_getUrl(request));
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 200, bytesWritten);
   string_free(responseString);
   // Freeing the page also frees the source, which we gave to http.
   // Not having this line would cause a double free
   response->body = 0;
   http_free(response);
-  http_free(request);
 
-  string_free(resolvedPath);
-  return 0;
+  return bytesWritten;
+}
+
+size_t worker_returnCGI(connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body) {
+  log(LOG_DEBUG, "Spawning CGI process");
+  list_t *arguments = 0;
+  hash_table_t *environment = worker_createEnvironment(connection, request);
+  cgi_process_t *process = cgi_spawn(string_getBuffer(resolvedPath), arguments, environment);
+  log(LOG_DEBUG, "Spawned process with pid %d", process->pid);
+
+  // Write body to CGI
+  if (body != 0) {
+    log(LOG_DEBUG, "Writing request to CGI process");
+    log(LOG_DEBUG, "Body content is:\n<%s> of size %zu", string_getBuffer(body), string_getSize(body));
+    cgi_write(process, string_getBuffer(body), string_getSize(body));
+    // Make sure the process receives EOF
+    cgi_flushStdin(process);
+  } else {
+    // Close the input to the CGI process
+    cgi_flushStdin(process);
+  }
+
+  log(LOG_DEBUG, "Reading response from CGI process");
+  // TODO: Read more than 4096 bytes
+  char buffer[2048] = {0};
+  cgi_read(process, buffer, 2048);
+  buffer[2048 - 1] = 0;
+
+  log(LOG_DEBUG, "Got response from CGI process");
+  size_t bytesWritten = connection_write(connection, buffer, 2048);
+  string_t *path = url_getPath(http_getUrl(request));
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 0, bytesWritten);
+
+  // NOTE: Not necessary, but for debugging it's nice to know
+  // that the process is actually exiting (not kept forever)
+  // since we don't currently kill spawned processes
+  log(LOG_DEBUG, "Waiting for process to exit");
+  uint8_t exitCode = cgi_waitForExit(process);
+  log(LOG_DEBUG, "Process exited with status %d", exitCode);
+
+  // Close and free up CGI process and connection
+  cgi_freeProcess(process);
+  return bytesWritten;
 }
 
 void worker_waitForExit(worker_t *worker) {
