@@ -6,6 +6,8 @@
 
 string_t *path_resolve(string_t *relativePath, string_t *root) {
   string_t *path = string_fromCopyWithLength(string_getBuffer(root), string_getSize(root));
+  // Ensure that the root path ends with a '/' (doubles don't hurt)
+  string_appendChar(path, '/');
   string_append(path, relativePath);
 
   char *resolvedPathBuffer = realpath(string_getBuffer(path), NULL);
@@ -15,6 +17,7 @@ string_t *path_resolve(string_t *relativePath, string_t *root) {
     return 0;
 
   string_t *resolvedPath = string_fromCopy(resolvedPathBuffer);
+  free(resolvedPathBuffer);
 
   // Get the substring of the resolved path that should be equal to the root path
   string_t *resolvedRoot = string_substring(resolvedPath, 0, string_getSize(root));

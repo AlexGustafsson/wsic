@@ -218,11 +218,43 @@ int worker_handleConnection(connection_t *connection) {
 
   bool isFile = resources_isFile(resolvedPath);
   bool isExecutable = resources_isExecutable(resolvedPath);
-  if (isFile && isExecutable)
-    worker_returnCGI(connection, resolvedPath, request, body);
-  else
-    worker_return200(connection, resolvedPath);
 
+  // If the request is to a directory that exists, try to handle directory index
+  if (!isFile) {
+    list_t *directoryIndex = config_getDirectoryIndex(serverConfig);
+    if (directoryIndex != 0) {
+      for (size_t i = 0; i < list_getLength(directoryIndex); i++) {
+        // Append current directory index to resolved path, resolve it again
+        string_t *filePath = list_getValue(directoryIndex, i);
+        string_t *indexPath = path_resolve(filePath, rootDirectory);
+
+        // If the resolved directory index exists, handle it as a regular file
+        if (indexPath != 0) {
+          if (resolvedPath != 0)
+            string_free(resolvedPath);
+          resolvedPath = path_resolve(filePath, rootDirectory);
+          isFile = resources_isFile(resolvedPath);
+          isExecutable = resources_isExecutable(resolvedPath);
+          break;
+        }
+      }
+    }
+  }
+
+  if (isFile && isExecutable) {
+    // The file exists, is a regular file and executable - run it
+    worker_returnCGI(connection, resolvedPath, request, body);
+  } else if (isFile) {
+    // The file exists and is a regular file, serve it
+    worker_return200(connection, resolvedPath);
+  } else {
+    // The file exists but is not a regular file - 404 as per
+    // https://en.wikipedia.org/wiki/Webserver_directory_index
+    worker_return404(connection, path);
+  }
+
+  // TODO: investigate why this is necessary (double free otherwise)
+  request->url = 0;
   http_free(request);
   string_free(resolvedPath);
   if (body != 0)
@@ -263,12 +295,10 @@ hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request
     hash_table_setValue(environment, string_fromCopy("SERVER_NAME"), string_fromCopy(string_getBuffer(domainName)));
   }
 
-  // TODO: This does not seem to work. Due to how we don't read from the pipe dynamically?
   uint16_t port = url_getPort(url);
   if (port != 0)
     hash_table_setValue(environment, string_fromCopy("SERVER_PORT"), string_fromInt(port));
 
-  // TODO: This should be realtive to the document root
   string_t *path = url_getPath(url);
   if (path != 0)
     hash_table_setValue(environment, string_fromCopy("REQUEST_URI"), path);
