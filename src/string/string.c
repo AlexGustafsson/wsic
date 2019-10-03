@@ -84,6 +84,11 @@ string_t *string_fromCopy(const char *buffer) {
   return string_fromCopyWithLength(buffer, length);
 }
 
+string_t *string_copy(string_t *string) {
+  string_t *copy = string_fromCopyWithLength(string_getBuffer(string), string_getSize(string));
+  return copy;
+}
+
 string_t *string_fromInt(int number) {
   if (number == 0)
     return string_fromCopy("0");

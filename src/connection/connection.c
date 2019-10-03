@@ -281,10 +281,10 @@ size_t connection_write(connection_t *connection, const char *buffer, size_t buf
   const char *sourceAddress = string_getBuffer(connection->sourceAddress);
   uint16_t sourcePort = connection->sourcePort;
 
-  ssize_t bytesSent = -1;
+  ssize_t bytesSent = 0;
   if (connection->ssl == 0) {
     // Use the flag MSG_NOSIGNAL to try to stop SIGPIPE on supported platforms (there is a signal handler catching other cases)
-    ssize_t bytesSent = send(connection->socket, buffer, strlen(buffer), MSG_NOSIGNAL);
+    bytesSent = send(connection->socket, buffer, strlen(buffer), MSG_NOSIGNAL);
     if (bytesSent == -1) {
       if (errno == EBADF) {
         log(LOG_ERROR, "Could not write to %s:%i. The connection had already closed", sourceAddress, sourcePort);
@@ -302,8 +302,7 @@ size_t connection_write(connection_t *connection, const char *buffer, size_t buf
     }
   }
 
-  if (bytesSent != -1)
-    log(LOG_DEBUG, "Successfully wrote %zu (out of %zu) bytes to %s:%i", bytesSent, bufferSize, sourceAddress, sourcePort);
+  log(LOG_DEBUG, "Successfully wrote %zu (out of %zu) bytes to %s:%i", bytesSent, bufferSize, sourceAddress, sourcePort);
   return bytesSent;
 }
 

@@ -21,10 +21,10 @@
 int worker_entryPoint();
 int worker_handleConnection(connection_t *connection);
 hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request);
-void worker_return500(connection_t *connection, string_t *description);
-void worker_return404(connection_t *connection, string_t *path);
-void worker_return200(connection_t *connection, string_t *resolvedPath);
-void worker_returnCGI(connection_t *connection, string_t *resolvedPath, http_t *request, string_t *body);
+size_t worker_return500(connection_t *connection, http_t *request, string_t *description);
+size_t worker_return404(connection_t *connection, http_t *request, string_t *path);
+size_t worker_return200(connection_t *connection, http_t *request, string_t *resolvedPath);
+size_t worker_returnCGI(connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body);
 
 worker_t *worker_spawn(int id, connection_t *connection, message_queue_t *queue) {
   worker_t *worker = malloc(sizeof(worker_t));
@@ -193,10 +193,8 @@ int worker_handleConnection(connection_t *connection) {
   config_t *config = config_getGlobalConfig();
   server_config_t *serverConfig = config_getServerConfigByDomain(config, domainName, port);
   if (serverConfig == 0) {
-    log(LOG_ERROR, "Got request to server an unknown domain '%s'", string_getBuffer(domainName));
-    worker_return500(connection, string_fromCopy("The requested domain is not served by this server"));
-    // TODO: Investigate why this is necessary (use after free otherwise)
-    request->url->path = 0;
+    log(LOG_ERROR, "Got request to serve an unknown domain '%s'", string_getBuffer(domainName));
+    worker_return500(connection, request, string_fromCopy("The requested domain is not served by this server"));
     http_free(request);
     return 0;
   }
@@ -207,9 +205,7 @@ int worker_handleConnection(connection_t *connection) {
   string_t *rootDirectory = config_getRootDirectory(serverConfig);
   string_t *resolvedPath = path_resolve(path, rootDirectory);
   if (resolvedPath == 0) {
-    worker_return404(connection, path);
-    // TODO: Investigate why this is necessary (use after free otherwise)
-    request->url->path = 0;
+    worker_return404(connection, request, path);
     http_free(request);
     return 0;
   }
@@ -243,14 +239,14 @@ int worker_handleConnection(connection_t *connection) {
 
   if (isFile && isExecutable) {
     // The file exists, is a regular file and executable - run it
-    worker_returnCGI(connection, resolvedPath, request, body);
+    worker_returnCGI(connection, request, resolvedPath, body);
   } else if (isFile) {
     // The file exists and is a regular file, serve it
-    worker_return200(connection, resolvedPath);
+    worker_return200(connection, request, resolvedPath);
   } else {
     // The file exists but is not a regular file - 404 as per
     // https://en.wikipedia.org/wiki/Webserver_directory_index
-    worker_return404(connection, path);
+    worker_return404(connection, request, path);
   }
 
   // TODO: investigate why this is necessary (double free otherwise)
@@ -306,7 +302,7 @@ hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request
   return environment;
 }
 
-void worker_return500(connection_t *connection, string_t *description) {
+size_t worker_return500(connection_t *connection, http_t *request, string_t *description) {
   http_t *response = http_create();
   page_t *page = page_create500(description);
   string_t *source = page_getSource(page);
@@ -315,36 +311,42 @@ void worker_return500(connection_t *connection, string_t *description) {
   http_setVersion(response, string_fromCopy("1.1"));
 
   string_t *responseString = http_toResponseString(response);
-  connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
-  // logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), http_getResponseCode(response), string_getSize(responseString));
+  size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
+  string_t *path = url_getPath(http_getUrl(request));
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 500, bytesWritten);
   string_free(responseString);
   page_free(page);
   // Freeing the page also frees the source, which we gave to http.
   // Not having this line would cause a double free
   response->body = 0;
   http_free(response);
+
+  return bytesWritten;
 }
 
-void worker_return404(connection_t *connection, string_t *path) {
+size_t worker_return404(connection_t *connection, http_t *request, string_t *path) {
   http_t *response = http_create();
-  page_t *page = page_create404(path);
+  // Copy the path since we want to keep ownership
+  page_t *page = page_create404(string_copy(path));
   string_t *source = page_getSource(page);
   http_setBody(response, source);
   http_setResponseCode(response, 404);
   http_setVersion(response, string_fromCopy("1.1"));
 
   string_t *responseString = http_toResponseString(response);
-  connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
-  // logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), http_getResponseCode(response), string_getSize(responseString));
+  size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 404, bytesWritten);
   string_free(responseString);
   page_free(page);
   // Freeing the page also frees the source, which we gave to http.
   // Not having this line would cause a double free
   response->body = 0;
   http_free(response);
+
+  return bytesWritten;
 }
 
-void worker_return200(connection_t *connection, string_t *resolvedPath) {
+size_t worker_return200(connection_t *connection, http_t *request, string_t *resolvedPath) {
   http_t *response = http_create();
   http_setResponseCode(response, 200);
   http_setVersion(response, string_fromCopy("1.1"));
@@ -353,8 +355,8 @@ void worker_return200(connection_t *connection, string_t *resolvedPath) {
   if (fileContent == 0) {
     log(LOG_ERROR, "Could not read file '%s'", string_getBuffer(resolvedPath));
     http_free(response);
-    worker_return500(connection, string_fromCopy("Unable to access requested file"));
-    return;
+    worker_return500(connection, request, string_fromCopy("Unable to access requested file"));
+    return 0;
   }
 
   http_setBody(response, fileContent);
@@ -367,16 +369,19 @@ void worker_return200(connection_t *connection, string_t *resolvedPath) {
   http_setHeader(response, string_fromCopy("Content-Type"), mimeType);
 
   string_t *responseString = http_toResponseString(response);
-  connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
-  //logging_request(connection_getSourceAddress(connection), http_getMethod(request), actualPath, http_getVersion(request), http_getResponseCode(response), string_getSize(responseString));
+  size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
+  string_t *path = url_getPath(http_getUrl(request));
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 200, bytesWritten);
   string_free(responseString);
   // Freeing the page also frees the source, which we gave to http.
   // Not having this line would cause a double free
   response->body = 0;
   http_free(response);
+
+  return bytesWritten;
 }
 
-void worker_returnCGI(connection_t *connection, string_t *resolvedPath, http_t *request, string_t *body) {
+size_t worker_returnCGI(connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body) {
   log(LOG_DEBUG, "Spawning CGI process");
   list_t *arguments = 0;
   hash_table_t *environment = worker_createEnvironment(connection, request);
@@ -405,7 +410,9 @@ void worker_returnCGI(connection_t *connection, string_t *resolvedPath, http_t *
   buffer[2048 - 1] = 0;
 
   log(LOG_DEBUG, "Got response from CGI process");
-  connection_write(connection, buffer, 2048);
+  size_t bytesWritten = connection_write(connection, buffer, 2048);
+  string_t *path = url_getPath(http_getUrl(request));
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 0, bytesWritten);
 
   // NOTE: Not necessary, but for debugging it's nice to know
   // that the process is actually exiting (not kept forever)
@@ -416,6 +423,7 @@ void worker_returnCGI(connection_t *connection, string_t *resolvedPath, http_t *
 
   // Close and free up CGI process and connection
   cgi_freeProcess(process);
+  return bytesWritten;
 }
 
 void worker_waitForExit(worker_t *worker) {
