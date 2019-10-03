@@ -7,7 +7,7 @@
 */
 
 // The number of supported MIME types
-#define MIME_TYPES 62
+#define MIME_TYPES 63
 
 // An array of all supported file extensions
 extern const char *mime_extensions[MIME_TYPES];
