@@ -69,7 +69,7 @@ config_t *config_parse(char *configString) {
           bool isSameDomain = string_equals(serverConfig->domain, otherConfig->domain);
           bool bothHaveSSL = serverConfig->sslContext != 0 && otherConfig->sslContext != 0;
           if (isSameDomain && bothHaveSSL) {
-            log(LOG_ERROR, "Multiple server configuration listening to domain '%s'. Configuration '%s' will be disabled", string_getBuffer(serverConfig->domain), string_getBuffer(serverConfig->name));
+            log(LOG_WARNING, "Multiple server configuration listening to domain '%s'. Configuration '%s' will be disabled", string_getBuffer(serverConfig->domain), string_getBuffer(serverConfig->name));
             duplicate = true;
             break;
           }
@@ -113,10 +113,11 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
 
   if (toml_raw_in(serverTable, "port") != 0) {
     int64_t port = config_parseInt(serverTable, "port");
-    if (port < 0 || port > 1 << 16)
+    if (port < 0 || port > 1 << 16) {
       log(LOG_ERROR, "The port in config for server '%s' was unexpected", string_getBuffer(config->name));
-    else
-      config->port = port;
+      return 0;
+    }
+    config->port = port;
   }
 
   config->directoryIndex = config_parseArray(serverTable, "directoryIndex");
@@ -276,21 +277,13 @@ list_t *config_parseArray(toml_table_t *table, const char *key) {
 
     if (type == 'i') {
       int64_t value = 0;
-      if (toml_rtoi(rawValue, &value)) {
-        log(LOG_ERROR, "Bad integer in config: table '%s', key '%s'", toml_table_key(table), key);
-        list_free(list);
-        return 0;
-      }
+      toml_rtoi(rawValue, &value);
 
       list_addValue(list, (void *)value);
     } else if (type == 's') {
       char *value;
       // The value is not a string
-      if (toml_rtos(rawValue, &value)) {
-        log(LOG_ERROR, "Bad string in config array, key '%s'", key);
-        list_free(list);
-        return 0;
-      }
+      toml_rtos(rawValue, &value);
 
       string_t *string = string_fromCopy(value);
       free(value);
@@ -302,11 +295,7 @@ list_t *config_parseArray(toml_table_t *table, const char *key) {
       list_addValue(list, string);
     } else if (type == 'b') {
       int value = 0;
-      if (toml_rtob(rawValue, &value)) {
-        log(LOG_ERROR, "Bad bool in config array, key '%s'", key);
-        list_free(list);
-        return 0;
-      }
+      toml_rtob(rawValue, &value);
 
       list_addValue(list, (void *)value);
     }
@@ -373,24 +362,12 @@ string_t *config_getName(server_config_t *config) {
   return config->name;
 }
 
-void config_setName(server_config_t *config, string_t *name) {
-  // TODO: Fix after string implementation
-}
-
 string_t *config_getDomain(server_config_t *config) {
   return config->domain;
 }
 
-void config_setDomain(server_config_t *config, string_t *domain) {
-  // TODO: Fix after string implementation
-}
-
 string_t *config_getRootDirectory(server_config_t *config) {
   return config->rootDirectory;
-}
-
-void config_setRootDirectory(server_config_t *config, string_t *rootDirectory) {
-  // TODO: Fix after string implementation
 }
 
 int16_t config_getPort(server_config_t *config) {
@@ -424,10 +401,14 @@ list_t *config_getDirectoryIndex(server_config_t *config) {
 void config_free(config_t *config) {
   for (size_t i = 0; i < config->serverConfigs->length; i++) {
     server_config_t *serverConfig = list_removeValue(config->serverConfigs, i);
-    string_free(serverConfig->domain);
-    string_free(serverConfig->logfile);
-    string_free(serverConfig->name);
-    string_free(serverConfig->rootDirectory);
+    if (serverConfig->domain != 0)
+      string_free(serverConfig->domain);
+    if (serverConfig->logfile != 0)
+      string_free(serverConfig->logfile);
+    if (serverConfig->name != 0)
+      string_free(serverConfig->name);
+    if (serverConfig->rootDirectory != 0)
+      string_free(serverConfig->rootDirectory);
     free(serverConfig);
   }
 

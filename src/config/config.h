@@ -59,13 +59,10 @@ server_config_t *config_getServerConfigBySSLContext(config_t *config, SSL_CTX *s
 size_t config_getServers(config_t *config);
 
 string_t *config_getName(server_config_t *config);
-void config_setName(server_config_t *config, string_t *name);
 
 string_t *config_getDomain(server_config_t *config);
-void config_setDomain(server_config_t *config, string_t *domain);
 
 string_t *config_getRootDirectory(server_config_t *config);
-void config_setRootDirectory(server_config_t *config, string_t *rootDirectory);
 
 int16_t config_getPort(server_config_t *config);
 void config_setPort(server_config_t *config, int16_t port);

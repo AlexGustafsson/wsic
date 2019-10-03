@@ -2,6 +2,7 @@
 
 #include "../src/logging/logging.h"
 
+#include "config-test.c"
 #include "hash-table-test.c"
 #include "http-test.c"
 #include "list-test.c"
@@ -26,6 +27,7 @@ int main() {
   http_test_run();
   response_codes_test_run();
   www_test_run();
+  config_test_run();
 
   return UNITY_END();
 }
