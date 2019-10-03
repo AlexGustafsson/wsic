@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "../cgi/cgi.h"
 #include "../config/config.h"
 #include "../http/http.h"
 #include "../logging/logging.h"
@@ -12,7 +13,6 @@
 #include "../resources/resources.h"
 #include "../string/string.h"
 #include "../www/www.h"
-#include "../cgi/cgi.h"
 
 #include "worker.h"
 
@@ -376,8 +376,7 @@ void worker_return200(connection_t *connection, string_t *resolvedPath) {
   http_free(response);
 }
 
-
-void worker_returnCGI(connection_t *connection, string_t *resolvedPath, http_t* request, string_t *body) {
+void worker_returnCGI(connection_t *connection, string_t *resolvedPath, http_t *request, string_t *body) {
   log(LOG_DEBUG, "Spawning CGI process");
   list_t *arguments = 0;
   hash_table_t *environment = worker_createEnvironment(connection, request);
