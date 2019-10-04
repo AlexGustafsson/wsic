@@ -49,7 +49,7 @@ void time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds) {
     log(LOG_ERROR, "Can get time, inparameters was null");
 }
 
-void time_formatTime(uint64_t nanoseconds, uint64_t seconds, uint64_t *formatedMilliseconds, uint64_t *formatedSeconds, uint64_t *formatedMinutes, uint64_t *formatedHours, uint64_t *formatedDays, uint64_t *formatedNanoseconds) {
+void time_formatTime(uint64_t nanoseconds, uint64_t seconds, uint64_t *formatedNanoseconds, uint64_t *formatedMilliseconds, uint64_t *formatedSeconds, uint64_t *formatedMinutes, uint64_t *formatedHours, uint64_t *formatedDays) {
   // modolu 100 because it is just two decimals
   *formatedNanoseconds = (nanoseconds / (uint64_t)10000) % (uint64_t)100;
   *formatedMilliseconds = (nanoseconds / (uint64_t)1000000) % (uint64_t)1000;

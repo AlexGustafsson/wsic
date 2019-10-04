@@ -46,37 +46,46 @@
 #define LOGGING_CONSOLE 1
 #define LOGGING_SYSLOG 2
 
+
+
 #define _logging_logConsole(level, ...) logging_logConsole(LOG_LABEL_##level, LOG_COLOR_##level, __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 // Log to all enabled outputs
 #define log(level, ...)                           \
   do {                                            \
-    if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0) { \
+    if (level > LOGGING_LEVEL)                    \
+      break;                                      \
+                                                  \
+    if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0)   \
       _logging_logConsole(level, __VA_ARGS__);    \
-    }                                             \
-    if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0) {  \
+                                                  \
+    if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0)    \
       syslog(level, __VA_ARGS__);                 \
-    }                                             \
+                                                  \
   } while (0)
 
 // Log only the inputs (and a newline) to all enabled outputs
 #define logRaw(level, ...)                        \
   do {                                            \
+    if (level > LOGGING_LEVEL)                    \
+      break;                                      \
+                                                  \
     if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0) { \
       fprintf(stdout, __VA_ARGS__);               \
       fprintf(stdout, "\n");                      \
     }                                             \
-    if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0) {  \
+    if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0)    \
       syslog(level, __VA_ARGS__);                 \
-    }                                             \
+                                                  \
   } while (0)
 
 extern uint8_t LOGGING_OUTPUT;
+extern uint8_t LOGGING_LEVEL;
 
 // Start logging (should always be called from the main process as soon as possible)
-void logging_startSyslog();
+bool logging_start();
 // Deconstruct logging (not necessarily needed to be called, but should be as late as possible)
-void logging_stopSyslog();
+void logging_stop();
 //
 void logging_logConsole(const char* label, int color, const char* file, int line, const char* function, const char* format, ...);
 // Log the request in format CLF
