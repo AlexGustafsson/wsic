@@ -1,6 +1,6 @@
-#include <time.h>
-#include <stdarg.h>
 #include <pthread.h>
+#include <stdarg.h>
+#include <time.h>
 
 #include "logging.h"
 
@@ -31,7 +31,7 @@ void logging_stop() {
   pthread_mutex_unlock(&mutex);
 }
 
-void logging_logConsole(const char* label, int color, const char* file, int line, const char* function, const char* format, ...) {
+void logging_logConsole(const char *label, int color, const char *file, int line, const char *function, const char *format, ...) {
   uint64_t nanoseconds = 0;
   uint64_t milliseconds = 0;
   uint64_t seconds = 0;
@@ -49,7 +49,7 @@ void logging_logConsole(const char* label, int color, const char* file, int line
   pthread_mutex_lock(&mutex);
   if (days != 0) {
     fprintf(stderr, "\x1b[90m[%llud %lluh %llum %llus %llu.%llums]", days, hours, minutes, seconds, milliseconds, nanoseconds);
-  } else if (hours != 0){
+  } else if (hours != 0) {
     fprintf(stderr, "\x1b[90m[%lluh %llum %llus %llu.%llums]", hours, minutes, seconds, milliseconds, nanoseconds);
   } else if (minutes != 0) {
     fprintf(stderr, "\x1b[90m[%llum %llus %llu.%llums]", minutes, seconds, milliseconds, nanoseconds);
