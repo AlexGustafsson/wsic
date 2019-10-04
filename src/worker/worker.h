@@ -8,6 +8,7 @@
 
 #include "../datastructures/message-queue/message-queue.h"
 #include "../connection/connection.h"
+#include "../cgi/cgi.h"
 
 // Before a worker has started, it is initializing (right after fork)
 #define WORKER_STATUS_INITIALIZING 0
@@ -31,7 +32,12 @@ typedef struct {
   uint8_t status;
   message_queue_t *queue;
   int id;
+  // The current connection (if any)
   connection_t *connection;
+  // The current CGI process (if any)
+  cgi_process_t *cgi;
+  // Whether or not the worker should run (exit condition)
+  bool shouldRun;
 } worker_t;
 
 // Pass a connection to handle it directly and destroy the thread after use (immediate mode)
@@ -44,6 +50,8 @@ uint8_t worker_getStatus(worker_t *worker);
 void worker_waitForExit(worker_t *worker);
 // Kill the worker (undefined behaviour for immediate mode)
 void worker_kill(worker_t *worker);
+// Mark a worker as dead, letting it exit when ready
+void worker_closeGracefully(worker_t *worker);
 // Undefined behaviour for immediate mode
 void worker_free(worker_t *worker);
 

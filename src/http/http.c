@@ -224,18 +224,17 @@ bool http_parseRequestLine(http_t *http, string_t *string) {
 bool http_parseHeader(http_t *http, string_t *string) {
   string_cursor_t *cursor = string_createCursor(string);
   ssize_t offset = string_findNextChar(cursor, ':');
+  string_freeCursor(cursor);
 
   // Get the offset for the : if it exesists
   if (offset == -1) {
     log(LOG_ERROR, "Could not find : in header");
-    string_freeCursor(cursor);
     return false;
   }
 
   // Making sure there is a space after :
   if (string_getCharAt(string, offset + 1) != ' ') {
     log(LOG_ERROR, "Expected space after :");
-    string_freeCursor(cursor);
     return false;
   }
 
@@ -243,9 +242,12 @@ bool http_parseHeader(http_t *http, string_t *string) {
   string_t *key = string_substring(string, 0, offset);
   // + 2 to skip the space
   string_t *value = string_substring(string, offset + 2, stringLength);
-  http_setHeader(http, key, value);
+  if (value == 0) {
+    log(LOG_ERROR, "The header's value could not be parsed");
+    return false;
+  }
 
-  string_freeCursor(cursor);
+  http_setHeader(http, key, value);
   return true;
 }
 

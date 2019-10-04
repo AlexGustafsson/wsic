@@ -18,6 +18,8 @@
 
 #include "main.h"
 
+bool main_serverShouldRun = true;
+
 int main(int argc, char const *argv[]) {
   // Start internal time keeping
   time_reset();
@@ -103,26 +105,36 @@ int main(int argc, char const *argv[]) {
   signal(SIGCHLD, handleSignalSIGCHLD);
 
   // Put the main process into a polling sleep
-  while (true) {
-    // If a child exits, it will interrupt the sleep and check statuses directly, sleep for 10 seconds
+  while (main_serverShouldRun) {
+    // If a child exits, or another signal is caught it will interrupt the sleep
     sleep(10);
     int status;
     if (waitpid(serverInstance, &status, WNOHANG) != 0) {
-      int exitCode = WEXITSTATUS(status);
-      if (exitCode == SERVER_EXIT_FATAL) {
-        log(LOG_DEBUG, "Got a fatal exit code from instance, quitting");
-        exit(1);
-      }
+      bool exited = WIFEXITED(status);
+      log(LOG_DEBUG, "Got interrupted by a signal or sleep timeout, exited: %d", exited);
+      if (exited && main_serverShouldRun) {
+        // If the server should be running but it exited, restart it
+        int exitCode = WEXITSTATUS(status);
+        if (exitCode == SERVER_EXIT_FATAL) {
+          log(LOG_DEBUG, "Got a fatal exit code from instance, quitting");
+          exit(1);
+        }
 
-      log(LOG_WARNING, "Server instance has exited with code %d", exitCode);
-      log(LOG_DEBUG, "Recreating server instance");
-      pid_t newInstance = server_createInstance(ports);
-      if (newInstance != 0)
-        serverInstance = newInstance;
+        log(LOG_WARNING, "Server instance has exited with code %d. Restarting", exitCode);
+        pid_t newInstance = server_createInstance(ports);
+        if (newInstance != 0)
+          serverInstance = newInstance;
+      }
     }
   }
 
+  // Note that the SIGINT will be received by the worker process as well, killing it automatically
+  log(LOG_DEBUG, "Waiting for server instance to exit");
+  waitpid(serverInstance, 0, 0);
+
+  log(LOG_DEBUG, "Freeing global config");
   config_freeGlobalConfig();
+
   logging_stopSyslog();
   return 0;
 }
@@ -158,20 +170,29 @@ void printVersion() {
 
 // Handle SIGINT (CTRL + C)
 void handleSignalSIGINT(int signalNumber) {
+  // Disable handling of SIGCHILD
+  signal(SIGCHLD, SIG_DFL);
+
   log(LOG_INFO, "Got SIGINT - exiting cleanly");
-  server_close();
-  exit(EXIT_SUCCESS);
+  main_serverShouldRun = false;
 }
 
 // Handle SIGTERM (kill etc.)
 void handleSignalSIGTERM(int signalNumber) {
+  // Disable handling of SIGCHILD
+  signal(SIGCHLD, SIG_DFL);
+
   log(LOG_INFO, "Got SIGTERM - exiting cleanly");
-  server_close();
-  exit(EXIT_SUCCESS);
+  main_serverShouldRun = false;
 }
 
 // Handle SIGKILL (unblockable - just used for logging)
 void handleSignalSIGKILL(int signalNumber) {
+  // Disable other, conflicting signals
+  signal(SIGINT, SIG_DFL);
+  signal(SIGTERM, SIG_DFL);
+  signal(SIGCHLD, SIG_DFL);
+
   log(LOG_WARNING, "Got SIGKILL - exiting immediately");
   exit(EXIT_SUCCESS);
 }
