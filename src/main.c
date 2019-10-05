@@ -132,6 +132,8 @@ int main(int argc, char const *argv[]) {
   log(LOG_DEBUG, "Waiting for server instance to exit");
   waitpid(serverInstance, 0, 0);
 
+  list_free(ports);
+
   log(LOG_DEBUG, "Freeing global config");
   config_freeGlobalConfig();
 
