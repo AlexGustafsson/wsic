@@ -38,7 +38,7 @@ worker_t *worker_spawn(int id, connection_t *connection, message_queue_t *queue)
 
   pthread_t thread;
 
-  if (pthread_create(&thread, NULL, worker_entryPoint, worker) != 0) {
+  if (pthread_create(&thread, NULL, (void *(*)(void *))worker_entryPoint, worker) != 0) {
     log(LOG_ERROR, "Unable to start thread for worker");
     free(worker);
     return 0;

@@ -95,7 +95,7 @@ cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *e
         string_append(keyValuePair, value);
         string_free(value);
 
-        environmentBuffer[i] = string_getBuffer(keyValuePair);
+        environmentBuffer[i] = (char *)string_getBuffer(keyValuePair);
       }
       environmentBuffer[hash_table_getLength(environment)] = 0;
       hash_table_free(environment);
