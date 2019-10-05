@@ -25,9 +25,12 @@ static message_queue_t *server_connectionQueue = 0;
 
 static worker_t *workerPool[WORKER_POOL_SIZE];
 
-void server_handleSignalSIGPIPE();
 int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg);
 DH *server_handleDiffieHellmanParameters(SSL *ssl, int isExport, int keyLength);
+
+// Signal handlers
+void server_closeGracefully();
+void server_handleSignalSIGPIPE();
 
 bool server_setNonBlocking(int socketDescriptor) {
   // Get the current flags set for the socket
@@ -68,6 +71,11 @@ pid_t server_createInstance(set_t *ports) {
 }
 
 int server_start(set_t *ports) {
+  // Setup signal handling for main process
+  signal(SIGINT, server_closeGracefully);
+  signal(SIGTERM, server_closeGracefully);
+  signal(SIGKILL, server_close);
+
   // Initialize OpenSSL
   OpenSSL_add_ssl_algorithms();
 
@@ -347,11 +355,52 @@ SSL *server_handleSSL(connection_t *connection) {
   }
 }
 
+void server_closeGracefully() {
+  log(LOG_INFO, "Closing server gracefully");
+
+  log(LOG_DEBUG, "Closing listening sockets");
+  for (size_t i = 0; i < socketDescriptorCount; i++) {
+    int socket = socketDescriptors[i].fd;
+    shutdown(socket, SHUT_RDWR);
+    close(socket);
+  }
+
+  log(LOG_DEBUG, "Suspending worker threads");
+  // Cancel all threads before joining them (see deferred cancellation points)
+  for (size_t i = 0; i < WORKER_POOL_SIZE; i++) {
+    worker_t *worker = workerPool[i];
+    log(LOG_DEBUG, "Suspending thread %zu (status was %d)", i, worker->status);
+    // Let the workers exit when ready (let's them handle the current request)
+    worker_closeGracefully(worker);
+  }
+
+  // Unlock all threads
+  log(LOG_DEBUG, "Unlocking all threads");
+  message_queue_unlock(server_connectionQueue);
+
+  for (size_t i = 0; i < WORKER_POOL_SIZE; i++) {
+    worker_t *worker = workerPool[i];
+    // Wait for the thread to join
+    log(LOG_DEBUG, "Joining thread %zu", i);
+    worker_waitForExit(worker);
+    log(LOG_DEBUG, "Freeing thread %zu", i);
+    worker_free(worker);
+  }
+
+  log(LOG_DEBUG, "Cleaning up OpenSSL");
+  EVP_cleanup();
+
+  log(LOG_DEBUG, "Freeing message queue");
+  message_queue_free(server_connectionQueue);
+
+  _exit(0);
+}
+
 void server_handleSignalSIGPIPE() {
   // Do nothing
 }
 
 void server_close() {
-  log(LOG_INFO, "Closing server");
+  log(LOG_INFO, "Closing server instance immediately");
   EVP_cleanup();
 }

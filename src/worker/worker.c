@@ -5,7 +5,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "../cgi/cgi.h"
 #include "../config/config.h"
 #include "../http/http.h"
 #include "../logging/logging.h"
@@ -19,12 +18,12 @@
 // Private methods
 // The main entry point of a worker
 int worker_entryPoint();
-int worker_handleConnection(connection_t *connection);
+int worker_handleConnection(worker_t *worker, connection_t *connection);
 hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request);
 size_t worker_return500(connection_t *connection, http_t *request, string_t *description);
 size_t worker_return404(connection_t *connection, http_t *request, string_t *path);
 size_t worker_return200(connection_t *connection, http_t *request, string_t *resolvedPath);
-size_t worker_returnCGI(connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body);
+size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body);
 
 worker_t *worker_spawn(int id, connection_t *connection, message_queue_t *queue) {
   worker_t *worker = malloc(sizeof(worker_t));
@@ -35,6 +34,7 @@ worker_t *worker_spawn(int id, connection_t *connection, message_queue_t *queue)
   worker->id = id;
   worker->connection = connection;
   worker->queue = queue;
+  worker->shouldRun = true;
 
   pthread_t thread;
 
@@ -67,7 +67,7 @@ int worker_entryPoint(worker_t *worker) {
   if (worker->connection != 0) {
     log(LOG_DEBUG, "Handling a connection in immediate mode");
     worker->status = WORKER_STATUS_WORKING;
-    int exitCode = worker_handleConnection(worker->connection);
+    int exitCode = worker_handleConnection(worker, worker->connection);
     log(LOG_DEBUG, "Connection handling exited with code %d", exitCode);
     if (exitCode != 0)
       log(LOG_ERROR, "Handling the connection resulted in a non-zero exit code: %d", exitCode);
@@ -83,24 +83,36 @@ int worker_entryPoint(worker_t *worker) {
     log(LOG_DEBUG, "Putting worker to sleep, waiting for a connection");
     worker->status = WORKER_STATUS_IDLE;
 
+    // Lock, waiting for a connection
     worker->connection = message_queue_pop(worker->queue);
-    if (worker->connection == 0)
+
+    // Exit if the worker was unlocked and should no longer run
+    if (!worker->shouldRun) {
+      log(LOG_DEBUG, "Suspending worker %d", worker->id);
+      pthread_exit(0);
+    }
+
+    // Go back to sleep if the worker was unlocked without receiving a connection
+    if (worker->connection == 0) {
+      log(LOG_DEBUG, "Worker %d was woken up without receiving a connection, going back to sleep", worker->id);
       continue;
+    }
 
     log(LOG_DEBUG, "Worker process interrupted by parent to handle a connection (worker %d)", worker->id);
 
     worker->status = WORKER_STATUS_WORKING;
 
-    worker_handleConnection(worker->connection);
+    worker_handleConnection(worker, worker->connection);
     log(LOG_DEBUG, "Handled connection - closing it");
     // Free the connection as it's of no further use
     connection_free(worker->connection);
+    worker->connection = 0;
   }
 
   return 0;
 }
 
-int worker_handleConnection(connection_t *connection) {
+int worker_handleConnection(worker_t *worker, connection_t *connection) {
   http_t *request = http_create();
 
   // Start reading the header from the client
@@ -239,7 +251,7 @@ int worker_handleConnection(connection_t *connection) {
 
   if (isFile && isExecutable) {
     // The file exists, is a regular file and executable - run it
-    worker_returnCGI(connection, request, resolvedPath, body);
+    worker_returnCGI(worker, connection, request, resolvedPath, body);
   } else if (isFile) {
     // The file exists and is a regular file, serve it
     worker_return200(connection, request, resolvedPath);
@@ -381,29 +393,29 @@ size_t worker_return200(connection_t *connection, http_t *request, string_t *res
   return bytesWritten;
 }
 
-size_t worker_returnCGI(connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body) {
+size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body) {
   log(LOG_DEBUG, "Spawning CGI process");
   list_t *arguments = 0;
   hash_table_t *environment = worker_createEnvironment(connection, request);
-  cgi_process_t *process = cgi_spawn(string_getBuffer(resolvedPath), arguments, environment);
-  log(LOG_DEBUG, "Spawned process with pid %d", process->pid);
+  worker->cgi = cgi_spawn(string_getBuffer(resolvedPath), arguments, environment);
+  log(LOG_DEBUG, "Spawned process with pid %d", worker->cgi->pid);
 
   // Write body to CGI
   if (body != 0) {
     log(LOG_DEBUG, "Writing request to CGI process");
     log(LOG_DEBUG, "Body content is:\n<%s> of size %zu", string_getBuffer(body), string_getSize(body));
-    cgi_write(process, string_getBuffer(body), string_getSize(body));
+    cgi_write(worker->cgi, string_getBuffer(body), string_getSize(body));
     // Make sure the process receives EOF
-    cgi_flushStdin(process);
+    cgi_flushStdin(worker->cgi);
   } else {
     // Close the input to the CGI process
-    cgi_flushStdin(process);
+    cgi_flushStdin(worker->cgi);
   }
 
   log(LOG_DEBUG, "Reading response from CGI process");
   // TODO: Read more than 4096 bytes
   char buffer[2048] = {0};
-  cgi_read(process, buffer, 2048);
+  cgi_read(worker->cgi, buffer, 2048);
   buffer[2048 - 1] = 0;
 
   log(LOG_DEBUG, "Got response from CGI process");
@@ -415,11 +427,12 @@ size_t worker_returnCGI(connection_t *connection, http_t *request, string_t *res
   // that the process is actually exiting (not kept forever)
   // since we don't currently kill spawned processes
   log(LOG_DEBUG, "Waiting for process to exit");
-  uint8_t exitCode = cgi_waitForExit(process);
+  uint8_t exitCode = cgi_waitForExit(worker->cgi);
   log(LOG_DEBUG, "Process exited with status %d", exitCode);
 
   // Close and free up CGI process and connection
-  cgi_freeProcess(process);
+  cgi_freeProcess(worker->cgi);
+  worker->cgi = 0;
   return bytesWritten;
 }
 
@@ -428,12 +441,19 @@ void worker_waitForExit(worker_t *worker) {
 }
 
 void worker_kill(worker_t *worker) {
+  worker->shouldRun = false;
   pthread_cancel(worker->thread);
+}
+
+void worker_closeGracefully(worker_t *worker) {
+  worker->shouldRun = false;
 }
 
 void worker_free(worker_t *worker) {
   if (worker->connection != 0)
     connection_free(worker->connection);
+  if (worker->cgi != 0)
+    cgi_freeProcess(worker->cgi);
   // Free the worker itself
   free(worker);
 }

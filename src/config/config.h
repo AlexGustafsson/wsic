@@ -80,6 +80,8 @@ int64_t config_parseInt(toml_table_t *table, const char *key);
 int config_parseBool(toml_table_t *table, const char *key);
 list_t *config_parseArray(toml_table_t *table, const char *key);
 
+// NOTE: Called by config_free automatically
+void config_freeServerConfig(server_config_t *serverConfig);
 void config_free(config_t *config);
 
 #endif

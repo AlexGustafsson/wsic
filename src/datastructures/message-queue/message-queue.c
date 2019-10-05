@@ -35,6 +35,8 @@ message_queue_t *message_queue_create() {
     return 0;
   }
 
+  queue->unlocked = false;
+
   return queue;
 }
 
@@ -49,8 +51,16 @@ void message_queue_push(message_queue_t *queue, void *value) {
 void *message_queue_pop(message_queue_t *queue) {
   // Lock the thread until a connection is available
   pthread_mutex_lock(&queue->mutex);
+  if (queue->unlocked) {
+    pthread_mutex_unlock(&queue->mutex);
+    return 0;
+  }
+
   void *value = 0;
   while (true) {
+    if (queue->unlocked)
+      break;
+
     value = list_removeValue(queue->list, 0);
     if (value == 0)
       pthread_cond_wait(&queue->lockCondition, &queue->mutex);
@@ -74,10 +84,17 @@ void message_queue_clear(message_queue_t *queue) {
   list_clear(queue->list);
 }
 
+void message_queue_unlock(message_queue_t *queue) {
+  pthread_mutex_lock(&queue->mutex);
+  queue->unlocked = true;
+  // Alert at least one of the waiting threads that the state has changed
+  pthread_cond_broadcast(&queue->lockCondition);
+  pthread_mutex_unlock(&queue->mutex);
+}
+
 void message_queue_free(message_queue_t *queue) {
   pthread_cond_destroy(&queue->lockCondition);
   pthread_mutex_unlock(&queue->mutex);
-  pthread_cond_destroy(&queue->lockCondition);
 
   list_free(queue->list);
   free(queue);

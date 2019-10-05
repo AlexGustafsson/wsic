@@ -103,10 +103,12 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
     char *absolutePathBuffer = realpath(string_getBuffer(relativePath), NULL);
     if (absolutePathBuffer == 0) {
       log(LOG_ERROR, "Could not resolve root directory '%s'", string_getBuffer(relativePath));
+      config_freeServerConfig(config);
       return 0;
     }
     string_free(relativePath);
     config->rootDirectory = string_fromCopy(absolutePathBuffer);
+    free(absolutePathBuffer);
   }
   config->logfile = config_parseString(serverTable, "logfile");
   config->enabled = config_parseBool(serverTable, "enabled");
@@ -115,6 +117,7 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
     int64_t port = config_parseInt(serverTable, "port");
     if (port < 0 || port > 1 << 16) {
       log(LOG_ERROR, "The port in config for server '%s' was unexpected", string_getBuffer(config->name));
+      config_freeServerConfig(config);
       return 0;
     }
     config->port = port;
@@ -124,8 +127,14 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
 
   string_t *privateKey = config_parseString(serverTable, "privateKey");
   string_t *certificate = config_parseString(serverTable, "certificate");
+
   if ((privateKey == 0 && certificate != 0) || (privateKey != 0 && certificate == 0)) {
     log(LOG_ERROR, "Both 'privateKey' and 'certificate' must be set in order to use TLS");
+    config_freeServerConfig(config);
+    if (privateKey != 0)
+      string_free(privateKey);
+    if (certificate != 0)
+      string_free(certificate);
     return 0;
   }
 
@@ -135,10 +144,29 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
     // Setup TLS
     const SSL_METHOD *method = TLS_method();
     config->sslContext = SSL_CTX_new(method);
-    if (!config->sslContext) {
+    if (config->sslContext == 0) {
       log(LOG_ERROR, "Unable to create TLS context");
+      config_freeServerConfig(config);
+      string_free(privateKey);
+      string_free(certificate);
       return 0;
     }
+
+    if (SSL_CTX_use_PrivateKey_file(config->sslContext, string_getBuffer(privateKey), SSL_FILETYPE_PEM) <= 0) {
+      log(LOG_ERROR, "Unable to create TLS context - could not read server private key");
+      config_freeServerConfig(config);
+      string_free(privateKey);
+      return 0;
+    }
+    string_free(privateKey);
+
+    if (SSL_CTX_use_certificate_file(config->sslContext, string_getBuffer(certificate), SSL_FILETYPE_PEM) <= 0) {
+      log(LOG_ERROR, "Unable to create TLS context - could not read server certificate");
+      config_freeServerConfig(config);
+      string_free(certificate);
+      return 0;
+    }
+    string_free(certificate);
 
     // Only allow TLS 1.2 and above (TLS 1.3)
     SSL_CTX_set_min_proto_version(config->sslContext, TLS1_2_VERSION);
@@ -154,8 +182,7 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
     // Disable server certificate validation if validateCertificate is false
     int8_t verifyCertificates = config_parseBool(serverTable, "validateCertificate");
     if (verifyCertificates == 0)
-      ;
-    SSL_CTX_set_verify(config->sslContext, SSL_VERIFY_NONE, NULL);
+      SSL_CTX_set_verify(config->sslContext, SSL_VERIFY_NONE, NULL);
 
     // Configure the TLS cipher suite
     string_t *cipherSuite = config_parseString(serverTable, "cipherSuite");
@@ -180,19 +207,10 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
         fclose(file);
       } else {
         log(LOG_ERROR, "Unable to read Diffie Hellman parameters file '%s'", string_getBuffer(dhparams));
+        config_freeServerConfig(config);
         return 0;
       }
       string_free(dhparams);
-    }
-
-    if (SSL_CTX_use_PrivateKey_file(config->sslContext, string_getBuffer(privateKey), SSL_FILETYPE_PEM) <= 0) {
-      log(LOG_ERROR, "Unable to create TLS context - could not read server private key");
-      return 0;
-    }
-
-    if (SSL_CTX_use_certificate_file(config->sslContext, string_getBuffer(certificate), SSL_FILETYPE_PEM) <= 0) {
-      log(LOG_ERROR, "Unable to create TLS context - could not read server certificate");
-      return 0;
     }
   }
 
@@ -398,20 +416,32 @@ list_t *config_getDirectoryIndex(server_config_t *config) {
   return config->directoryIndex;
 }
 
-void config_free(config_t *config) {
-  for (size_t i = 0; i < config->serverConfigs->length; i++) {
-    server_config_t *serverConfig = list_removeValue(config->serverConfigs, i);
-    if (serverConfig->domain != 0)
-      string_free(serverConfig->domain);
-    if (serverConfig->logfile != 0)
-      string_free(serverConfig->logfile);
-    if (serverConfig->name != 0)
-      string_free(serverConfig->name);
-    if (serverConfig->rootDirectory != 0)
-      string_free(serverConfig->rootDirectory);
-    free(serverConfig);
+void config_freeServerConfig(server_config_t *serverConfig) {
+  if (serverConfig->name != 0)
+    string_free(serverConfig->name);
+  if (serverConfig->domain != 0)
+    string_free(serverConfig->domain);
+  if (serverConfig->rootDirectory != 0)
+    string_free(serverConfig->rootDirectory);
+  if (serverConfig->logfile != 0)
+    string_free(serverConfig->logfile);
+  if (serverConfig->dhparams != 0)
+    DH_free(serverConfig->dhparams);
+  if (serverConfig->sslContext != 0)
+    SSL_CTX_free(serverConfig->sslContext);
+  if (serverConfig->directoryIndex != 0) {
+    string_t *index = 0;
+    while ((index = list_removeValue(serverConfig->directoryIndex, 0)) != 0)
+      string_free(index);
+    list_free(serverConfig->directoryIndex);
   }
+  free(serverConfig);
+}
 
+void config_free(config_t *config) {
+  server_config_t *serverConfig = 0;
+  while ((serverConfig = list_removeValue(config->serverConfigs, 0)) != 0)
+    config_freeServerConfig(serverConfig);
   list_free(config->serverConfigs);
   free(config);
 }
