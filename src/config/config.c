@@ -138,7 +138,6 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
     return 0;
   }
 
-
   if (privateKey != 0 && certificate != 0) {
     log(LOG_DEBUG, "Setting up TLS configuration");
 

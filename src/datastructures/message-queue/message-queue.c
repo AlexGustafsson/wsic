@@ -49,7 +49,7 @@ void message_queue_push(message_queue_t *queue, void *value) {
 }
 
 void *message_queue_pop(message_queue_t *queue) {
-// Lock the thread until a connection is available
+  // Lock the thread until a connection is available
   pthread_mutex_lock(&queue->mutex);
   if (queue->unlocked) {
     pthread_mutex_unlock(&queue->mutex);
