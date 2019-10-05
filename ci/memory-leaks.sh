@@ -50,12 +50,13 @@ echo "Waiting for WSIC to exit"
 sleep 5
 
 leaks="$(grep --text -e '    #' -e 'leak of' -e 'detected memory leaks' "build/reports/memory-leaks/log.txt")"
+exitCode="$(echo "$?")"
 
-if [[ "$leaks" == 0 ]]; then
-  echo -e "\e[32mNo memory leaks detected\e[0m"
-  exit 0
-else
+if [[ "$exitCode" == 0 ]]; then
   echo "$leaks"
   echo -e "\e[31mMemory leaks detected\e[0m"
   exit 1
+else
+  echo -e "\e[32mNo memory leaks detected\e[0m"
+  exit 0
 fi
