@@ -66,3 +66,9 @@ test:
       - build/reports/test
     when: always
   coverage: '/Line coverage: (.*)/'
+
+detect memory leaks:
+  stage: test
+  script: ./ci/memory-leaks.sh ./build/wsic.debug
+  dependencies:
+    - debug build
