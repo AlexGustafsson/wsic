@@ -16,6 +16,7 @@ page_t *page_create();
 
 page_t *page_create400(string_t *description);
 page_t *page_create403();
+page_t *page_create413();
 page_t *page_create404(string_t *path);
 page_t *page_create500(string_t *description);
 page_t *page_create501();

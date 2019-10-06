@@ -43,6 +43,17 @@ page_t *page_create403() {
   return page;
 }
 
+page_t *page_create413() {
+  page_t *page = page_create();
+  page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
+
+  page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_413_HTML));
+
+  page_resolveTemplates(page);
+
+  return page;
+}
+
 page_t *page_create404(string_t *path) {
   page_t *page = page_create();
   page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
