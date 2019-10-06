@@ -84,6 +84,7 @@ string_t *connection_read(connection_t *connection, int timeout, size_t bytesToR
       return 0;
 
     string_t *content = string_fromCopyWithLength(buffer, bytesReceived);
+    free(buffer);
     return content;
   }
 }
@@ -154,6 +155,7 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
       return 0;
 
     string_t *line = string_fromCopyWithLength(buffer, bytesReceived);
+    free(buffer);
     // Remove the trailing newlines
     string_trimEnd(line);
     return line;
