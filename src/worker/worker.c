@@ -189,36 +189,6 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
     connection_write(connection, "HTTP/1.1 100 Continue\r\n", 23);
   }
 
-  // Read the body if one exists
-  string_t *body = 0;
-  string_t *contentLengthHeader = string_fromCopy("Content-Length");
-  string_t *contentLengthString = http_getHeader(request, contentLengthHeader);
-  string_free(contentLengthHeader);
-  if (contentLengthString != 0) {
-    log(LOG_DEBUG, "Content-Length: %s", string_getBuffer(contentLengthString));
-    int contentLength = atoi(string_getBuffer(contentLengthString));
-    log(LOG_DEBUG, "The request has a body size of %d bytes", contentLength);
-    if (contentLength > REQUEST_MAX_BODY_SIZE) {
-      log(LOG_WARNING, "The client wanted to write %d bytes which is above maximum %d", contentLength, REQUEST_MAX_BODY_SIZE);
-      worker_return413(connection, request, 0);
-      http_free(request);
-      return 0;
-    } else if (contentLength == 0) {
-      log(LOG_WARNING, "Got empty body");
-      worker_return400(connection, request, 0, string_fromCopy("Empty body when headers specified content length"));
-      http_free(request);
-      return 0;
-    } else {
-      body = connection_read(connection, REQUEST_READ_TIMEOUT, contentLength);
-      if (body == 0) {
-        log(LOG_ERROR, "Reading body timed out or failed");
-        worker_return400(connection, request, 0, string_fromCopy("Request timed out"));
-        http_free(request);
-        return 0;
-      }
-    }
-  }
-
   string_t *domainName = url_getDomainName(http_getUrl(request));
   uint16_t port = url_getPort(http_getUrl(request));
 
@@ -272,8 +242,40 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
 
   // CGI can handle any method
   if (isFile && isExecutable) {
+    // Read the body if one exists
+    string_t *body = 0;
+    string_t *contentLengthHeader = string_fromCopy("Content-Length");
+    string_t *contentLengthString = http_getHeader(request, contentLengthHeader);
+    string_free(contentLengthHeader);
+    if (contentLengthString != 0) {
+      log(LOG_DEBUG, "Content-Length: %s", string_getBuffer(contentLengthString));
+      int contentLength = atoi(string_getBuffer(contentLengthString));
+      log(LOG_DEBUG, "The request has a body size of %d bytes", contentLength);
+      if (contentLength > REQUEST_MAX_BODY_SIZE) {
+        log(LOG_WARNING, "The client wanted to write %d bytes which is above maximum %d", contentLength, REQUEST_MAX_BODY_SIZE);
+        worker_return413(connection, request, 0);
+        http_free(request);
+        return 0;
+      } else if (contentLength == 0) {
+        log(LOG_WARNING, "Got empty body");
+        worker_return400(connection, request, 0, string_fromCopy("Empty body when headers specified content length"));
+        http_free(request);
+        return 0;
+      } else {
+        body = connection_read(connection, REQUEST_READ_TIMEOUT, contentLength);
+        if (body == 0) {
+          log(LOG_ERROR, "Reading body timed out or failed");
+          worker_return400(connection, request, 0, string_fromCopy("Request timed out"));
+          http_free(request);
+          return 0;
+        }
+      }
+    }
+
     // The file exists, is a regular file and executable - run it
     worker_returnCGI(worker, connection, request, resolvedPath, body);
+    if (body != 0)
+      string_free(body);
   } else {
     if (request->method == HTTP_METHOD_GET) {
       if (isFile) {
@@ -292,8 +294,6 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
 
   http_free(request);
   string_free(resolvedPath);
-  if (body != 0)
-    string_free(body);
   return 0;
 }
 
