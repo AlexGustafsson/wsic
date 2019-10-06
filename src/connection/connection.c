@@ -310,9 +310,6 @@ void connection_parseRequest(connection_t *connection, char *buffer, size_t buff
 }
 
 void connection_close(connection_t *connection) {
-  if (connection->ssl != 0)
-    SSL_free(connection->ssl);
-
   if (shutdown(connection->socket, SHUT_RDWR) == -1) {
     if (errno != ENOTCONN && errno != EINVAL) {
       if (errno == ENOTSOCK || errno == EBADF) {
@@ -348,5 +345,7 @@ void connection_free(connection_t *connection) {
   connection_close(connection);
   if (connection->sourceAddress != 0)
     string_free(connection->sourceAddress);
+  if (connection->ssl != 0)
+    SSL_free(connection->ssl);
   free(connection);
 }

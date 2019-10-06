@@ -284,6 +284,8 @@ int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg) {
   }
 
   SSL_CTX *sslContext = config_getSSLContext(serverConfig);
+  // Free the previous context which was only temporary
+  SSL_CTX_free(SSL_get_SSL_CTX(ssl));
   SSL_set_SSL_CTX(ssl, sslContext);
 
   return SSL_TLSEXT_ERR_OK;
@@ -312,7 +314,6 @@ SSL *server_handleSSL(connection_t *connection) {
   SSL_CTX_set_tlsext_servername_callback(context, server_handleServerNameIdentification);
   SSL *ssl = SSL_new(context);
   SSL_set_fd(ssl, connection->socket);
-  SSL_CTX_free(context);
 
   // Set up structures necessary for polling
   struct pollfd readDescriptors[1];
@@ -327,7 +328,10 @@ SSL *server_handleSSL(connection_t *connection) {
 
   while (true) {
     int status = SSL_accept(ssl);
-    if (status <= 0) {
+    if (status == 0) {
+      log(LOG_ERROR, "Unable to accept TLS socket");
+      SSL_free(ssl);
+    } else if (status < 0) {
       int error = SSL_get_error(ssl, status);
       if (error == SSL_ERROR_WANT_READ) {
         log(LOG_DEBUG, "Waiting for TLS connection to be readable");
@@ -335,6 +339,7 @@ SSL *server_handleSSL(connection_t *connection) {
         int status = poll(readDescriptors, 1, -1);
         if (status < -1) {
           log(LOG_ERROR, "Could not wait for connection to be readable");
+          SSL_free(ssl);
           return 0;
         }
       } else if (error == SSL_ERROR_WANT_WRITE) {
@@ -343,10 +348,12 @@ SSL *server_handleSSL(connection_t *connection) {
         int status = poll(writeDescriptors, 1, -1);
         if (status < -1) {
           log(LOG_ERROR, "Could not wait for connection to be writable");
+          SSL_free(ssl);
           return 0;
         }
       } else {
         log(LOG_ERROR, "Unable to accept TLS socket. Got code %d", error);
+        SSL_free(ssl);
         return 0;
       }
     } else {
