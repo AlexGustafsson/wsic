@@ -34,6 +34,7 @@ string_t *path_resolve(string_t *relativePath, string_t *root) {
     return 0;
   }
 
+  string_free(resolvedRoot);
   return resolvedPath;
 }
 
