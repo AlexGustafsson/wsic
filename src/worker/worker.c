@@ -456,9 +456,6 @@ size_t worker_return200(connection_t *connection, http_t *request, string_t *res
   string_t *path = url_getPath(http_getUrl(request));
   logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 200, bytesWritten);
   string_free(responseString);
-  // Freeing the page also frees the source, which we gave to http.
-  // Not having this line would cause a double free
-  response->body = 0;
   http_free(response);
 
   return bytesWritten;
