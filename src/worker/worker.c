@@ -128,9 +128,15 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
     if (currentLine != 0)
       log(LOG_DEBUG, "Got line %s", string_getBuffer(currentLine));
     // Stop if there was no line read or the line was empty (all headers were read)
-    if (currentLine == 0 || string_getSize(currentLine) == 0)
+    if (currentLine == 0)
       break;
+    if (string_getSize(currentLine) == 0) {
+      string_free(currentLine);
+      break;
+    }
+
     headerSize += string_getSize(currentLine);
+
     if (line == 0) {
       // Parse the request line
       bool parsed = http_parseRequestLine(request, currentLine);
@@ -152,10 +158,12 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
         return 0;
       }
     }
+
     string_free(currentLine);
     currentLine = 0;
     line++;
   }
+
   bool parsedHost = http_parseHost(request);
   if (!parsedHost) {
     log(LOG_DEBUG, "Could not parse Host header");
@@ -282,8 +290,6 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
     worker_return400(connection, request, path, string_fromCopy("Method not supported"));
   }
 
-  // TODO: investigate why this is necessary (double free otherwise)
-  request->url = 0;
   http_free(request);
   string_free(resolvedPath);
   if (body != 0)
