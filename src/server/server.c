@@ -312,6 +312,7 @@ SSL *server_handleSSL(connection_t *connection) {
   SSL_CTX_set_tlsext_servername_callback(context, server_handleServerNameIdentification);
   SSL *ssl = SSL_new(context);
   SSL_set_fd(ssl, connection->socket);
+  SSL_CTX_free(context);
 
   // Set up structures necessary for polling
   struct pollfd readDescriptors[1];
