@@ -242,7 +242,7 @@ void config_test_canSetPort() {
 }
 
 void config_test_canGetLogfile() {
-  server_config_t config;
+  config_t config;
   memset(&config, 0, sizeof(config));
   config.logfile = string_fromCopy("foo");
 
@@ -252,7 +252,7 @@ void config_test_canGetLogfile() {
 }
 
 void config_test_canSetLogfile() {
-  server_config_t config;
+  config_t config;
   memset(&config, 0, sizeof(config));
   config_setLogfile(&config, string_fromCopy("foo"));
 
