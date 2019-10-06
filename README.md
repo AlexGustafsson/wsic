@@ -113,7 +113,7 @@ make analyze
 make format
 
 # Build and run a debugging build (memory analyzer and GDB debugging enabled)
-make debug && ASAN_OPTIONS=detect_leaks=1 ./build/wsic.debug
+make debug && ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=asan-ignores.txt ./build/wsic.debug
 
 # Build and run a release build
 make build && ./build

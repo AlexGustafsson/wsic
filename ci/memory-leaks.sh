@@ -20,7 +20,7 @@ trap cleanup EXIT
 mkdir -p build/reports/memory-leaks
 
 # Start wsic in the background with leak detection enabled
-export ASAN_OPTIONS=detect_leaks=1
+export ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=asan-ignores.txt
 $wsic start &> "build/reports/memory-leaks/log.txt" &
 wsicPID="$!"
 
