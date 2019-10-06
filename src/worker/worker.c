@@ -116,6 +116,8 @@ int worker_entryPoint(worker_t *worker) {
 
 int worker_handleConnection(worker_t *worker, connection_t *connection) {
   http_t *request = http_create();
+  if (request == 0)
+    return 1;
 
   // Start reading the header from the client
   string_t *currentLine = 0;
@@ -137,7 +139,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
         worker_return400(connection, request, 0, string_fromCopy("Bad header received"));
         string_free(currentLine);
         http_free(request);
-        return 1;
+        return 0;
       }
     } else {
       // Parse the header
@@ -147,7 +149,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
         worker_return400(connection, request, 0, string_fromCopy("Bad header received"));
         string_free(currentLine);
         http_free(request);
-        return 1;
+        return 0;
       }
     }
     string_free(currentLine);
@@ -159,14 +161,14 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
     log(LOG_DEBUG, "Could not parse Host header");
     worker_return400(connection, request, 0, string_fromCopy("Bad header received"));
     http_free(request);
-    return 1;
+    return 0;
   }
 
   if (request->url == 0) {
     log(LOG_ERROR, "Didn't receive a header from the request");
     worker_return400(connection, request, 0, string_fromCopy("No header received"));
     http_free(request);
-    return 1;
+    return 0;
   }
 
   // Handle expect header (rudimentary support)
