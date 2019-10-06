@@ -326,7 +326,6 @@ SSL *server_handleSSL(connection_t *connection) {
   writeDescriptors[0].events = POLLOUT;
 
   while (true) {
-    ERR_clear_error();
     int status = SSL_accept(ssl);
     if (status <= 0) {
       int error = SSL_get_error(ssl, status);
