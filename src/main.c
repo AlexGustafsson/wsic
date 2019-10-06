@@ -174,15 +174,20 @@ int main(int argc, char const *argv[]) {
   }
 
   // Note that the SIGINT will be received by the worker process as well, killing it automatically
-  log(LOG_DEBUG, "Waiting for server instance to exit");
-  waitpid(main_serverInstance, 0, 0);
+  log(LOG_DEBUG, "Waiting for child processes to exit");
+  pid_t pid = 0;
+  while ((pid = wait(0)) > 0);
+
 
   list_free(ports);
 
   log(LOG_DEBUG, "Freeing global config");
   config_freeGlobalConfig();
 
+  log(LOG_DEBUG, "Closing syslog");
   logging_stopSyslog();
+
+  log(LOG_DEBUG, "Exiting from main");
   return 0;
 }
 
@@ -219,7 +224,7 @@ void main_printVersion() {
 // Handle SIGINT (CTRL + C)
 void handleSignalSIGINT(int signalNumber) {
   // Disable handling of SIGCHILD
-  signal(SIGCHLD, SIG_DFL);
+  signal(SIGCHLD, main_emptySignalHandler);
 
   log(LOG_INFO, "Got SIGINT - exiting cleanly");
   // Send signal to server
@@ -230,7 +235,7 @@ void handleSignalSIGINT(int signalNumber) {
 // Handle SIGTERM (kill etc.)
 void handleSignalSIGTERM(int signalNumber) {
   // Disable handling of SIGCHILD
-  signal(SIGCHLD, SIG_DFL);
+  signal(SIGCHLD, main_emptySignalHandler);
 
   log(LOG_INFO, "Got SIGTERM - exiting cleanly");
   // Send signal to server
@@ -241,9 +246,9 @@ void handleSignalSIGTERM(int signalNumber) {
 // Handle SIGKILL (unblockable - just used for logging)
 void handleSignalSIGKILL(int signalNumber) {
   // Disable other, conflicting signals
-  signal(SIGINT, SIG_DFL);
-  signal(SIGTERM, SIG_DFL);
-  signal(SIGCHLD, SIG_DFL);
+  signal(SIGINT, main_emptySignalHandler);
+  signal(SIGTERM, main_emptySignalHandler);
+  signal(SIGCHLD, main_emptySignalHandler);
 
   log(LOG_WARNING, "Got SIGKILL - exiting immediately");
   exit(EXIT_SUCCESS);
@@ -253,4 +258,8 @@ void handleSignalSIGKILL(int signalNumber) {
 void handleSignalSIGCHLD(int signalNumber) {
   // Log and ignore
   log(LOG_WARNING, "Got SIGCHLD - child exited");
+}
+
+void main_emptySignalHandler() {
+  // Do nothing
 }

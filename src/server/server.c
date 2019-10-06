@@ -30,7 +30,7 @@ DH *server_handleDiffieHellmanParameters(SSL *ssl, int isExport, int keyLength);
 
 // Signal handlers
 void server_closeGracefully();
-void server_handleSignalSIGPIPE();
+void server_emptySignalHandler();
 
 bool server_setNonBlocking(int socketDescriptor) {
   // Get the current flags set for the socket
@@ -80,7 +80,7 @@ int server_start(set_t *ports) {
   OpenSSL_add_ssl_algorithms();
 
   // Set up signals
-  signal(SIGPIPE, server_handleSignalSIGPIPE);
+  signal(SIGPIPE, server_emptySignalHandler);
 
   // Set up file structures necessary for polling state of socket queues
   size_t descriptorsSize = sizeof(struct pollfd) * set_getLength(ports);
@@ -358,8 +358,8 @@ SSL *server_handleSSL(connection_t *connection) {
 void server_closeGracefully() {
   log(LOG_INFO, "Closing server gracefully");
   // Remove graceful signal handlers as they could interfere with shutdown process
-  signal(SIGINT, SIG_DFL);
-  signal(SIGTERM, SIG_DFL);
+  signal(SIGINT, server_emptySignalHandler);
+  signal(SIGTERM, server_emptySignalHandler);
 
   log(LOG_DEBUG, "Closing listening sockets");
   for (size_t i = 0; i < socketDescriptorCount; i++) {
@@ -388,6 +388,9 @@ void server_closeGracefully() {
     worker_waitForExit(worker);
     log(LOG_DEBUG, "Freeing thread %zu", i);
     worker_free(worker);
+    // This helps mark the memory as non-reachable which aids memory analyzers
+    // in detecting memory leaks
+    workerPool[i] = 0;
   }
 
   log(LOG_DEBUG, "Cleaning up OpenSSL");
@@ -396,10 +399,16 @@ void server_closeGracefully() {
   log(LOG_DEBUG, "Freeing message queue");
   message_queue_free(server_connectionQueue);
 
+  // This helps mark the memory as non-reachable which aids memory analyzers
+  // in detecting memory leaks
+  socketDescriptors = 0;
+  server_connectionQueue = 0;
+
+  log(LOG_DEBUG, "Exiting from server");
   exit(0);
 }
 
-void server_handleSignalSIGPIPE() {
+void server_emptySignalHandler() {
   // Do nothing
 }
 

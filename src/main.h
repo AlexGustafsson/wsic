@@ -12,5 +12,7 @@ void handleSignalSIGTERM(int signalNumber);
 void handleSignalSIGKILL(int signalNumber);
 // Handle SIGCHLD (a child exited)
 void handleSignalSIGCHLD(int signalNumber);
+// Do nothing
+void main_emptySignalHandler();
 
 #endif
