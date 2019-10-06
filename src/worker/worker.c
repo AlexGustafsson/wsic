@@ -260,16 +260,24 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
     }
   }
 
+  // CGI can handle any method
   if (isFile && isExecutable) {
     // The file exists, is a regular file and executable - run it
     worker_returnCGI(worker, connection, request, resolvedPath, body);
-  } else if (isFile) {
-    // The file exists and is a regular file, serve it
-    worker_return200(connection, request, resolvedPath);
+  }
+
+  if (request->method == HTTP_METHOD_GET) {
+    if (isFile) {
+      // The file exists and is a regular file, serve it
+      worker_return200(connection, request, resolvedPath);
+    } else {
+      // The file exists but is not a regular file - 404 as per
+      // https://en.wikipedia.org/wiki/Webserver_directory_index
+      worker_return404(connection, request, path);
+    }
   } else {
-    // The file exists but is not a regular file - 404 as per
-    // https://en.wikipedia.org/wiki/Webserver_directory_index
-    worker_return404(connection, request, path);
+    // Only GET works for files (right now)
+    worker_return400(connection, request, path, string_fromCopy("Method not supported"));
   }
 
   // TODO: investigate why this is necessary (double free otherwise)
@@ -380,7 +388,7 @@ size_t worker_return400(connection_t *connection, http_t *request, string_t *pat
 
   string_t *responseString = http_toResponseString(response);
   size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
-  logging_request(connection_getSourceAddress(connection), http_getMethod(request), description, http_getVersion(request), 400, bytesWritten);
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 400, bytesWritten);
   string_free(responseString);
   page_free(page);
   // Freeing the page also frees the source, which we gave to http.
