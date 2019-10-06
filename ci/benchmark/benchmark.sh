@@ -31,7 +31,7 @@ function benchmark {
   echo "--------------------------------------"
 
   # Start wsic in the background
-  $wsic -p 8080 > "build/reports/benchmark/$test/log.txt" 2>&1 &
+  $wsic start > "build/reports/benchmark/$test/log.txt" 2>&1 &
   wsicPID="$!"
 
   # Wait for WSIC to start

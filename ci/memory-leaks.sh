@@ -21,7 +21,7 @@ mkdir -p build/reports/memory-leaks
 
 # Start wsic in the background with leak detection enabled
 export ASAN_OPTIONS=detect_leaks=1
-$wsic -p 8080 &> "build/reports/memory-leaks/log.txt" &
+$wsic start &> "build/reports/memory-leaks/log.txt" &
 wsicPID="$!"
 
 # Wait for WSIC to start
