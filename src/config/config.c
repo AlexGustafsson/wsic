@@ -20,9 +20,9 @@ void config_freeGlobalConfig() {
     config_free(config_globalConfig);
 }
 
-config_t *config_parse(char *configString) {
+config_t *config_parse(const char *configString) {
   char parseError[200];
-  toml_table_t *toml = toml_parse(configString, parseError, sizeof(parseError));
+  toml_table_t *toml = toml_parse((char *)configString, parseError, sizeof(parseError));
   if (toml == 0) {
     log(LOG_ERROR, "Could not parse config file '%s'", parseError);
     return 0;
@@ -36,8 +36,10 @@ config_t *config_parse(char *configString) {
 
   // Parse the server table if it exists
   toml_table_t *serverTable = toml_table_in(toml, "server");
-  if (serverTable != 0)
+  if (serverTable != 0) {
     config->daemon = config_parseBool(serverTable, "daemon");
+    config->logfile = config_parseString(serverTable, "logfile");
+  }
 
   toml_table_t *serversTable = toml_table_in(toml, "servers");
   if (serversTable == 0) {
@@ -110,7 +112,6 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
     config->rootDirectory = string_fromCopy(absolutePathBuffer);
     free(absolutePathBuffer);
   }
-  config->logfile = config_parseString(serverTable, "logfile");
   config->enabled = config_parseBool(serverTable, "enabled");
 
   if (toml_raw_in(serverTable, "port") != 0) {
@@ -258,7 +259,7 @@ int64_t config_parseInt(toml_table_t *table, const char *key) {
   return value;
 }
 
-int config_parseBool(toml_table_t *table, const char *key) {
+int8_t config_parseBool(toml_table_t *table, const char *key) {
   const char *rawValue = toml_raw_in(table, key);
   // The value is missing
   if (rawValue == 0)
@@ -322,11 +323,11 @@ list_t *config_parseArray(toml_table_t *table, const char *key) {
   return list;
 }
 
-int16_t config_getIsDaemon(config_t *config) {
+int8_t config_getIsDaemon(config_t *config) {
   return config->daemon;
 }
 
-void config_setIsDaemon(config_t *config, int16_t isDaemon) {
+void config_setIsDaemon(config_t *config, int8_t isDaemon) {
   config->daemon = isDaemon;
 }
 
@@ -396,11 +397,11 @@ void config_setPort(server_config_t *config, int16_t port) {
   config->port = port;
 }
 
-string_t *config_getLogfile(server_config_t *config) {
+string_t *config_getLogfile(config_t *config) {
   return config->logfile;
 }
 
-void config_setLogfile(server_config_t *config, string_t *logfile) {
+void config_setLogfile(config_t *config, string_t *logfile) {
   config->logfile = logfile;
 }
 
@@ -423,8 +424,6 @@ void config_freeServerConfig(server_config_t *serverConfig) {
     string_free(serverConfig->domain);
   if (serverConfig->rootDirectory != 0)
     string_free(serverConfig->rootDirectory);
-  if (serverConfig->logfile != 0)
-    string_free(serverConfig->logfile);
   if (serverConfig->dhparams != 0)
     DH_free(serverConfig->dhparams);
   if (serverConfig->sslContext != 0)
@@ -443,5 +442,7 @@ void config_free(config_t *config) {
   while ((serverConfig = list_removeValue(config->serverConfigs, 0)) != 0)
     config_freeServerConfig(serverConfig);
   list_free(config->serverConfigs);
+  if (config->logfile != 0)
+    string_free(config->logfile);
   free(config);
 }

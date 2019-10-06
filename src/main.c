@@ -28,38 +28,83 @@ int main(int argc, char const *argv[]) {
   if (geteuid() == 0)
     log(LOG_WARNING, "Running as root. I hope you know what you're doing.");
 
-  logging_startSyslog();
-  config_t *config = config_parse((char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
-  server_config_t *defaultServerConfig = config_getServerConfig(config, 0);
-  config_setGlobalConfig(config);
+  if (argc == 1) {
+    log(LOG_ERROR, "Expected a command");
+    main_printHelp();
+    return EXIT_FAILURE;
+  }
 
-  bool showHelp = false;
-  bool showVersion = false;
+  const char *command = argv[1];
 
-  for (int i = 0; i < argc; i++) {
-    if (strcmp(argv[i], "-h") == 0) {
-      showHelp = true;
-    } else if (strcmp(argv[i], "-v") == 0) {
-      showVersion = true;
-    } else if (strcmp(argv[i], "-d") == 0) {
-      config_setIsDaemon(config, 1);
-    } else if (strcmp(argv[i], "-p") == 0) {
-      config_setPort(defaultServerConfig, strtol(argv[++i], 0, 10));
-    } else if (strcmp(argv[i], "-l") == 0) {
-      string_t *logfile = string_fromCopy(argv[++i]);
-      config_setLogfile(defaultServerConfig, logfile);
+  if (strcmp(command, "help") == 0) {
+    main_printHelp();
+    return EXIT_SUCCESS;
+  } else if (strcmp(command, "version") == 0) {
+    main_printVersion();
+    return EXIT_SUCCESS;
+  } else if (strcmp(command, "start") != 0) {
+    log(LOG_ERROR, "Unexpected command '%s'", command);
+    return EXIT_FAILURE;
+  }
+
+  // Parse arguments
+  bool argumentParsingFailed = false;
+  int8_t daemon = -1;
+  string_t *logfile = 0;
+  string_t *configFilePath = 0;
+  for (int i = 2; i < argc; i++) {
+    if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--daemon") == 0) {
+      daemon = 1;
+    } else if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--logfile") == 0) {
+      logfile = string_fromCopy(argv[++i]);
+      if (logfile == 0) {
+        log(LOG_ERROR, "Unable to set logfile");
+        argumentParsingFailed = true;
+        break;
+      }
+    } else if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0) {
+      configFilePath = string_fromCopy(argv[++i]);
+      if (configFilePath == 0) {
+        log(LOG_ERROR, "Unable to set config file");
+        argumentParsingFailed = true;
+        break;
+      }
     }
   }
 
-  if (showHelp) {
-    printHelp();
-    config_free(config);
-    return 0;
-  } else if (showVersion) {
-    printVersion();
-    config_free(config);
-    return 0;
+  if (argumentParsingFailed) {
+    if (logfile != 0)
+      string_free(logfile);
+    if (configFilePath != 0)
+      string_free(configFilePath);
   }
+
+  // Parse config - either from specified file or from default
+  config_t *config = 0;
+  if (configFilePath == 0) {
+    log(LOG_WARNING, "No config file specified - using default config");
+    config = config_parse((const char *)RESOURCES_CONFIG_DEFAULT_CONFIG_TOML);
+  } else {
+    string_t *configFile = resources_loadFile(configFilePath);
+    if (configFile != 0) {
+      config = config_parse(string_getBuffer(configFile));
+      string_free(configFile);
+    }
+    string_free(configFilePath);
+  }
+
+  if (config == 0) {
+    log(LOG_ERROR, "Failed to setup config file");
+    return EXIT_FAILURE;
+  }
+
+  // Add parsed arguments to the config
+  if (logfile != 0)
+    config_setLogfile(config, logfile);
+  if (daemon == 1)
+    config_setIsDaemon(config, daemon);
+  config_setGlobalConfig(config);
+  logging_startSyslog();
 
   if (config_getIsDaemon(config)) {
     // Daemonize the server
@@ -77,7 +122,7 @@ int main(int argc, char const *argv[]) {
     // Enable syslog logging
     LOGGING_OUTPUT |= LOGGING_SYSLOG;
 
-    // Close open file descriptiors related to a TTY session
+    // Close open file descriptors related to a TTY session
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
@@ -100,7 +145,6 @@ int main(int argc, char const *argv[]) {
   signal(SIGINT, handleSignalSIGINT);
   signal(SIGTERM, handleSignalSIGTERM);
   signal(SIGKILL, handleSignalSIGKILL);
-  signal(SIGPIPE, handleSignalSIGPIPE);
   // If a child exits, it will interrupt the sleep and check statuses directly
   signal(SIGCHLD, handleSignalSIGCHLD);
 
@@ -141,25 +185,26 @@ int main(int argc, char const *argv[]) {
   return 0;
 }
 
-void printHelp() {
+void main_printHelp() {
   printf("wsic ( \xF0\x9D\x9C\xB6 ) - A Web Server written in C\n");
   printf("\n");
   printf("\x1b[1mVERSION\x1b[0m\n");
   printf("wsic %s\n", WSIC_VERSION);
   printf("\n");
   printf("\x1b[1mUSAGE\x1b[0m\n");
-  printf("$ wsic [arguments]\n");
+  printf("$ wsic <command> [arguments]\n");
+  printf("\n");
+  printf("\x1b[1mCOMMANDS\x1b[0m\n");
+  printf("start\t\tStart WSIC\n");
+  printf("help\t\tShow this help text\n");
+  printf("version\t\tShow current version\n");
   printf("\n");
   printf("\x1b[1mARGUMENTS\x1b[0m\n");
-  printf("-h\t--help\t\t\tShow this help text\n");
-  printf("-v\t--version\t\tShow current version\n");
-  printf("-p port\t--port port\t\tSpecify the port to listen on. Defaults to 80\n");
   printf("-d\t--daemon\t\tRun the server as a deamon\n");
   printf("-l\t--logfile\t\tSpecify the logfile to write logs to\n");
-  printf("-s mode\t--parallel-mode mode\tSpecify the parallel mode to use where mode is one of fork, thread, pre-fork or mux\n");
 }
 
-void printVersion() {
+void main_printVersion() {
   printf("wsic ( \xF0\x9D\x9C\xB6 ) - A Web Server written in C\n");
   printf("\n");
   printf("\x1b[1mVERSION\x1b[0m\n");
@@ -197,12 +242,6 @@ void handleSignalSIGKILL(int signalNumber) {
 
   log(LOG_WARNING, "Got SIGKILL - exiting immediately");
   exit(EXIT_SUCCESS);
-}
-
-// Handle SIGPIPE (the other end of a pipe broke it)
-void handleSignalSIGPIPE(int signalNumber) {
-  // Log and ignore
-  log(LOG_WARNING, "Got SIGPIPE - broken pipe");
 }
 
 // Handle SIGCHLD (a child exited)

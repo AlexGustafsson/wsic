@@ -23,7 +23,6 @@ typedef struct {
   string_t *rootDirectory;
   // -1 if not set, 0 - 65536 otherwise
   int16_t port;
-  string_t *logfile;
   // -1 if not set, 0 or 1 otherwise
   int8_t enabled;
   DH *dhparams;
@@ -35,9 +34,10 @@ typedef struct {
   // -1 if not set, 0 or 1 otherwise
   int8_t daemon;
   list_t *serverConfigs;
+  string_t *logfile;
 } config_t;
 
-config_t *config_parse(char *configString);
+config_t *config_parse(const char *configString);
 
 // Get and set the globally defined config
 config_t *config_getGlobalConfig();
@@ -46,8 +46,8 @@ void config_freeGlobalConfig();
 
 server_config_t *config_parseServerTable(toml_table_t *serverTable);
 
-int16_t config_getIsDaemon(config_t *config);
-void config_setIsDaemon(config_t *config, int16_t isDaemon);
+int8_t config_getIsDaemon(config_t *config);
+void config_setIsDaemon(config_t *config, int8_t isDaemon);
 
 server_config_t *config_getServerConfig(config_t *config, size_t index);
 server_config_t *config_getServerConfigBySNI(config_t *config, string_t *domain);
@@ -64,8 +64,8 @@ string_t *config_getRootDirectory(server_config_t *config);
 int16_t config_getPort(server_config_t *config);
 void config_setPort(server_config_t *config, int16_t port);
 
-string_t *config_getLogfile(server_config_t *config);
-void config_setLogfile(server_config_t *config, string_t *logfile);
+string_t *config_getLogfile(config_t *config);
+void config_setLogfile(config_t *config, string_t *logfile);
 
 SSL_CTX *config_getSSLContext(server_config_t *config);
 DH *config_getDiffieHellmanParameters(server_config_t *config);
@@ -74,7 +74,7 @@ list_t *config_getDirectoryIndex(server_config_t *config);
 
 string_t *config_parseString(toml_table_t *table, const char *key);
 int64_t config_parseInt(toml_table_t *table, const char *key);
-int config_parseBool(toml_table_t *table, const char *key);
+int8_t config_parseBool(toml_table_t *table, const char *key);
 list_t *config_parseArray(toml_table_t *table, const char *key);
 
 // NOTE: Called by config_free automatically
