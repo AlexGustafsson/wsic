@@ -176,8 +176,8 @@ int main(int argc, char const *argv[]) {
   // Note that the SIGINT will be received by the worker process as well, killing it automatically
   log(LOG_DEBUG, "Waiting for child processes to exit");
   pid_t pid = 0;
-  while ((pid = wait(0)) > 0);
-
+  while ((pid = wait(0)) > 0)
+    ;
 
   list_free(ports);
 
