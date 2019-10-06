@@ -274,20 +274,20 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
   if (isFile && isExecutable) {
     // The file exists, is a regular file and executable - run it
     worker_returnCGI(worker, connection, request, resolvedPath, body);
-  }
-
-  if (request->method == HTTP_METHOD_GET) {
-    if (isFile) {
-      // The file exists and is a regular file, serve it
-      worker_return200(connection, request, resolvedPath);
-    } else {
-      // The file exists but is not a regular file - 404 as per
-      // https://en.wikipedia.org/wiki/Webserver_directory_index
-      worker_return404(connection, request, path);
-    }
   } else {
-    // Only GET works for files (right now)
-    worker_return400(connection, request, path, string_fromCopy("Method not supported"));
+    if (request->method == HTTP_METHOD_GET) {
+      if (isFile) {
+        // The file exists and is a regular file, serve it
+        worker_return200(connection, request, resolvedPath);
+      } else {
+        // The file exists but is not a regular file - 404 as per
+        // https://en.wikipedia.org/wiki/Webserver_directory_index
+        worker_return404(connection, request, path);
+      }
+    } else {
+      // Only GET works for files (right now)
+      worker_return400(connection, request, path, string_fromCopy("Method not supported"));
+    }
   }
 
   http_free(request);
@@ -302,7 +302,7 @@ hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request
   hash_table_setValue(environment, string_fromCopy("HTTPS"), string_fromCopy("off"));
   hash_table_setValue(environment, string_fromCopy("SERVER_SOFTWARE"), string_fromCopy("WSIC"));
   if (connection->sourceAddress != 0)
-    hash_table_setValue(environment, string_fromCopy("REMOTE_ADDR"), string_fromCopy(string_getBuffer(connection->sourceAddress)));
+    hash_table_setValue(environment, string_fromCopy("REMOTE_ADDR"), string_copy(connection->sourceAddress));
   hash_table_setValue(environment, string_fromCopy("REMOTE_PORT"), string_fromInt(connection->sourcePort));
 
   uint8_t method = http_getMethod(request);
@@ -311,23 +311,29 @@ hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request
   else if (method == HTTP_METHOD_POST)
     hash_table_setValue(environment, string_fromCopy("REQUEST_METHOD"), string_fromCopy("POST"));
 
-  string_t *cookie = http_getHeader(request, string_fromCopy("Cookie"));
+  string_t *cookieHeader = string_fromCopy("Cookie");
+  string_t *cookie = http_getHeader(request, cookieHeader);
+  string_free(cookieHeader);
   if (cookie != 0)
-    hash_table_setValue(environment, string_fromCopy("HTTP_COOKIE"), cookie);
+    hash_table_setValue(environment, string_fromCopy("HTTP_COOKIE"), string_copy(cookie));
 
-  string_t *referer = http_getHeader(request, string_fromCopy("Referer"));
+  string_t *refererHeader = string_fromCopy("Referer");
+  string_t *referer = http_getHeader(request, refererHeader);
+  string_free(refererHeader);
   if (referer != 0)
-    hash_table_setValue(environment, string_fromCopy("HTTP_REFERER"), referer);
+    hash_table_setValue(environment, string_fromCopy("HTTP_REFERER"), string_copy(referer));
 
-  string_t *userAgent = http_getHeader(request, string_fromCopy("User-Agent"));
+  string_t *userAgentHeader = string_fromCopy("User-Agent");
+  string_t *userAgent = http_getHeader(request, userAgentHeader);
+  string_free(userAgentHeader);
   if (userAgent != 0)
-    hash_table_setValue(environment, string_fromCopy("HTTP_USER_AGENT"), userAgent);
+    hash_table_setValue(environment, string_fromCopy("HTTP_USER_AGENT"), string_copy(userAgent));
 
   url_t *url = http_getUrl(request);
   string_t *domainName = url_getDomainName(url);
   if (domainName != 0) {
-    hash_table_setValue(environment, string_fromCopy("HTTP_HOST"), domainName);
-    hash_table_setValue(environment, string_fromCopy("SERVER_NAME"), string_fromCopy(string_getBuffer(domainName)));
+    hash_table_setValue(environment, string_fromCopy("HTTP_HOST"), string_copy(domainName));
+    hash_table_setValue(environment, string_fromCopy("SERVER_NAME"), string_copy(domainName));
   }
 
   uint16_t port = url_getPort(url);
@@ -336,7 +342,7 @@ hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request
 
   string_t *path = url_getPath(url);
   if (path != 0)
-    hash_table_setValue(environment, string_fromCopy("REQUEST_URI"), path);
+    hash_table_setValue(environment, string_fromCopy("REQUEST_URI"), string_copy(path));
 
   return environment;
 }
@@ -467,6 +473,14 @@ size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *requ
   hash_table_t *environment = worker_createEnvironment(connection, request);
   worker->cgi = cgi_spawn(string_getBuffer(resolvedPath), arguments, environment);
   log(LOG_DEBUG, "Spawned process with pid %d", worker->cgi->pid);
+
+  while (hash_table_getLength(environment) > 0) {
+    string_t *key = hash_table_getKeyByIndex(environment, 0);
+    string_t *value = hash_table_removeValue(environment, key);
+    log(LOG_DEBUG, "Freeing value '%s'", string_getBuffer(value));
+    string_free(value);
+  }
+  hash_table_free(environment);
 
   // Write body to CGI
   if (body != 0) {
