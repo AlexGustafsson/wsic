@@ -43,14 +43,18 @@ resourceSources := $(subst src,build,$(resources:=.c))
 resourceHeaders := $(subst src,build,$(resources:=.h))
 resourceObjects := $(subst src,build,$(resources:=.o))
 
-.PHONY: build clean debug test debugTest
+.PHONY: build clean debug test debugTest valgrind
 
 # Build wsic, default action
 build: build/$(TARGET_NAME)
 
+# Build wsic for use with Valgrind
+valgrind: BUILD_FLAGS := $(BUILD_FLAGS) -g
+valgrind: build/$(TARGET_NAME)
+
 # Build wsic with extra debugging enabled
-debug: BUILD_FLAGS = $(DEBUG_FLAGS)
-debug: TARGET_NAME = $(DEBUG_TARGET_NAME)
+debug: BUILD_FLAGS := $(DEBUG_FLAGS)
+debug: TARGET_NAME := $(DEBUG_TARGET_NAME)
 debug: CC = clang
 debug: build/$(TARGET_NAME)
 
