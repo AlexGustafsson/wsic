@@ -22,6 +22,8 @@ int worker_handleConnection(worker_t *worker, connection_t *connection);
 hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request);
 size_t worker_return500(connection_t *connection, http_t *request, string_t *description);
 size_t worker_return404(connection_t *connection, http_t *request, string_t *path);
+size_t worker_return400(connection_t *connection, http_t *request, string_t *path, string_t *description);
+size_t worker_return413(connection_t *connection, http_t *request, string_t *path);
 size_t worker_return200(connection_t *connection, http_t *request, string_t *resolvedPath);
 size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body);
 
@@ -132,6 +134,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
       bool parsed = http_parseRequestLine(request, currentLine);
       if (!parsed) {
         log(LOG_ERROR, "Failed to parse request line '%s'. Closing connection", string_getBuffer(currentLine));
+        worker_return400(connection, request, 0, string_fromCopy("Bad header received"));
         string_free(currentLine);
         http_free(request);
         return 1;
@@ -141,6 +144,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
       bool parsed = http_parseHeader(request, currentLine);
       if (!parsed) {
         log(LOG_ERROR, "Failed to parse header '%s'. Closing connection", string_getBuffer(currentLine));
+        worker_return400(connection, request, 0, string_fromCopy("Bad header received"));
         string_free(currentLine);
         http_free(request);
         return 1;
@@ -153,12 +157,14 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
   bool parsedHost = http_parseHost(request);
   if (!parsedHost) {
     log(LOG_DEBUG, "Could not parse Host header");
+    worker_return400(connection, request, 0, string_fromCopy("Bad header received"));
     http_free(request);
     return 1;
   }
 
   if (request->url == 0) {
     log(LOG_ERROR, "Didn't receive a header from the request");
+    worker_return400(connection, request, 0, string_fromCopy("No header received"));
     http_free(request);
     return 1;
   }
@@ -184,14 +190,19 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
     log(LOG_DEBUG, "The request has a body size of %d bytes", contentLength);
     if (contentLength > REQUEST_MAX_BODY_SIZE) {
       log(LOG_WARNING, "The client wanted to write %d bytes which is above maximum %d", contentLength, REQUEST_MAX_BODY_SIZE);
+      worker_return413(connection, request, 0);
       http_free(request);
-      return 1;
+      return 0;
     } else if (contentLength == 0) {
       log(LOG_WARNING, "Got empty body");
+      worker_return400(connection, request, 0, string_fromCopy("Empty body when headers specified content length"));
+      http_free(request);
+      return 0;
     } else {
       body = connection_read(connection, REQUEST_READ_TIMEOUT, contentLength);
       if (body == 0) {
         log(LOG_ERROR, "Reading body timed out or failed");
+        worker_return400(connection, request, 0, string_fromCopy("Request timed out"));
         http_free(request);
         return 0;
       }
@@ -348,6 +359,50 @@ size_t worker_return404(connection_t *connection, http_t *request, string_t *pat
   string_t *responseString = http_toResponseString(response);
   size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
   logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 404, bytesWritten);
+  string_free(responseString);
+  page_free(page);
+  // Freeing the page also frees the source, which we gave to http.
+  // Not having this line would cause a double free
+  response->body = 0;
+  http_free(response);
+
+  return bytesWritten;
+}
+
+size_t worker_return400(connection_t *connection, http_t *request, string_t *path, string_t *description) {
+  http_t *response = http_create();
+  // Copy the path since we want to keep ownership
+  page_t *page = page_create400(string_copy(description));
+  string_t *source = page_getSource(page);
+  http_setBody(response, source);
+  http_setResponseCode(response, 400);
+  http_setVersion(response, string_fromCopy("1.1"));
+
+  string_t *responseString = http_toResponseString(response);
+  size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), description, http_getVersion(request), 400, bytesWritten);
+  string_free(responseString);
+  page_free(page);
+  // Freeing the page also frees the source, which we gave to http.
+  // Not having this line would cause a double free
+  response->body = 0;
+  http_free(response);
+
+  return bytesWritten;
+}
+
+size_t worker_return413(connection_t *connection, http_t *request, string_t *path) {
+  http_t *response = http_create();
+  // Copy the path since we want to keep ownership
+  page_t *page = page_create413();
+  string_t *source = page_getSource(page);
+  http_setBody(response, source);
+  http_setResponseCode(response, 413);
+  http_setVersion(response, string_fromCopy("1.1"));
+
+  string_t *responseString = http_toResponseString(response);
+  size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 413, bytesWritten);
   string_free(responseString);
   page_free(page);
   // Freeing the page also frees the source, which we gave to http.

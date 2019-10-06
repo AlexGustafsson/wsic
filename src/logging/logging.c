@@ -29,10 +29,7 @@ void logging_request(string_t *remoteHost, enum httpMethod method, string_t *pat
   strftime(timeBuffer, 29, "[%d/%b/%Y:%H:%M:%S %z]", timeInfo);
 
   string_t *methodString = http_methodToString(method);
-  if (responseCode == 0)
-    logRaw(LOG_NOTICE, "%s - - %s \"%s %s HTTP/%s\" - %zu", string_getBuffer(remoteHost), timeBuffer, string_getBuffer(methodString), string_getBuffer(path), string_getBuffer(version), bytesSent);
-  else
-    logRaw(LOG_NOTICE, "%s - - %s \"%s %s HTTP/%s\" %d %zu", string_getBuffer(remoteHost), timeBuffer, string_getBuffer(methodString), string_getBuffer(path), string_getBuffer(version), responseCode, bytesSent);
+  logRaw(LOG_NOTICE, "%s - - %s \"%s %s HTTP/%s\" %d %zu", remoteHost == 0 ? "-" : string_getBuffer(remoteHost), timeBuffer, methodString == 0 ? "-" : string_getBuffer(methodString), path == 0 ? "-" : string_getBuffer(path), version == 0 ? "-" : string_getBuffer(version), responseCode, bytesSent);
 
   string_free(methodString);
 }
