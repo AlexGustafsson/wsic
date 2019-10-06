@@ -394,7 +394,7 @@ void server_closeGracefully() {
   log(LOG_DEBUG, "Freeing message queue");
   message_queue_free(server_connectionQueue);
 
-  _exit(0);
+  exit(0);
 }
 
 void server_handleSignalSIGPIPE() {
