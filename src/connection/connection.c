@@ -343,6 +343,7 @@ bool connection_isSSL(connection_t *connection) {
   bool isHandshakeRecord = buffer[0] == 0x16;
   bool isClientHello = buffer[5] == 0x01;
 
+  free(buffer);
   return isHandshakeRecord && isClientHello;
 }
 
