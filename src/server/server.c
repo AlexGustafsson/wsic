@@ -358,6 +358,9 @@ SSL *server_handleSSL(connection_t *connection) {
 
 void server_closeGracefully() {
   log(LOG_INFO, "Closing server gracefully");
+  // Remove graceful signal handlers as they could interfere with shutdown process
+  signal(SIGINT, SIG_DFL);
+  signal(SIGTERM, SIG_DFL);
 
   log(LOG_DEBUG, "Closing listening sockets");
   for (size_t i = 0; i < socketDescriptorCount; i++) {

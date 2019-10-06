@@ -19,6 +19,7 @@
 #include "main.h"
 
 bool main_serverShouldRun = true;
+pid_t main_serverInstance = 0;
 
 int main(int argc, char const *argv[]) {
   // Start internal time keeping
@@ -135,8 +136,8 @@ int main(int argc, char const *argv[]) {
     set_addValue(ports, (void *)serverConfig->port);
   }
 
-  pid_t serverInstance = server_createInstance(ports);
-  if (serverInstance == 0) {
+  main_serverInstance = server_createInstance(ports);
+  if (main_serverInstance == 0) {
     log(LOG_ERROR, "Unable to create server instance");
     exit(EXIT_FAILURE);
   }
@@ -153,7 +154,7 @@ int main(int argc, char const *argv[]) {
     // If a child exits, or another signal is caught it will interrupt the sleep
     sleep(10);
     int status;
-    if (waitpid(serverInstance, &status, WNOHANG) != 0) {
+    if (waitpid(main_serverInstance, &status, WNOHANG) != 0) {
       bool exited = WIFEXITED(status);
       log(LOG_DEBUG, "Got interrupted by a signal or sleep timeout, exited: %d", exited);
       if (exited && main_serverShouldRun) {
@@ -167,14 +168,14 @@ int main(int argc, char const *argv[]) {
         log(LOG_WARNING, "Server instance has exited with code %d. Restarting", exitCode);
         pid_t newInstance = server_createInstance(ports);
         if (newInstance != 0)
-          serverInstance = newInstance;
+          main_serverInstance = newInstance;
       }
     }
   }
 
   // Note that the SIGINT will be received by the worker process as well, killing it automatically
   log(LOG_DEBUG, "Waiting for server instance to exit");
-  waitpid(serverInstance, 0, 0);
+  waitpid(main_serverInstance, 0, 0);
 
   list_free(ports);
 
@@ -221,6 +222,8 @@ void handleSignalSIGINT(int signalNumber) {
   signal(SIGCHLD, SIG_DFL);
 
   log(LOG_INFO, "Got SIGINT - exiting cleanly");
+  // Send signal to server
+  kill(main_serverInstance, SIGINT);
   main_serverShouldRun = false;
 }
 
@@ -230,6 +233,8 @@ void handleSignalSIGTERM(int signalNumber) {
   signal(SIGCHLD, SIG_DFL);
 
   log(LOG_INFO, "Got SIGTERM - exiting cleanly");
+  // Send signal to server
+  kill(main_serverInstance, SIGINT);
   main_serverShouldRun = false;
 }
 
