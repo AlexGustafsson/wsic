@@ -29,6 +29,12 @@ int main(int argc, char const *argv[]) {
   if (geteuid() == 0)
     log(LOG_WARNING, "Running as root. I hope you know what you're doing.");
 
+  bool loggingStarted = logging_start();
+  if (loggingStarted == false) {
+    fprintf(stderr, "Could not start logging, exiting");
+    return EXIT_FAILURE;
+  }
+
   if (argc == 1) {
     log(LOG_ERROR, "Expected a command");
     main_printHelp();
@@ -53,6 +59,7 @@ int main(int argc, char const *argv[]) {
   int8_t daemon = -1;
   string_t *logfile = 0;
   string_t *configFilePath = 0;
+  bool verbose = false;
   for (int i = 2; i < argc; i++) {
     if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--daemon") == 0) {
       daemon = 1;
@@ -70,6 +77,12 @@ int main(int argc, char const *argv[]) {
         argumentParsingFailed = true;
         break;
       }
+    } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0) {
+      verbose = true;
+      LOGGING_LEVEL = LOG_DEBUG;
+    } else {
+      log(LOG_ERROR, "Unexpected argument");
+      argumentParsingFailed = true;
     }
   }
 
@@ -78,6 +91,7 @@ int main(int argc, char const *argv[]) {
       string_free(logfile);
     if (configFilePath != 0)
       string_free(configFilePath);
+    exit(EXIT_FAILURE);
   }
 
   // Parse config - either from specified file or from default
@@ -106,8 +120,11 @@ int main(int argc, char const *argv[]) {
     config_setLogfile(config, logfile);
   if (daemon == 1)
     config_setIsDaemon(config, daemon);
+  if (verbose == true)
+    config_setLoggingLevel(config, LOG_DEBUG);
   config_setGlobalConfig(config);
-  logging_startSyslog();
+
+  LOGGING_LEVEL = config_getLoggingLevel(config);
 
   if (config_getIsDaemon(config)) {
     // Daemonize the server
@@ -200,7 +217,7 @@ int main(int argc, char const *argv[]) {
   config_freeGlobalConfig();
 
   log(LOG_DEBUG, "Closing syslog");
-  logging_stopSyslog();
+  logging_stop();
 
   log(LOG_DEBUG, "Exiting from main");
   return 0;

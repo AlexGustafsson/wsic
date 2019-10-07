@@ -5,6 +5,8 @@
 
 #include "time.h"
 
+#include "../logging/logging.h"
+
 static struct timespec time_start;
 
 void time_getTimeSinceStartOfEpoch(struct timespec *timespec) {
@@ -25,14 +27,46 @@ void time_reset() {
   time_getTimeSinceStartOfEpoch(&time_start);
 }
 
-uint64_t time_getTimeSinceStart() {
+void time_getFormattedElapsedTime(uint64_t nanoseconds, uint64_t seconds, uint64_t *formattedNanoseconds, uint64_t *formattedMilliseconds, uint64_t *formattedSeconds, uint64_t *formattedMinutes, uint64_t *formattedHours, uint64_t *formattedDays) {
+  if (formattedNanoseconds != 0)
+    *formattedNanoseconds = (nanoseconds / (uint64_t)10000) % (uint64_t)100;
+
+  if (formattedMilliseconds != 0)
+    *formattedMilliseconds = (nanoseconds / (uint64_t)1000000) % (uint64_t)1000;
+
+  if (formattedSeconds != 0)
+    *formattedSeconds = (seconds) % SECONDS_IN_MINUTE;
+
+  if (formattedMinutes != 0)
+    *formattedMinutes = (seconds / MINUTE_IN_SECONDS) % MINUTES_IN_HOUR;
+
+  if (formattedHours != 0)
+    *formattedHours = (seconds / HOUR_IN_SECONDS) % HOURS_IN_DAY;
+
+  if (formattedDays != 0)
+    *formattedDays = (seconds / DAY_IN_SECONDS);
+
+  return;
+}
+
+void time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds) {
   struct timespec now;
   time_getTimeSinceStartOfEpoch(&now);
 
-  uint64_t startNanoSeconds = (time_start.tv_sec * 1000000000) + time_start.tv_nsec;
-  uint64_t nowNanoSeconds = (now.tv_sec * 1000000000) + now.tv_nsec;
-
-  return nowNanoSeconds - startNanoSeconds;
+  if (nanoseconds == 0 && seconds != 0) {
+    // Return time since start in seconds
+    *seconds = now.tv_sec - time_start.tv_sec;
+  } else if (nanoseconds != 0 && seconds == 0) {
+    // Return time since start in nanoseconds
+    *nanoseconds = (now.tv_nsec + now.tv_sec * 1000000000) - (time_start.tv_nsec + time_start.tv_sec * 1000000000);
+  } else if (nanoseconds != 0 && seconds != 0) {
+    // Return time since start in separet seconds and nanoseconds
+    *nanoseconds = now.tv_nsec - time_start.tv_nsec;
+    *seconds = now.tv_sec - time_start.tv_sec;
+  } else {
+    // If both in patameters was null, do nothing
+    log(LOG_ERROR, "Can get time, inparameters was null");
+  }
 }
 
 uint64_t time_getElapsedTime(struct timespec *timespec) {

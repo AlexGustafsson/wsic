@@ -35,6 +35,7 @@ typedef struct {
   int8_t daemon;
   list_t *serverConfigs;
   string_t *logfile;
+  uint8_t loggingLevel;
 } config_t;
 
 config_t *config_parse(const char *configString);
@@ -48,6 +49,9 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable);
 
 int8_t config_getIsDaemon(config_t *config);
 void config_setIsDaemon(config_t *config, int8_t isDaemon);
+
+uint8_t config_getLoggingLevel(config_t *config);
+void config_setLoggingLevel(config_t *config, uint8_t loggingLevel);
 
 server_config_t *config_getServerConfig(config_t *config, size_t index);
 server_config_t *config_getServerConfigBySNI(config_t *config, string_t *domain);

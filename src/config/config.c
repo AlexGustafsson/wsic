@@ -39,6 +39,10 @@ config_t *config_parse(const char *configString) {
   if (serverTable != 0) {
     config->daemon = config_parseBool(serverTable, "daemon");
     config->logfile = config_parseString(serverTable, "logfile");
+    if (toml_raw_in(serverTable, "loggingLevel") != 0)
+      config->loggingLevel = config_parseInt(serverTable, "loggingLevel");
+    else
+      config->loggingLevel = LOG_NOTICE;
   }
 
   toml_table_t *serversTable = toml_table_in(toml, "servers");
@@ -326,6 +330,14 @@ int8_t config_getIsDaemon(config_t *config) {
 
 void config_setIsDaemon(config_t *config, int8_t isDaemon) {
   config->daemon = isDaemon;
+}
+
+uint8_t config_getLoggingLevel(config_t *config) {
+  return config->loggingLevel;
+}
+
+void config_setLoggingLevel(config_t *config, uint8_t loggingLevel) {
+  config->loggingLevel = loggingLevel;
 }
 
 server_config_t *config_getServerConfig(config_t *config, size_t index) {

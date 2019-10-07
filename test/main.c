@@ -10,6 +10,7 @@
 #include "response-codes-test.c"
 #include "set-test.c"
 #include "string-test.c"
+#include "time-test.c"
 #include "url-test.c"
 #include "www-test.c"
 
@@ -28,6 +29,7 @@ int main() {
   response_codes_test_run();
   www_test_run();
   config_test_run();
+  time_test_run();
 
   return UNITY_END();
 }

@@ -2,3 +2,5 @@
 leak:fork
 # setlogmask seems to leak on macOS
 leak:setlogmask
+# localtime seems to leak on macOS
+leak:localtime

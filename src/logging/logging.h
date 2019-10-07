@@ -46,47 +46,56 @@
 #define LOGGING_CONSOLE 1
 #define LOGGING_SYSLOG 2
 
-// A "private" macro for formatting and logging to console
-#define _log_console(level, ...)                                                                                                                                            \
-  do {                                                                                                                                                                      \
-    uint64_t elapsedTime = time_getTimeSinceStart();                                                                                                                        \
-    uint64_t milliseconds = elapsedTime / 1000000;                                                                                                                          \
-    uint8_t rest = (elapsedTime - (milliseconds * 1000000)) / 10000; \
-    /* The cast for %llu is due to a difference between Linux and macOS */ \
-    fprintf(stderr, "%llu.%02dms \x1b[90m[\x1b[%dm%s\x1b[90m][%s@%d][%s]\x1b[0m ", (unsigned long long)milliseconds, rest, LOG_COLOR_##level, LOG_LABEL_##level, __FILE__, __LINE__, __func__); \
-    fprintf(stderr, __VA_ARGS__);                                                                                                                                           \
-    fprintf(stderr, "\n");                                                                                                                                                  \
-  } while (0)
+#define _logging_logToFile(filePointer, level, ...) logging_logToFile(filePointer, LOG_LABEL_##level, LOG_COLOR_##level, __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 // Log to all enabled outputs
 #define log(level, ...)                           \
   do {                                            \
-    if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0) { \
-      _log_console(level, __VA_ARGS__);           \
-    }                                             \
-    if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0) {  \
+    if (level > LOGGING_LEVEL)                    \
+      break;                                      \
+                                                  \
+    if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0)   \
+      _logging_logToFile(stderr, level, __VA_ARGS__);    \
+                                                  \
+    if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0)    \
       syslog(level, __VA_ARGS__);                 \
+                                                  \
+    if (LOGGING_OUTPUT_FILE != 0) {               \
+      _logging_logToFile(LOGGING_OUTPUT_FILE, level, __VA_ARGS__);    \
     }                                             \
+                                                  \
   } while (0)
 
 // Log only the inputs (and a newline) to all enabled outputs
 #define logRaw(level, ...)                        \
   do {                                            \
+    if (level > LOGGING_LEVEL)                    \
+      break;                                      \
+                                                  \
     if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0) { \
       fprintf(stdout, __VA_ARGS__);               \
       fprintf(stdout, "\n");                      \
     }                                             \
-    if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0) {  \
+                                                  \
+    if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0)    \
       syslog(level, __VA_ARGS__);                 \
+                                                  \
+    if (LOGGING_OUTPUT_FILE != 0) {               \
+      fprintf(LOGGING_OUTPUT_FILE, __VA_ARGS__);  \
+      fprintf(LOGGING_OUTPUT_FILE, "\n");         \
     }                                             \
   } while (0)
 
 extern uint8_t LOGGING_OUTPUT;
+extern uint8_t LOGGING_LEVEL;
+extern FILE *LOGGING_OUTPUT_FILE;
 
 // Start logging (should always be called from the main process as soon as possible)
-void logging_startSyslog();
-// Deconstruct logging (not necessarily needed to be called, but should be as late as possible)
-void logging_stopSyslog();
+bool logging_start();
+// Deconstruct logging (should always be closed right before exit)
+void logging_stop();
+// A general function that logs to specified file, can be both a path and stderr
+void logging_logToFile(FILE *filePointer, const char *label, int color, const char *file, int line, const char *function, const char *format, ...);
 // Log the request in format CLF
 void logging_request(string_t *remoteHost, enum httpMethod method, string_t *path, string_t *version, uint16_t responseCode, size_t bytesSent);
 
