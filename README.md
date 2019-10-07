@@ -78,6 +78,18 @@ cd wsic && make
 
 The documentation is currently a bit sparse. For more information, refer to the source, tests and issues.
 
+### Architecture
+
+![Architecture overview](.gitlab/architecture-overview.png)
+
+WSIC uses a modern approach to concurrency. Everything is entirely event-driven which allows for 0 idle CPU usage and close to 0 MB of memory usage.
+
+WSIC also features a main process with the sole purpose of monitoring a server process. It sleeps most of the time and checks in from time to time or whenever the child process exits. In the vast majority cases WSIC is therefore able to recover from unexpected crashes with very low downtime measuring in milliseconds.
+
+The server process of WSIC offers multiplexing with support for an amount of listening virtual hosts only limited by the host system. As quick as possible, WSIC accepts incoming requests and put them in a multi-threaded message queue.
+
+This queue is consumed by a pool of worker which handles each request separately and concurrently. Whenever a worker is done handling a connection, it gets back to consuming the message queue which enables the worker to sleep most of the time. As previously stated, this allows WSIC to consume near 0 resources when idle.
+
 ## Contributing
 
 Any contribution is welcome. If you're not able to code it yourself, perhaps someone else is - so post an issue if there's anything on your mind.
