@@ -5,8 +5,6 @@
 #include <sys/time.h>
 #include <stdint.h>
 
-#include "../string/string.h"
-
 // One day in seconds
 #define DAY_IN_SECONDS 86400
 // One hour in seconds

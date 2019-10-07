@@ -22,7 +22,6 @@ bool main_serverShouldRun = true;
 pid_t main_serverInstance = 0;
 
 int main(int argc, char const *argv[]) {
-  LOGGING_OUTPUT |= LOGGING_SYSLOG;
   // Start internal time keeping
   time_reset();
 

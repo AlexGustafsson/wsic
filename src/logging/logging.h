@@ -92,9 +92,9 @@ extern FILE *LOGGING_OUTPUT_FILE;
 
 // Start logging (should always be called from the main process as soon as possible)
 bool logging_start();
-// Deconstruct logging (not necessarily needed to be called, but should be as late as possible)
+// Deconstruct logging (should always be closed right before exit)
 void logging_stop();
-//
+// A general function that logs to specified file, can be both a path and stderr
 void logging_logToFile(FILE *filePointer, const char *label, int color, const char *file, int line, const char *function, const char *format, ...);
 // Log the request in format CLF
 void logging_request(string_t *remoteHost, enum httpMethod method, string_t *path, string_t *version, uint16_t responseCode, size_t bytesSent);

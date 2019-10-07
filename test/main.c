@@ -15,7 +15,7 @@
 #include "www-test.c"
 
 int main() {
-  //LOGGING_OUTPUT = 0;
+  LOGGING_OUTPUT = 0;
 
   UNITY_BEGIN();
 
