@@ -80,7 +80,7 @@ url_t *http_getUrl(http_t *http) {
 string_t *http_toResponseString(http_t *http) {
   string_t *result = string_create();
   // First line is roughly 40 bytes, a header entry is roughly 40 bytes - allows for some speedup
-  string_setBufferSize(result, 40 + hash_table_getLength(http->headers) * 40 + string_getSize(http->body));
+  string_setBufferSize(result, 40 + hash_table_getLength(http->headers) * 40 + (http->body == 0 ? 0 : string_getSize(http->body)));
 
   if (http->version != 0) {
     string_appendBuffer(result, "HTTP/");

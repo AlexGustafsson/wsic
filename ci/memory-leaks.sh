@@ -20,7 +20,7 @@ trap cleanup EXIT
 mkdir -p build/reports/memory-leaks
 
 # Start wsic in the background with leak detection enabled
-export ASAN_OPTIONS=detect_leaks=1
+export ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=asan-ignores.txt
 $wsic start &> "build/reports/memory-leaks/log.txt" &
 wsicPID="$!"
 
@@ -30,7 +30,9 @@ sleep 5
 
 # Test currently available paths (simulate user actions)
 curl http://localhost:8080 > /dev/null
+curl -I http://localhost:8080 > /dev/null
 curl --insecure https://localhost:8443 > /dev/null
+curl -I --insecure https://localhost:8443 > /dev/null
 
 curl http://localhost:8080/cgi > /dev/null
 curl --insecure https://localhost:8443/cgi > /dev/null
