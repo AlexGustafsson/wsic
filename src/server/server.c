@@ -370,7 +370,6 @@ void server_closeGracefully() {
     shutdown(socket, SHUT_RDWR);
     close(socket);
   }
-  free(socketDescriptors);
 
   log(LOG_DEBUG, "Suspending worker threads");
   // Cancel all threads before joining them (see deferred cancellation points)
@@ -396,6 +395,10 @@ void server_closeGracefully() {
     // in detecting memory leaks
     workerPool[i] = 0;
   }
+
+  // Free after all workers are stopped (they may be using the sockets up until that point)
+  log(LOG_DEBUG, "Freeing socket descriptors");
+  free(socketDescriptors);
 
   log(LOG_DEBUG, "Cleaning up OpenSSL");
   FIPS_mode_set(0);
