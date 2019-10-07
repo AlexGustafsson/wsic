@@ -30,7 +30,7 @@ DH *server_handleDiffieHellmanParameters(SSL *ssl, int isExport, int keyLength);
 
 // Signal handlers
 void server_closeGracefully();
-void server_handleSignalSIGPIPE();
+void server_emptySignalHandler();
 
 bool server_setNonBlocking(int socketDescriptor) {
   // Get the current flags set for the socket
@@ -74,13 +74,9 @@ int server_start(set_t *ports) {
   // Setup signal handling for main process
   signal(SIGINT, server_closeGracefully);
   signal(SIGTERM, server_closeGracefully);
-  signal(SIGKILL, server_close);
-
-  // Initialize OpenSSL
-  OpenSSL_add_ssl_algorithms();
 
   // Set up signals
-  signal(SIGPIPE, server_handleSignalSIGPIPE);
+  signal(SIGPIPE, server_emptySignalHandler);
 
   // Set up file structures necessary for polling state of socket queues
   size_t descriptorsSize = sizeof(struct pollfd) * set_getLength(ports);
@@ -284,6 +280,8 @@ int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg) {
   }
 
   SSL_CTX *sslContext = config_getSSLContext(serverConfig);
+  // Free the previous context which was only temporary
+  SSL_CTX_free(SSL_get_SSL_CTX(ssl));
   SSL_set_SSL_CTX(ssl, sslContext);
 
   return SSL_TLSEXT_ERR_OK;
@@ -325,9 +323,11 @@ SSL *server_handleSSL(connection_t *connection) {
   writeDescriptors[0].events = POLLOUT;
 
   while (true) {
-    ERR_clear_error();
     int status = SSL_accept(ssl);
-    if (status <= 0) {
+    if (status == 0) {
+      log(LOG_ERROR, "Unable to accept TLS socket");
+      SSL_free(ssl);
+    } else if (status < 0) {
       int error = SSL_get_error(ssl, status);
       if (error == SSL_ERROR_WANT_READ) {
         log(LOG_DEBUG, "Waiting for TLS connection to be readable");
@@ -335,6 +335,7 @@ SSL *server_handleSSL(connection_t *connection) {
         int status = poll(readDescriptors, 1, -1);
         if (status < -1) {
           log(LOG_ERROR, "Could not wait for connection to be readable");
+          SSL_free(ssl);
           return 0;
         }
       } else if (error == SSL_ERROR_WANT_WRITE) {
@@ -343,10 +344,12 @@ SSL *server_handleSSL(connection_t *connection) {
         int status = poll(writeDescriptors, 1, -1);
         if (status < -1) {
           log(LOG_ERROR, "Could not wait for connection to be writable");
+          SSL_free(ssl);
           return 0;
         }
       } else {
         log(LOG_ERROR, "Unable to accept TLS socket. Got code %d", error);
+        SSL_free(ssl);
         return 0;
       }
     } else {
@@ -357,6 +360,9 @@ SSL *server_handleSSL(connection_t *connection) {
 
 void server_closeGracefully() {
   log(LOG_INFO, "Closing server gracefully");
+  // Remove graceful signal handlers as they could interfere with shutdown process
+  signal(SIGINT, server_emptySignalHandler);
+  signal(SIGTERM, server_emptySignalHandler);
 
   log(LOG_DEBUG, "Closing listening sockets");
   for (size_t i = 0; i < socketDescriptorCount; i++) {
@@ -364,6 +370,7 @@ void server_closeGracefully() {
     shutdown(socket, SHUT_RDWR);
     close(socket);
   }
+  free(socketDescriptors);
 
   log(LOG_DEBUG, "Suspending worker threads");
   // Cancel all threads before joining them (see deferred cancellation points)
@@ -385,22 +392,35 @@ void server_closeGracefully() {
     worker_waitForExit(worker);
     log(LOG_DEBUG, "Freeing thread %zu", i);
     worker_free(worker);
+    // This helps mark the memory as non-reachable which aids memory analyzers
+    // in detecting memory leaks
+    workerPool[i] = 0;
   }
 
   log(LOG_DEBUG, "Cleaning up OpenSSL");
-  EVP_cleanup();
-
+  FIPS_mode_set(0);
+  CRYPTO_cleanup_all_ex_data();
+  ERR_free_strings();
   log(LOG_DEBUG, "Freeing message queue");
   message_queue_free(server_connectionQueue);
 
+  // This helps mark the memory as non-reachable which aids memory analyzers
+  // in detecting memory leaks
+  socketDescriptors = 0;
+  server_connectionQueue = 0;
+
+  log(LOG_DEBUG, "Exiting from server");
   _exit(0);
 }
 
-void server_handleSignalSIGPIPE() {
+void server_emptySignalHandler() {
   // Do nothing
 }
 
 void server_close() {
   log(LOG_INFO, "Closing server instance immediately");
-  EVP_cleanup();
+  FIPS_mode_set(0);
+  CRYPTO_cleanup_all_ex_data();
+  ERR_free_strings();
+  _exit(EXIT_FAILURE);
 }

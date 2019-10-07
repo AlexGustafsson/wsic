@@ -1,0 +1,4 @@
+# fork seems to leak on macOS
+leak:fork
+# setlogmask seems to leak on macOS
+leak:setlogmask

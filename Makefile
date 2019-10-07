@@ -49,8 +49,8 @@ resourceObjects := $(subst src,build,$(resources:=.o))
 build: build/$(TARGET_NAME)
 
 # Build wsic with extra debugging enabled
-debug: BUILD_FLAGS = $(DEBUG_FLAGS)
-debug: TARGET_NAME = $(DEBUG_TARGET_NAME)
+debug: BUILD_FLAGS := $(DEBUG_FLAGS)
+debug: TARGET_NAME := $(DEBUG_TARGET_NAME)
 debug: CC = clang
 debug: build/$(TARGET_NAME)
 

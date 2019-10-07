@@ -31,5 +31,6 @@ void logging_request(string_t *remoteHost, enum httpMethod method, string_t *pat
   string_t *methodString = http_methodToString(method);
   logRaw(LOG_NOTICE, "%s - - %s \"%s %s HTTP/%s\" %d %zu", remoteHost == 0 ? "-" : string_getBuffer(remoteHost), timeBuffer, methodString == 0 ? "-" : string_getBuffer(methodString), path == 0 ? "-" : string_getBuffer(path), version == 0 ? "-" : string_getBuffer(version), responseCode, bytesSent);
 
-  string_free(methodString);
+  if (methodString != 0)
+    string_free(methodString);
 }
