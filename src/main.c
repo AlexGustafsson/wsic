@@ -114,7 +114,6 @@ int main(int argc, char const *argv[]) {
   if (daemon == 1)
     config_setIsDaemon(config, daemon);
   config_setGlobalConfig(config);
-  logging_startSyslog();
 
   if (config_getIsDaemon(config)) {
     // Daemonize the server

@@ -8,7 +8,6 @@
 #include "../logging/logging.h"
 
 static struct timespec time_start;
-static time_t time_calendarStart = 0;
 
 void time_getTimeSinceStartOfEpoch(struct timespec *timespec) {
 #ifdef __APPLE__
@@ -26,7 +25,6 @@ void time_getTimeSinceStartOfEpoch(struct timespec *timespec) {
 
 void time_reset() {
   time_getTimeSinceStartOfEpoch(&time_start);
-  time_calendarStart = time(NULL);
 }
 
 void time_getFormattedElapsedTime(uint64_t nanoseconds, uint64_t seconds, uint64_t *formattedNanoseconds, uint64_t *formattedMilliseconds, uint64_t *formattedSeconds, uint64_t *formattedMinutes, uint64_t *formattedHours, uint64_t *formattedDays) {
@@ -48,7 +46,7 @@ void time_getFormattedElapsedTime(uint64_t nanoseconds, uint64_t seconds, uint64
   if (formattedDays != 0)
     *formattedDays = (seconds / DAY_IN_SECONDS);
 
-  return ;
+  return;
 }
 
 void time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds) {
