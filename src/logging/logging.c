@@ -8,7 +8,7 @@
 uint8_t LOGGING_OUTPUT = LOGGING_CONSOLE;
 
 // Specifies which levels to output to log
-uint8_t LOGGING_LEVEL = LOG_DEBUG;
+uint8_t LOGGING_LEVEL = LOG_NOTICE;
 
 // The specified file for output
 FILE *LOGGING_OUTPUT_FILE = 0;
