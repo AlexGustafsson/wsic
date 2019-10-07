@@ -13,7 +13,7 @@ void time_test_canFormatTimeBasedOnSecondsAndNanoseconds() {
   uint64_t secondsSinceStart = 258933;
   uint64_t nanosecondsSinceStart = 999440000;
 
-  time_formatTime(nanosecondsSinceStart, secondsSinceStart, &nanoseconds, &milliseconds, &seconds, &minutes, &hours, &days);
+  time_getFormattedElapsedTime(nanosecondsSinceStart, secondsSinceStart, &nanoseconds, &milliseconds, &seconds, &minutes, &hours, &days);
 
   TEST_ASSERT_EQUAL_UINT64(2, days);
   TEST_ASSERT_EQUAL_UINT64(23, hours);
