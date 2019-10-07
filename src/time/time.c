@@ -8,6 +8,7 @@
 #include "../logging/logging.h"
 
 static struct timespec time_start;
+static time_t time_calendarStart = 0;
 
 void time_getTimeSinceStartOfEpoch(struct timespec *timespec) {
 #ifdef __APPLE__
@@ -25,6 +26,29 @@ void time_getTimeSinceStartOfEpoch(struct timespec *timespec) {
 
 void time_reset() {
   time_getTimeSinceStartOfEpoch(&time_start);
+  time_calendarStart = time(NULL);
+}
+
+void time_getFormattedElapsedTime(uint64_t nanoseconds, uint64_t seconds, uint64_t *formattedNanoseconds, uint64_t *formattedMilliseconds, uint64_t *formattedSeconds, uint64_t *formattedMinutes, uint64_t *formattedHours, uint64_t *formattedDays) {
+  if (formattedNanoseconds != 0)
+    *formattedNanoseconds = (nanoseconds / (uint64_t)10000) % (uint64_t)100;
+
+  if (formattedMilliseconds != 0)
+    *formattedMilliseconds = (nanoseconds / (uint64_t)1000000) % (uint64_t)1000;
+
+  if (formattedSeconds != 0)
+    *formattedSeconds = (seconds) % SECONDS_IN_MINUTE;
+
+  if (formattedMinutes != 0)
+    *formattedMinutes = (seconds / MINUTE_IN_SECONDS) % MINUTES_IN_HOUR;
+
+  if (formattedHours != 0)
+    *formattedHours = (seconds / HOUR_IN_SECONDS) % HOURS_IN_DAY;
+
+  if (formattedDays != 0)
+    *formattedDays = (seconds / DAY_IN_SECONDS);
+
+  return ;
 }
 
 void time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds) {
@@ -34,39 +58,17 @@ void time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds) {
   if (nanoseconds == 0 && seconds != 0) {
     // Return time since start in seconds
     *seconds = now.tv_sec - time_start.tv_sec;
-
   } else if (nanoseconds != 0 && seconds == 0) {
     // Return time since start in nanoseconds
     *nanoseconds = (now.tv_nsec + now.tv_sec * 1000000000) - (time_start.tv_nsec + time_start.tv_sec * 1000000000);
-
   } else if (nanoseconds != 0 && seconds != 0) {
     // Return time since start in separet seconds and nanoseconds
     *nanoseconds = now.tv_nsec - time_start.tv_nsec;
     *seconds = now.tv_sec - time_start.tv_sec;
-
-  } else
+  } else {
     // If both in patameters was null, do nothing
     log(LOG_ERROR, "Can get time, inparameters was null");
-}
-
-void time_formatTime(uint64_t nanoseconds, uint64_t seconds, uint64_t *formatedNanoseconds, uint64_t *formatedMilliseconds, uint64_t *formatedSeconds, uint64_t *formatedMinutes, uint64_t *formatedHours, uint64_t *formatedDays) {
-  if (formatedNanoseconds != 0)
-    *formatedNanoseconds = (nanoseconds / (uint64_t)10000) % (uint64_t)100;
-
-  if (formatedMilliseconds != 0)
-    *formatedMilliseconds = (nanoseconds / (uint64_t)1000000) % (uint64_t)1000;
-
-  if (formatedSeconds != 0)
-    *formatedSeconds = (seconds) % SECONDS_IN_MINUTE;
-
-  if (formatedMinutes != 0)
-    *formatedMinutes = (seconds / MINUTE_IN_SECONDS) % MINUTES_IN_HOUR;
-
-  if (formatedHours != 0)
-    *formatedHours = (seconds / HOUR_IN_SECONDS) % HOURS_IN_DAY;
-
-  if (formatedDays != 0)
-    *formatedDays = (seconds / DAY_IN_SECONDS);
+  }
 }
 
 uint64_t time_getElapsedTime(struct timespec *timespec) {
@@ -77,26 +79,4 @@ uint64_t time_getElapsedTime(struct timespec *timespec) {
   uint64_t nowNanoSeconds = (timespec->tv_sec * 1000000000) + timespec->tv_nsec;
 
   return nowNanoSeconds - startNanoSeconds;
-}
-
-// Do not log in this function. It will get stuck in a reqursive loop
-string_t *time_getFormattedTime() {
-  // Get current time
-  time_t rawTime = time(NULL);
-  // Convert time to local time
-  struct tm *timeInfo = localtime(&rawTime);
-
-  char timeBuffer[20] = {0};
-  strftime(timeBuffer, 20, "%d/%b/%Y %H:%M:%S", timeInfo);
-  char timeZone[5] = {0};
-  strftime(timeZone, 5, "%z", timeInfo);
-
-  string_t *formattedTime = string_create();
-  string_appendBufferWithLength(formattedTime, timeBuffer, 20);
-  //string_appendChar(formattedTime, '.');
-  //string_append(formattedTime, milliseconds);
-  string_appendChar(formattedTime, ' ');
-  string_appendBufferWithLength(formattedTime, timeZone, 5);
-
-  return formattedTime;
 }

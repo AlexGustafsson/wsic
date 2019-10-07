@@ -44,13 +44,39 @@ bool logging_openOutputFile(const char *filePath) {
 }
 
 void logging_logToFile(FILE *filePointer, const char *label, int color, const char *file, int line, const char *function, const char *format, ...) {
+  uint64_t days = 0;
+  uint64_t hours = 0;
+  uint64_t minutes = 0;
+  uint64_t seconds = 0;
+  uint64_t milliseconds = 0;
+  uint64_t nanoseconds = 0;
+  uint64_t secondsSinceStart = 0;
+  uint64_t nanosecondsSinceStart = 0;
 
-  string_t *time = time_getFormattedTime();
+  // Current time
+  time_t calendarNow = time(NULL);
+  // Static no need for free
+  struct tm *timeInfo = localtime(&calendarNow);
+  char timeBuffer[27] = {0};
+  strftime(timeBuffer, 27, "%d/%b/%Y %H:%M:%S %z", timeInfo);
+
+  // Elapsed time
+  time_getTimeSinceStart(&nanosecondsSinceStart, &secondsSinceStart);
+  time_getFormattedElapsedTime(nanosecondsSinceStart, secondsSinceStart, &nanoseconds, &milliseconds, &seconds, &minutes, &hours, &days);
 
   pthread_mutex_lock(&mutex);
-  // Print log level, path to file where the program currently are, which line the program is at and last the function that was called
-  fprintf(filePointer, "\x1b[90m[%s][\x1b[%dm%s\x1b[90m][%s@%d][%s]\n    └──\x1b[0m ", string_getBuffer(time), color, label, file, line, function);
+  fprintf(filePointer, "\x1b[90m[%s][", timeBuffer);
 
+  if (days != 0)
+    fprintf(filePointer, "%llud ", days);
+  if (hours != 0)
+    fprintf(filePointer, "%lluh ", hours);
+  if (minutes != 0)
+    fprintf(filePointer, "%llum ", minutes);
+  if (seconds != 0)
+    fprintf(filePointer, "%llus ", seconds);
+
+  fprintf(filePointer, "%llu.%llums][\x1b[%dm%s\x1b[90m][%s@%d][%s]\n    └──\x1b[0m ", milliseconds, nanoseconds, color, label, file, line, function);
   // Print the text and arguments that commes from the log(log_lvl, "%d %s %c", a, b, c)
   va_list arguments;
   va_start(arguments, format);
@@ -59,8 +85,6 @@ void logging_logToFile(FILE *filePointer, const char *label, int color, const ch
 
   fprintf(filePointer, "\n");
   pthread_mutex_unlock(&mutex);
-  
-  string_free(time);
 }
 
 void logging_request(string_t *remoteHost, enum httpMethod method, string_t *path, string_t *version, uint16_t responseCode, size_t bytesSent) {

@@ -2,7 +2,7 @@
 
 #include "../src/logging/logging.h"
 
-void logging_test_canFormatTimeBasedOnSecondsAndNanoseconds() {
+void time_test_canFormatTimeBasedOnSecondsAndNanoseconds() {
   uint64_t nanoseconds = 0;
   uint64_t milliseconds = 0;
   uint64_t seconds = 0;
@@ -23,6 +23,6 @@ void logging_test_canFormatTimeBasedOnSecondsAndNanoseconds() {
   TEST_ASSERT_EQUAL_UINT64(44, nanoseconds);
 }
 
-void logging_test_run() {
-  RUN_TEST(logging_test_canFormatTimeBasedOnSecondsAndNanoseconds);
+void time_test_run() {
+  RUN_TEST(time_test_canFormatTimeBasedOnSecondsAndNanoseconds);
 }
