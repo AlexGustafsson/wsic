@@ -44,6 +44,7 @@ bool logging_openOutputFile(const char *filePath) {
 }
 
 void logging_logToFile(FILE *filePointer, const char *label, int color, const char *file, int line, const char *function, const char *format, ...) {
+  // Elapsed time
   uint64_t days = 0;
   uint64_t hours = 0;
   uint64_t minutes = 0;
@@ -52,20 +53,16 @@ void logging_logToFile(FILE *filePointer, const char *label, int color, const ch
   uint64_t nanoseconds = 0;
   uint64_t secondsSinceStart = 0;
   uint64_t nanosecondsSinceStart = 0;
-
-  // Current time
-  time_t calendarNow = time(NULL);
-  // Static no need for free
-  struct tm *timeInfo = localtime(&calendarNow);
-  char timeBuffer[27] = {0};
-  strftime(timeBuffer, 27, "%d/%b/%Y %H:%M:%S %z", timeInfo);
-
-  // Elapsed time
   time_getTimeSinceStart(&nanosecondsSinceStart, &secondsSinceStart);
   time_getFormattedElapsedTime(nanosecondsSinceStart, secondsSinceStart, &nanoseconds, &milliseconds, &seconds, &minutes, &hours, &days);
 
+  // Current time
+  time_t calendarNow = time(NULL);
+  struct tm timeInfo;
+  localtime_r(&calendarNow, &timeInfo);
+
   pthread_mutex_lock(&mutex);
-  fprintf(filePointer, "\x1b[90m[%s][", timeBuffer);
+  fprintf(filePointer, "\x1b[90m[%02d/%02d/%04d %02d:%02d:0%d][", timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_sec);
 
   if (days != 0)
     fprintf(filePointer, "%llud ", days);
