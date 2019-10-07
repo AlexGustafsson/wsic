@@ -157,19 +157,33 @@ int main(int argc, char const *argv[]) {
     int status;
     if (waitpid(main_serverInstance, &status, WNOHANG) != 0) {
       bool exited = WIFEXITED(status);
-      log(LOG_DEBUG, "Got interrupted by a signal or sleep timeout, exited: %d", exited);
+      log(LOG_DEBUG, "Got interrupted by a signal or sleep timeout");
       if (exited && main_serverShouldRun) {
-        // If the server should be running but it exited, restart it
+        // If the server should be running but it exited with a code, restart it if non-fatal
         int exitCode = WEXITSTATUS(status);
         if (exitCode == SERVER_EXIT_FATAL) {
           log(LOG_DEBUG, "Got a fatal exit code from instance, quitting");
-          exit(1);
+          exit(EXIT_FAILURE);
         }
 
         log(LOG_WARNING, "Server instance has exited with code %d. Restarting", exitCode);
         pid_t newInstance = server_createInstance(ports);
-        if (newInstance != 0)
-          main_serverInstance = newInstance;
+        if (newInstance == 0) {
+          log(LOG_ERROR, "Unable to restart server instance, quitting");
+          exit(EXIT_FAILURE);
+        }
+
+        main_serverInstance = newInstance;
+      } else if (!exited && main_serverInstance) {
+        // If the server should be running but it crashed, restart it
+        log(LOG_WARNING, "Server instance crashed. Restarting");
+        pid_t newInstance = server_createInstance(ports);
+        if (newInstance == 0) {
+          log(LOG_ERROR, "Unable to restart server instance, quitting");
+          exit(EXIT_FAILURE);
+        }
+
+        main_serverInstance = newInstance;
       }
     }
   }
