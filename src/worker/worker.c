@@ -277,7 +277,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
     if (body != 0)
       string_free(body);
   } else {
-    if (request->method == HTTP_METHOD_GET) {
+    if (request->method == HTTP_METHOD_GET || request->method == HTTP_METHOD_HEAD) {
       if (isFile) {
         // The file exists and is a regular file, serve it
         worker_return200(connection, request, resolvedPath);
@@ -287,7 +287,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
         worker_return404(connection, request, path);
       }
     } else {
-      // Only GET works for files (right now)
+      // Only GET and HEAD works for files
       worker_return400(connection, request, path, string_fromCopy("Method not supported"));
     }
   }
@@ -352,8 +352,12 @@ size_t worker_return500(connection_t *connection, http_t *request, string_t *des
   page_t *page = page_create500(description);
   string_t *source = page_getSource(page);
   http_setBody(response, source);
+  // Remove the body if HEAD was used
+  if (http_getMethod(request) == HTTP_METHOD_HEAD)
+    response->body = 0;
   http_setResponseCode(response, 500);
   http_setVersion(response, string_fromCopy("1.1"));
+  http_setHeader(response, string_fromCopy("Content-Type"), string_fromCopy("text/html"));
 
   string_t *responseString = http_toResponseString(response);
   size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
@@ -375,8 +379,12 @@ size_t worker_return404(connection_t *connection, http_t *request, string_t *pat
   page_t *page = page_create404(string_copy(path));
   string_t *source = page_getSource(page);
   http_setBody(response, source);
+  // Remove the body if HEAD was used
+  if (http_getMethod(request) == HTTP_METHOD_HEAD)
+    response->body = 0;
   http_setResponseCode(response, 404);
   http_setVersion(response, string_fromCopy("1.1"));
+  http_setHeader(response, string_fromCopy("Content-Type"), string_fromCopy("text/html"));
 
   string_t *responseString = http_toResponseString(response);
   size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
@@ -397,8 +405,12 @@ size_t worker_return400(connection_t *connection, http_t *request, string_t *pat
   page_t *page = page_create400(string_copy(description));
   string_t *source = page_getSource(page);
   http_setBody(response, source);
+  // Remove the body if HEAD was used
+  if (http_getMethod(request) == HTTP_METHOD_HEAD)
+    response->body = 0;
   http_setResponseCode(response, 400);
   http_setVersion(response, string_fromCopy("1.1"));
+  http_setHeader(response, string_fromCopy("Content-Type"), string_fromCopy("text/html"));
 
   string_t *responseString = http_toResponseString(response);
   size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
@@ -419,8 +431,12 @@ size_t worker_return413(connection_t *connection, http_t *request, string_t *pat
   page_t *page = page_create413();
   string_t *source = page_getSource(page);
   http_setBody(response, source);
+  // Remove the body if HEAD was used
+  if (http_getMethod(request) == HTTP_METHOD_HEAD)
+    response->body = 0;
   http_setResponseCode(response, 413);
   http_setVersion(response, string_fromCopy("1.1"));
+  http_setHeader(response, string_fromCopy("Content-Type"), string_fromCopy("text/html"));
 
   string_t *responseString = http_toResponseString(response);
   size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
@@ -456,6 +472,11 @@ size_t worker_return200(connection_t *connection, http_t *request, string_t *res
   if (mimeType == 0)
     mimeType = string_fromCopy("text/plain");
   http_setHeader(response, string_fromCopy("Content-Type"), mimeType);
+  // Remove the body if HEAD was used
+  if (http_getMethod(request) == HTTP_METHOD_HEAD) {
+    string_free(response->body);
+    response->body = 0;
+  }
 
   string_t *responseString = http_toResponseString(response);
   size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
