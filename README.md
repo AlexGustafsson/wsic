@@ -11,7 +11,7 @@
   <strong>[Quick Start](#quick-start) | [Contribute](#contributing) </strong>
 </div>
 
-# A Web Server written in C
+# WSIC
 ### An efficient web server written in C for the course DV1457 at BTH, Sweden
 ***
 
@@ -49,9 +49,9 @@ docker run -it -p8080:8080 wsic/wsic
 ##### Installing from prebuilt binaries
 
 Make sure you meet the following prerequisites:
-* `openssl 1.1.1` is installed (`apt install libssl1.1` on macOS `brew install openssl@1.1` on macOS)
+* `openssl 1.1.1` is installed (`apt install libssl1.1` on Ubuntu `brew install openssl@1.1` on macOS)
 
-You can download the latest build build [here](https://gitlab.axgn.se/wsic/wsic/builds/artifacts/development/download?job=build). Note however that this is a development build and will only run on an amd64 architecture on Ubuntu.  
+You can download the latest build [here](https://gitlab.axgn.se/wsic/wsic/builds/artifacts/development/download?job=build). Note however that this is a development build and will only run on an amd64 architecture on Ubuntu.  
 
 ##### Installing from source
 
@@ -137,7 +137,7 @@ make test && ./ci/test.sh
 
 ##### Git branching conventions
 
-The branches `master` and `development` are locked for pushing. Code is merged in to `development` by feature branches named `feature/my-feature`, `fix/my-fix` or the like. Try to keep the names consise and descriptive.
+The branches `master` and `development` are locked for pushing. Code is merged in to `development` by feature branches named `feature/my-feature`, `fix/my-fix` or the like. Try to keep the names concise and descriptive.
 
 The feature branches should when applicable be up to speed to `development` via `git rebase development`. Feature branches are merged to `development` with `git merge --no-ff branch`. Feature branches may be squashed, but prefer to keep the history clean so that all commits can be kept.
 
