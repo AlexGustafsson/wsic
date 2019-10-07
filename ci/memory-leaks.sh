@@ -30,7 +30,9 @@ sleep 5
 
 # Test currently available paths (simulate user actions)
 curl http://localhost:8080 > /dev/null
+curl -I http://localhost:8080 > /dev/null
 curl --insecure https://localhost:8443 > /dev/null
+curl -I --insecure https://localhost:8443 > /dev/null
 
 curl http://localhost:8080/cgi > /dev/null
 curl --insecure https://localhost:8443/cgi > /dev/null
