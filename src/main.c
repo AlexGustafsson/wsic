@@ -145,7 +145,6 @@ int main(int argc, char const *argv[]) {
   // Setup signal handling for main process
   signal(SIGINT, handleSignalSIGINT);
   signal(SIGTERM, handleSignalSIGTERM);
-  signal(SIGKILL, handleSignalSIGKILL);
   // If a child exits, it will interrupt the sleep and check statuses directly
   signal(SIGCHLD, handleSignalSIGCHLD);
 
@@ -241,17 +240,6 @@ void handleSignalSIGTERM(int signalNumber) {
   // Send signal to server
   kill(main_serverInstance, SIGINT);
   main_serverShouldRun = false;
-}
-
-// Handle SIGKILL (unblockable - just used for logging)
-void handleSignalSIGKILL(int signalNumber) {
-  // Disable other, conflicting signals
-  signal(SIGINT, main_emptySignalHandler);
-  signal(SIGTERM, main_emptySignalHandler);
-  signal(SIGCHLD, main_emptySignalHandler);
-
-  log(LOG_WARNING, "Got SIGKILL - exiting immediately");
-  exit(EXIT_SUCCESS);
 }
 
 // Handle SIGCHLD (a child exited)

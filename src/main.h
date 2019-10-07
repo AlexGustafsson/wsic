@@ -8,8 +8,6 @@ void main_printVersion();
 void handleSignalSIGINT(int signalNumber);
 // Handle SIGTERM (kill etc.)
 void handleSignalSIGTERM(int signalNumber);
-// Handle SIGKILL (unblockable - just used for logging)
-void handleSignalSIGKILL(int signalNumber);
 // Handle SIGCHLD (a child exited)
 void handleSignalSIGCHLD(int signalNumber);
 // Do nothing

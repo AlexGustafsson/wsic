@@ -63,7 +63,7 @@ pid_t server_createInstance(set_t *ports) {
     int exitCode = server_start(ports);
     // We only get here if there's an error
     log(LOG_ERROR, "The server exited with code %d", exitCode);
-    _exit(exitCode);
+    exit(exitCode);
   } else {
     log(LOG_DEBUG, "Started server instance with pid %d", pid);
     return pid;
@@ -74,10 +74,6 @@ int server_start(set_t *ports) {
   // Setup signal handling for main process
   signal(SIGINT, server_closeGracefully);
   signal(SIGTERM, server_closeGracefully);
-  signal(SIGKILL, server_close);
-
-  // Initialize OpenSSL
-  OpenSSL_add_ssl_algorithms();
 
   // Set up signals
   signal(SIGPIPE, server_emptySignalHandler);
@@ -401,8 +397,9 @@ void server_closeGracefully() {
   }
 
   log(LOG_DEBUG, "Cleaning up OpenSSL");
-  EVP_cleanup();
-
+  FIPS_mode_set(0);
+  CRYPTO_cleanup_all_ex_data();
+  ERR_free_strings();
   log(LOG_DEBUG, "Freeing message queue");
   message_queue_free(server_connectionQueue);
 
@@ -421,5 +418,8 @@ void server_emptySignalHandler() {
 
 void server_close() {
   log(LOG_INFO, "Closing server instance immediately");
-  EVP_cleanup();
+  FIPS_mode_set(0);
+  CRYPTO_cleanup_all_ex_data();
+  ERR_free_strings();
+  exit(EXIT_FAILURE);
 }

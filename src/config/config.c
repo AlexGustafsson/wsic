@@ -237,10 +237,6 @@ string_t *config_parseString(toml_table_t *table, const char *key) {
   string_t *string = string_fromCopy(value);
   free(value);
 
-  // Could not allocate string
-  if (string == 0)
-    return 0;
-
   return string;
 }
 
