@@ -20,7 +20,7 @@ trap cleanup EXIT
 mkdir -p build/reports/memory-leaks
 
 # Start wsic in the background with leak detection enabled
-valgrind --leak-check=full --show-leak-kinds=all $wsic start &> "build/reports/memory-leaks/log.txt" &
+valgrind --leak-check=full --show-leak-kinds=all --trace-children=yes $wsic start &> "build/reports/memory-leaks/log.txt" &
 wsicPID="$!"
 
 # Wait for WSIC to start
