@@ -11,7 +11,7 @@
   <strong>[Quick Start](#quick-start) | [Contribute](#contributing) </strong>
 </div>
 
-# A Web Server written in C
+# WSIC
 ### An efficient web server written in C for the course DV1457 at BTH, Sweden
 ***
 
@@ -49,9 +49,9 @@ docker run -it -p8080:8080 wsic/wsic
 ##### Installing from prebuilt binaries
 
 Make sure you meet the following prerequisites:
-* `openssl 1.1.1` is installed (`apt install libssl1.1` on macOS `brew install openssl@1.1` on macOS)
+* `openssl 1.1.1` is installed (`apt install libssl1.1` on Ubuntu `brew install openssl@1.1` on macOS)
 
-You can download the latest build build [here](https://gitlab.axgn.se/wsic/wsic/builds/artifacts/development/download?job=build). Note however that this is a development build and will only run on an amd64 architecture on Ubuntu.  
+You can download the latest build [here](https://gitlab.axgn.se/wsic/wsic/builds/artifacts/development/download?job=build). Note however that this is a development build and will only run on an amd64 architecture on Ubuntu.  
 
 ##### Installing from source
 
@@ -77,6 +77,18 @@ cd wsic && make
 ## Documentation
 
 The documentation is currently a bit sparse. For more information, refer to the source, tests and issues.
+
+### Architecture
+
+![Architecture overview](.gitlab/architecture-overview.png)
+
+WSIC uses a modern approach to concurrency. Everything is entirely event-driven which allows for 0 idle CPU usage and close to 0 MB of memory usage.
+
+WSIC also features a main process with the sole purpose of monitoring a server process. It sleeps most of the time and checks in from time to time or whenever the child process exits. In the vast majority cases WSIC is therefore able to recover from unexpected crashes with very low downtime measuring in milliseconds.
+
+The server process of WSIC offers multiplexing with support for an amount of listening virtual hosts only limited by the host system. As quick as possible, WSIC accepts incoming requests and put them in a multi-threaded message queue.
+
+This queue is consumed by a pool of worker which handles each request separately and concurrently. Whenever a worker is done handling a connection, it gets back to consuming the message queue which enables the worker to sleep most of the time. As previously stated, this allows WSIC to consume near 0 resources when idle.
 
 ## Contributing
 
@@ -125,7 +137,7 @@ make test && ./ci/test.sh
 
 ##### Git branching conventions
 
-The branches `master` and `development` are locked for pushing. Code is merged in to `development` by feature branches named `feature/my-feature`, `fix/my-fix` or the like. Try to keep the names consise and descriptive.
+The branches `master` and `development` are locked for pushing. Code is merged in to `development` by feature branches named `feature/my-feature`, `fix/my-fix` or the like. Try to keep the names concise and descriptive.
 
 The feature branches should when applicable be up to speed to `development` via `git rebase development`. Feature branches are merged to `development` with `git merge --no-ff branch`. Feature branches may be squashed, but prefer to keep the history clean so that all commits can be kept.
 
