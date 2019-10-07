@@ -28,12 +28,12 @@ build:
     paths:
     - build/wsic
 
-valgrind build:
+debug build:
   stage: build
-  script: make clean valgrind
+  script: make clean debug
   artifacts:
     paths:
-      - build/wsic
+      - build/wsic.debug
 
 test build:
   stage: build
@@ -69,9 +69,9 @@ test:
 
 detect memory leaks:
   stage: test
-  script: ./ci/memory-leaks.sh ./build/wsic
+  script: ./ci/memory-leaks.sh ./build/wsic.debug
   dependencies:
-    - valgrind build
+    - debug build
   artifacts:
     paths:
       - build/reports/memory-leaks

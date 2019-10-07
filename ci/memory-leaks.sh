@@ -20,7 +20,8 @@ trap cleanup EXIT
 mkdir -p build/reports/memory-leaks
 
 # Start wsic in the background with leak detection enabled
-valgrind --leak-check=full --show-leak-kinds=all --trace-children=yes $wsic start &> "build/reports/memory-leaks/log.txt" &
+export ASAN_OPTIONS=detect_leaks=1
+$wsic start &> "build/reports/memory-leaks/log.txt" &
 wsicPID="$!"
 
 # Wait for WSIC to start
@@ -48,12 +49,11 @@ kill "$wsicPID" &> /dev/null
 echo "Waiting for WSIC to exit"
 sleep 5
 
-valgrindLog="$(grep --text -e '==[0-9]\+==' "build/reports/memory-leaks/log.txt")"
-grep 'lost:' <<<"$valgrindLog" &> /dev/null
-exitCode="$?"
+leaks="$(grep --text -e '    #' -e 'leak of' -e 'detected memory leaks' "build/reports/memory-leaks/log.txt")"
+exitCode="$(echo "$?")"
 
 if [[ "$exitCode" == 0 ]]; then
-  echo "$valgrindLog"
+  echo "$leaks"
   echo -e "\e[31mMemory leaks detected\e[0m"
   exit 1
 else

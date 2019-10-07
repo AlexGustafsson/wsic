@@ -79,6 +79,8 @@ config_t *config_parse(const char *configString) {
 
         if (!duplicate)
           list_addValue(config->serverConfigs, serverConfig);
+        else
+          config_freeServerConfig(serverConfig);
       }
     }
   }
@@ -95,9 +97,7 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
   memset(config, 0, sizeof(server_config_t));
 
   const char *rawName = toml_table_key(serverTable);
-  string_t *name = string_fromCopy(rawName);
-
-  config->name = name;
+  config->name = string_fromCopy(rawName);
   config->domain = config_parseString(serverTable, "domain");
   // Parse and resolve the root directory
   string_t *relativePath = config_parseString(serverTable, "rootDirectory");
@@ -106,6 +106,7 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
     if (absolutePathBuffer == 0) {
       log(LOG_ERROR, "Could not resolve root directory '%s'", string_getBuffer(relativePath));
       config_freeServerConfig(config);
+      string_free(relativePath);
       return 0;
     }
     string_free(relativePath);
@@ -398,6 +399,9 @@ string_t *config_getLogfile(config_t *config) {
 }
 
 void config_setLogfile(config_t *config, string_t *logfile) {
+  if (config->logfile != 0)
+    string_free(config->logfile);
+
   config->logfile = logfile;
 }
 

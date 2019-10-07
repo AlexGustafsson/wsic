@@ -63,7 +63,7 @@ pid_t server_createInstance(set_t *ports) {
     int exitCode = server_start(ports);
     // We only get here if there's an error
     log(LOG_ERROR, "The server exited with code %d", exitCode);
-    exit(exitCode);
+    _exit(exitCode);
   } else {
     log(LOG_DEBUG, "Started server instance with pid %d", pid);
     return pid;
@@ -370,6 +370,7 @@ void server_closeGracefully() {
     shutdown(socket, SHUT_RDWR);
     close(socket);
   }
+  free(socketDescriptors);
 
   log(LOG_DEBUG, "Suspending worker threads");
   // Cancel all threads before joining them (see deferred cancellation points)
@@ -409,7 +410,7 @@ void server_closeGracefully() {
   server_connectionQueue = 0;
 
   log(LOG_DEBUG, "Exiting from server");
-  exit(0);
+  _exit(0);
 }
 
 void server_emptySignalHandler() {
@@ -421,5 +422,5 @@ void server_close() {
   FIPS_mode_set(0);
   CRYPTO_cleanup_all_ex_data();
   ERR_free_strings();
-  exit(EXIT_FAILURE);
+  _exit(EXIT_FAILURE);
 }

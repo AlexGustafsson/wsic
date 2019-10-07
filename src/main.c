@@ -96,6 +96,8 @@ int main(int argc, char const *argv[]) {
 
   if (config == 0) {
     log(LOG_ERROR, "Failed to setup config file");
+    if (logfile != 0)
+      string_free(logfile);
     return EXIT_FAILURE;
   }
 

@@ -477,7 +477,6 @@ size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *requ
   while (hash_table_getLength(environment) > 0) {
     string_t *key = hash_table_getKeyByIndex(environment, 0);
     string_t *value = hash_table_removeValue(environment, key);
-    log(LOG_DEBUG, "Freeing value '%s'", string_getBuffer(value));
     string_free(value);
   }
   hash_table_free(environment);
