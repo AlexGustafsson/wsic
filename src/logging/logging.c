@@ -10,12 +10,15 @@ uint8_t LOGGING_OUTPUT = LOGGING_CONSOLE;
 // Specifies which levels to output to log
 uint8_t LOGGING_LEVEL = LOG_DEBUG;
 
+// The specified file for output
+FILE *LOGGING_OUTPUT_FILE = 0;
+
 pthread_mutex_t mutex;
 
 bool logging_start() {
-  // Create mutex. Mutex will
+  // Create mutex
   if (pthread_mutex_init(&mutex, NULL) != 0) {
-    log(LOG_ERROR, "Failed to create mutex for log");
+    log(LOG_ERROR, "Failed to create mutex for console log");
     return false;
   }
   // Log debug and up (handling of level should be done elsewhere)
@@ -29,46 +32,35 @@ bool logging_start() {
 void logging_stop() {
   closelog();
   pthread_mutex_unlock(&mutex);
+
+  if (LOGGING_OUTPUT_FILE != 0)
+    fclose(LOGGING_OUTPUT_FILE);
 }
 
-void logging_logConsole(const char *label, int color, const char *file, int line, const char *function, const char *format, ...) {
-  uint64_t nanoseconds = 0;
-  uint64_t milliseconds = 0;
-  uint64_t seconds = 0;
-  uint64_t minutes = 0;
-  uint64_t hours = 0;
-  uint64_t days = 0;
+bool logging_openOutputFile(const char *filePath) {
+  LOGGING_OUTPUT_FILE = fopen(filePath, "a");
 
-  uint64_t nanosecondsSinceStart = 0;
-  uint64_t secondsSinceStart = 0;
-  time_getTimeSinceStart(&nanosecondsSinceStart, &secondsSinceStart);
+  return LOGGING_OUTPUT_FILE == 0;
+}
 
-  // Print time
-  time_formatTime(nanosecondsSinceStart, secondsSinceStart, &nanoseconds, &milliseconds, &seconds, &minutes, &hours, &days);
+void logging_logToFile(FILE *filePointer, const char *label, int color, const char *file, int line, const char *function, const char *format, ...) {
+
+  string_t *time = time_getFormattedTime();
 
   pthread_mutex_lock(&mutex);
-  if (days != 0) {
-    fprintf(stderr, "\x1b[90m[%llud %lluh %llum %llus %llu.%llums]", days, hours, minutes, seconds, milliseconds, nanoseconds);
-  } else if (hours != 0) {
-    fprintf(stderr, "\x1b[90m[%lluh %llum %llus %llu.%llums]", hours, minutes, seconds, milliseconds, nanoseconds);
-  } else if (minutes != 0) {
-    fprintf(stderr, "\x1b[90m[%llum %llus %llu.%llums]", minutes, seconds, milliseconds, nanoseconds);
-  } else if (seconds != 0) {
-    fprintf(stderr, "\x1b[90m[%llus %llu.%llums]", seconds, milliseconds, nanoseconds);
-  } else {
-    fprintf(stderr, "\x1b[90m[%llu.%llums]", milliseconds, nanoseconds);
-  }
   // Print log level, path to file where the program currently are, which line the program is at and last the function that was called
-  fprintf(stderr, "[\x1b[%dm%s\x1b[90m][%s@%d][%s]\n    └──\x1b[0m ", color, label, file, line, function);
+  fprintf(filePointer, "\x1b[90m[%s][\x1b[%dm%s\x1b[90m][%s@%d][%s]\n    └──\x1b[0m ", string_getBuffer(time), color, label, file, line, function);
 
   // Print the text and arguments that commes from the log(log_lvl, "%d %s %c", a, b, c)
   va_list arguments;
   va_start(arguments, format);
-  vfprintf(stderr, format, arguments);
+  vfprintf(filePointer, format, arguments);
   va_end(arguments);
 
-  fprintf(stderr, "\n");
+  fprintf(filePointer, "\n");
   pthread_mutex_unlock(&mutex);
+  
+  string_free(time);
 }
 
 void logging_request(string_t *remoteHost, enum httpMethod method, string_t *path, string_t *version, uint16_t responseCode, size_t bytesSent) {

@@ -22,12 +22,19 @@ bool main_serverShouldRun = true;
 pid_t main_serverInstance = 0;
 
 int main(int argc, char const *argv[]) {
+  LOGGING_OUTPUT |= LOGGING_SYSLOG;
   // Start internal time keeping
   time_reset();
 
   // Warn if the server is running as root
   if (geteuid() == 0)
     log(LOG_WARNING, "Running as root. I hope you know what you're doing.");
+
+  bool loggingStarted = logging_start();
+  if (loggingStarted == false) {
+    fprintf(stderr, "Could not start logging, exiting");
+    return EXIT_FAILURE;
+  }
 
   if (argc == 1) {
     log(LOG_ERROR, "Expected a command");
@@ -200,7 +207,7 @@ int main(int argc, char const *argv[]) {
   config_freeGlobalConfig();
 
   log(LOG_DEBUG, "Closing syslog");
-  logging_stopSyslog();
+  logging_stop();
 
   log(LOG_DEBUG, "Exiting from main");
   return 0;
