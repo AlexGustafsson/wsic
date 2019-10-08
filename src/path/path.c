@@ -45,6 +45,7 @@ string_t *path_relativeTo(string_t *path, string_t *root) {
     return 0;
 
   string_t *resolvedPath = string_fromBuffer(resolvedPathBuffer);
+  free(resolvedPathBuffer);
 
   // Get the substring of the resolved path that should be equal to the root path
   string_t *resolvedRoot = string_substring(resolvedPath, 0, string_getSize(root));
@@ -63,5 +64,6 @@ string_t *path_relativeTo(string_t *path, string_t *root) {
 
   string_t *relativePath = string_substring(resolvedPath, string_getSize(root), string_getSize(resolvedPath));
   string_free(resolvedPath);
+  string_free(resolvedRoot);
   return relativePath;
 }

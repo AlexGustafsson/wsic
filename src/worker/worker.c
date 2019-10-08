@@ -19,13 +19,13 @@
 // The main entry point of a worker
 int worker_entryPoint();
 int worker_handleConnection(worker_t *worker, connection_t *connection);
-hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request);
+hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request, string_t *rootDirectory, string_t *resolvedPath);
 size_t worker_return500(connection_t *connection, http_t *request, string_t *description);
 size_t worker_return404(connection_t *connection, http_t *request, string_t *path);
 size_t worker_return400(connection_t *connection, http_t *request, string_t *path, string_t *description);
 size_t worker_return413(connection_t *connection, http_t *request, string_t *path);
 size_t worker_return200(connection_t *connection, http_t *request, string_t *resolvedPath);
-size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body);
+size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *rootDirectory, string_t *body);
 
 worker_t *worker_spawn(int id, connection_t *connection, message_queue_t *queue) {
   worker_t *worker = malloc(sizeof(worker_t));
@@ -293,7 +293,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
     }
 
     // The file exists, is a regular file and executable - run it
-    worker_returnCGI(worker, connection, request, resolvedPath, body);
+    worker_returnCGI(worker, connection, request, resolvedPath, rootDirectory, body);
     if (body != 0)
       string_free(body);
   } else {
@@ -317,7 +317,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
   return 0;
 }
 
-hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request) {
+hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request, string_t *rootDirectory, string_t *resolvedPath) {
   hash_table_t *environment = hash_table_create();
   hash_table_setValue(environment, string_fromBuffer("HTTPS"), string_fromBuffer("off"));
   hash_table_setValue(environment, string_fromBuffer("SERVER_SOFTWARE"), string_fromBuffer("WSIC"));
@@ -363,6 +363,20 @@ hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request
   string_t *path = url_getPath(url);
   if (path != 0)
     hash_table_setValue(environment, string_fromBuffer("REQUEST_URI"), string_copy(path));
+
+  hash_table_setValue(environment, string_fromBuffer("DOCUMENT_ROOT"), string_copy(rootDirectory));
+
+  hash_table_setValue(environment, string_fromBuffer("SCRIPT_FILENAME"), string_copy(resolvedPath));
+
+  string_t *relativePath = path_relativeTo(resolvedPath, rootDirectory);
+  if (relativePath != 0)
+    hash_table_setValue(environment, string_fromBuffer("SCRIPT_NAME"), relativePath);
+
+  char *systemPathBuffer = getenv("PATH");
+  if (systemPathBuffer != 0) {
+    string_t *systemPath = string_fromBuffer(systemPathBuffer);
+    hash_table_setValue(environment, string_fromBuffer("PATH"), systemPath);
+  }
 
   return environment;
 }
@@ -508,10 +522,10 @@ size_t worker_return200(connection_t *connection, http_t *request, string_t *res
   return bytesWritten;
 }
 
-size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body) {
+size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *rootDirectory, string_t *body) {
   log(LOG_DEBUG, "Spawning CGI process");
   list_t *arguments = 0;
-  hash_table_t *environment = worker_createEnvironment(connection, request);
+  hash_table_t *environment = worker_createEnvironment(connection, request, rootDirectory, resolvedPath);
   worker->cgi = cgi_spawn(string_getBuffer(resolvedPath), arguments, environment);
   log(LOG_DEBUG, "Spawned process with pid %d", worker->cgi->pid);
 
