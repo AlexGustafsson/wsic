@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <string.h>
+#include <sys/socket.h>
 
 #include "../logging/logging.h"
 
@@ -38,11 +39,40 @@ config_t *config_parse(const char *configString) {
   toml_table_t *serverTable = toml_table_in(toml, "server");
   if (serverTable != 0) {
     config->daemon = config_parseBool(serverTable, "daemon");
+
     config->logfile = config_parseString(serverTable, "logfile");
+
     if (toml_raw_in(serverTable, "loggingLevel") != 0)
       config->loggingLevel = config_parseInt(serverTable, "loggingLevel");
     else
       config->loggingLevel = LOG_NOTICE;
+
+    if (toml_raw_in(serverTable, "threads") != 0) {
+      int64_t rawThreads = config_parseInt(serverTable, "threads");
+      if (rawThreads <= 1) {
+        log(LOG_WARNING, "Too few threads specified in server config - using default");
+        config->threads = 32;
+      } else {
+        config->threads = rawThreads;
+      }
+    } else {
+      config->threads = 32;
+    }
+
+    if (toml_raw_in(serverTable, "backlog") != 0) {
+      int64_t rawBacklog = config_parseInt(serverTable, "backlog");
+      if (rawBacklog <= 1) {
+        log(LOG_WARNING, "Too small of a backlog specified in server config - using default");
+        config->backlog = SOMAXCONN;
+      } else if (rawBacklog > SOMAXCONN) {
+        log(LOG_WARNING, "Too large of a backlog specified in server config - using default");
+        config->backlog = SOMAXCONN;
+      } else {
+        config->backlog = rawBacklog;
+      }
+    } else {
+      config->backlog = SOMAXCONN;
+    }
   }
 
   toml_table_t *serversTable = toml_table_in(toml, "servers");
@@ -101,7 +131,7 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
   memset(config, 0, sizeof(server_config_t));
 
   const char *rawName = toml_table_key(serverTable);
-  config->name = string_fromCopy(rawName);
+  config->name = string_fromBuffer(rawName);
   config->domain = config_parseString(serverTable, "domain");
   // Parse and resolve the root directory
   string_t *relativePath = config_parseString(serverTable, "rootDirectory");
@@ -114,7 +144,7 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
       return 0;
     }
     string_free(relativePath);
-    config->rootDirectory = string_fromCopy(absolutePathBuffer);
+    config->rootDirectory = string_fromBuffer(absolutePathBuffer);
     free(absolutePathBuffer);
   }
   config->enabled = config_parseBool(serverTable, "enabled");
@@ -239,7 +269,7 @@ string_t *config_parseString(toml_table_t *table, const char *key) {
     return 0;
   }
 
-  string_t *string = string_fromCopy(value);
+  string_t *string = string_fromBuffer(value);
   free(value);
 
   return string;
@@ -305,7 +335,7 @@ list_t *config_parseArray(toml_table_t *table, const char *key) {
       // The value is not a string
       toml_rtos(rawValue, &value);
 
-      string_t *string = string_fromCopy(value);
+      string_t *string = string_fromBuffer(value);
       free(value);
 
       // Could not allocate string
@@ -384,6 +414,14 @@ server_config_t *config_getServerConfigBySSLContext(config_t *config, SSL_CTX *s
 
 size_t config_getServers(config_t *config) {
   return list_getLength(config->serverConfigs);
+}
+
+size_t config_getNumberOfThreads(config_t *config) {
+  return config->threads;
+}
+
+size_t config_getBacklogSize(config_t *config) {
+  return config->backlog;
 }
 
 string_t *config_getName(server_config_t *config) {

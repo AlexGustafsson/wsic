@@ -20,14 +20,16 @@ cat <<EOF
 
 <body>
 	<header>
-	  <h1>W[!]</h1>
+	  <a href="/"><h1>W[!]</h1></a>
 	</header>
 	<main>
     <h1>WSIC CGI Environment</h1>
-    <p>This is the result of calling <code>env</code>.</p>
+    <p>This is the formatted result of calling <code>env</code>.</p>
     <div class="code-block">
-    $(env)
-    </div>
+			$(env -0 | while IFS='=' read -r -d '' key value; do
+				    printf "<span class=\"toml key\">%s</span> = <span class=\"toml string\">%s</span><br />" "$key" "$value"
+				done)
+		<div>
 	</main>
 	<footer>
 	  <p>This page was served by WSIC at <code>$(date)</code></p>

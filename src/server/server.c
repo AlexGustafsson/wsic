@@ -23,7 +23,7 @@ static struct pollfd *socketDescriptors = 0;
 static size_t socketDescriptorCount = 0;
 static message_queue_t *server_connectionQueue = 0;
 
-static worker_t *workerPool[WORKER_POOL_SIZE];
+static worker_t **server_workerPool = 0;
 
 int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg);
 DH *server_handleDiffieHellmanParameters(SSL *ssl, int isExport, int keyLength);
@@ -89,11 +89,32 @@ int server_start(set_t *ports) {
     return EXIT_FAILURE;
   }
 
+  // Setup worker pool
+  config_t *config = config_getGlobalConfig();
+  size_t threads = config_getNumberOfThreads(config);
+  log(LOG_DEBUG, "Setting up %zu workers in the pool", threads);
+  server_workerPool = malloc(sizeof(worker_t *) * threads);
+  if (server_workerPool == 0) {
+    log(LOG_ERROR, "Unable to create worker pool");
+    return EXIT_FAILURE;
+  }
+  for (size_t i = 0; i < threads; i++) {
+    worker_t *worker = worker_spawn(i, 0, server_connectionQueue);
+    if (worker == 0) {
+      log(LOG_ERROR, "Failed to set up worker for the pool. Could not spawn worker %zu", i);
+      return EXIT_FAILURE;
+    }
+
+    server_workerPool[i] = worker;
+  }
+  log(LOG_DEBUG, "Set up %zu workers", threads);
+
+  size_t backlog = config_getBacklogSize(config);
   // Set up listening sockets for each port
   for (size_t i = 0; i < list_getLength(ports); i++) {
     uint16_t port = (uint16_t)list_getValue(ports, i);
-    log(LOG_DEBUG, "Setting up port %d for listening", port);
-    int socketDescriptor = server_listen(port);
+    log(LOG_DEBUG, "Setting up port %d for listening (backlog size of %zu)", port, backlog);
+    int socketDescriptor = server_listen(port, backlog);
     if (socketDescriptor != 0) {
       socketDescriptors[i].fd = socketDescriptor;
       // Listen for incoming data
@@ -113,21 +134,7 @@ int server_start(set_t *ports) {
   if (socketDescriptorCount != list_getLength(ports))
     log(LOG_WARNING, "Not all required ports could be successfully bound (%zu out of %zu)", socketDescriptorCount, list_getLength(ports));
 
-  // Setup worker pool
-  log(LOG_DEBUG, "Setting up %d workers in the pool", WORKER_POOL_SIZE);
-  for (uint8_t i = 0; i < WORKER_POOL_SIZE; i++) {
-    worker_t *worker = worker_spawn(i, 0, server_connectionQueue);
-    if (worker == 0) {
-      log(LOG_ERROR, "Failed to set up worker for the pool");
-      return SERVER_EXIT_FATAL;
-    }
-
-    workerPool[i] = worker;
-  }
-  log(LOG_DEBUG, "Set up %d workers", WORKER_POOL_SIZE);
-
   // Setup TLS
-  config_t *config = config_getGlobalConfig();
   for (size_t i = 0; i < config_getServers(config); i++) {
     server_config_t *serverConfig = config_getServerConfig(config, i);
     SSL_CTX *sslContext = config_getSSLContext(serverConfig);
@@ -150,7 +157,7 @@ int server_start(set_t *ports) {
   free(socketDescriptors);
 }
 
-int server_listen(uint16_t port) {
+int server_listen(uint16_t port, size_t backlog) {
   int socketDescriptor = socket(AF_INET, SOCK_STREAM, PROTOCOL);
   // Test to see if socket is created
   if (socketDescriptor < 0) {
@@ -189,7 +196,7 @@ int server_listen(uint16_t port) {
   log(LOG_DEBUG, "Successfully bound 0.0.0.0:%d", port);
 
   // Listen to the socket
-  if (listen(socketDescriptor, BACKLOG) < 0) {
+  if (listen(socketDescriptor, backlog) < 0) {
     log(LOG_ERROR, "Could not listen on 0.0.0.0:%d", port);
     return 0;
   }
@@ -237,7 +244,7 @@ int server_acceptConnections() {
       }
       connection_setSocket(connection, socket);
       connection_setSourcePort(connection, ntohs(peerAddress.sin_port));
-      connection_setSourceAddress(connection, string_fromCopy(inet_ntoa(peerAddress.sin_addr)));
+      connection_setSourceAddress(connection, string_fromBuffer(inet_ntoa(peerAddress.sin_addr)));
 
       log(LOG_DEBUG, "Setting up connection for %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
 
@@ -271,7 +278,7 @@ int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg) {
   }
 
   config_t *config = config_getGlobalConfig();
-  string_t *domain = string_fromCopy(rawDomain);
+  string_t *domain = string_fromBuffer(rawDomain);
   server_config_t *serverConfig = config_getServerConfigBySNI(config, domain);
   string_free(domain);
   if (serverConfig == 0) {
@@ -373,8 +380,10 @@ void server_closeGracefully() {
 
   log(LOG_DEBUG, "Suspending worker threads");
   // Cancel all threads before joining them (see deferred cancellation points)
-  for (size_t i = 0; i < WORKER_POOL_SIZE; i++) {
-    worker_t *worker = workerPool[i];
+  config_t *config = config_getGlobalConfig();
+  size_t threads = config_getNumberOfThreads(config);
+  for (size_t i = 0; i < threads; i++) {
+    worker_t *worker = server_workerPool[i];
     log(LOG_DEBUG, "Suspending thread %zu (status was %d)", i, worker->status);
     // Let the workers exit when ready (let's them handle the current request)
     worker_closeGracefully(worker);
@@ -384,17 +393,18 @@ void server_closeGracefully() {
   log(LOG_DEBUG, "Unlocking all threads");
   message_queue_unlock(server_connectionQueue);
 
-  for (size_t i = 0; i < WORKER_POOL_SIZE; i++) {
-    worker_t *worker = workerPool[i];
+  for (size_t i = 0; i < threads; i++) {
+    worker_t *worker = server_workerPool[i];
     // Wait for the thread to join
     log(LOG_DEBUG, "Joining thread %zu", i);
     worker_waitForExit(worker);
     log(LOG_DEBUG, "Freeing thread %zu", i);
     worker_free(worker);
-    // This helps mark the memory as non-reachable which aids memory analyzers
-    // in detecting memory leaks
-    workerPool[i] = 0;
   }
+  free(server_workerPool);
+  // This helps mark the memory as non-reachable which aids memory analyzers
+  // in detecting memory leaks
+  server_workerPool = 0;
 
   // Free after all workers are stopped (they may be using the sockets up until that point)
   log(LOG_DEBUG, "Freeing socket descriptors");
@@ -404,6 +414,7 @@ void server_closeGracefully() {
   FIPS_mode_set(0);
   CRYPTO_cleanup_all_ex_data();
   ERR_free_strings();
+
   log(LOG_DEBUG, "Freeing message queue");
   message_queue_free(server_connectionQueue);
 

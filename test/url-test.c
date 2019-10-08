@@ -5,12 +5,12 @@
 void url_test_canFormatAnURL() {
   url_t *url = url_create();
 
-  url_setProtocol(url, string_fromCopy("https"));
-  url_setDomainName(url, string_fromCopy("wsic.axgn.se"));
+  url_setProtocol(url, string_fromBuffer("https"));
+  url_setDomainName(url, string_fromBuffer("wsic.axgn.se"));
   url_setPort(url, 80);
-  url_setPath(url, string_fromCopy("/index.html"));
-  url_setParameter(url, string_fromCopy("q"), string_fromCopy("test"));
-  url_setParameter(url, string_fromCopy("page"), string_fromCopy("home"));
+  url_setPath(url, string_fromBuffer("/index.html"));
+  url_setParameter(url, string_fromBuffer("q"), string_fromBuffer("test"));
+  url_setParameter(url, string_fromBuffer("page"), string_fromBuffer("home"));
 
   string_t *urlString = url_toString(url);
   const char *expected = "https://wsic.axgn.se/index.html?q=test&page=home";
@@ -32,8 +32,8 @@ void url_test_canFormatAnURL() {
 
 void url_test_canGetAndSetParameters() {
   url_t *url = url_create();
-  string_t *key = string_fromCopy("username");
-  string_t *value = string_fromCopy("xXMasterHackerXx");
+  string_t *key = string_fromBuffer("username");
+  string_t *value = string_fromBuffer("xXMasterHackerXx");
 
   url_setParameter(url, key, value);
 
@@ -46,12 +46,12 @@ void url_test_canGetAndSetDomainName() {
   url_t *url = url_create();
 
   // Set domain name
-  url_setDomainName(url, string_fromCopy("localhost"));
+  url_setDomainName(url, string_fromBuffer("localhost"));
   // Try to get the domain name
   TEST_ASSERT_EQUAL_STRING("localhost", string_getBuffer(url_getDomainName(url)));
 
   // Try uppdate the domain name
-  url_setDomainName(url, string_fromCopy("wsic.axgn.se"));
+  url_setDomainName(url, string_fromBuffer("wsic.axgn.se"));
   // Try to get the new domain name
   TEST_ASSERT_EQUAL_STRING("wsic.axgn.se", string_getBuffer(url_getDomainName(url)));
 
@@ -62,12 +62,12 @@ void url_test_canGetAndSetProtocol() {
   url_t *url = url_create();
 
   // Set protocol
-  url_setProtocol(url, string_fromCopy("http"));
+  url_setProtocol(url, string_fromBuffer("http"));
   // Try to get the protocol
   TEST_ASSERT_EQUAL_STRING("http", string_getBuffer(url_getProtocol(url)));
 
   // Try uppdate the protocol
-  url_setProtocol(url, string_fromCopy("https"));
+  url_setProtocol(url, string_fromBuffer("https"));
   // Try to get the new protocol
   TEST_ASSERT_EQUAL_STRING("https", string_getBuffer(url_getProtocol(url)));
 
@@ -76,8 +76,8 @@ void url_test_canGetAndSetProtocol() {
 
 void url_test_canCreateQueryString() {
   url_t *url = url_create();
-  url_setParameter(url, string_fromCopy("username"), string_fromCopy("test"));
-  url_setParameter(url, string_fromCopy("page"), string_fromCopy("home"));
+  url_setParameter(url, string_fromBuffer("username"), string_fromBuffer("test"));
+  url_setParameter(url, string_fromBuffer("page"), string_fromBuffer("home"));
 
   string_t *result = url_toQueryString(url);
   char *expectedResult = "username=test&page=home";

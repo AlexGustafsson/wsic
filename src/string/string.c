@@ -59,7 +59,7 @@ void string_resetCursor(string_cursor_t *cursor) {
 }
 
 // NOTE: Currently trusts the length to be within the bounds of the buffer
-string_t *string_fromCopyWithLength(const char *buffer, size_t length) {
+string_t *string_fromBufferWithLength(const char *buffer, size_t length) {
   string_t *string = string_create();
   if (string == 0)
     return 0;
@@ -78,20 +78,20 @@ string_t *string_fromCopyWithLength(const char *buffer, size_t length) {
   return string;
 }
 
-string_t *string_fromCopy(const char *buffer) {
+string_t *string_fromBuffer(const char *buffer) {
   size_t length = strlen(buffer);
 
-  return string_fromCopyWithLength(buffer, length);
+  return string_fromBufferWithLength(buffer, length);
 }
 
 string_t *string_copy(string_t *string) {
-  string_t *copy = string_fromCopyWithLength(string_getBuffer(string), string_getSize(string));
+  string_t *copy = string_fromBufferWithLength(string_getBuffer(string), string_getSize(string));
   return copy;
 }
 
 string_t *string_fromInt(int number) {
   if (number == 0)
-    return string_fromCopy("0");
+    return string_fromBuffer("0");
 
   string_t *string = string_create();
   // Get the rough number of digits in the number
@@ -204,8 +204,11 @@ string_t *string_substring(string_t *string, size_t firstIndex, size_t lastIndex
   // Out of bounds
   if (firstIndex >= string->size || lastIndex > string->size)
     return 0;
+  // No buffer specified
+  if (string->buffer == 0)
+    return 0;
 
-  string_t *substring = string_fromCopyWithLength(string->buffer + firstIndex, lastIndex - firstIndex);
+  string_t *substring = string_fromBufferWithLength(string->buffer + firstIndex, lastIndex - firstIndex);
   // Unable to allocate substring
   if (substring == 0)
     return 0;
@@ -244,7 +247,7 @@ string_t *string_getNextLine(string_cursor_t *cursor) {
   if (lastContentIndex >= (ssize_t)start)
     line = string_substring(cursor->string, start, lastContentIndex);
   else
-    line = string_fromCopy("");
+    line = string_fromBuffer("");
 
   return line;
 }

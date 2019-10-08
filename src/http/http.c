@@ -66,7 +66,7 @@ void http_setBody(http_t *http, string_t *body) {
 
   http->body = body;
   // Content-Length
-  http_setHeader(http, string_fromCopy("Content-Length"), string_fromInt(string_getSize(http->body)));
+  http_setHeader(http, string_fromBuffer("Content-Length"), string_fromInt(string_getSize(http->body)));
 }
 
 string_t *http_getBody(http_t *http) {
@@ -148,7 +148,7 @@ bool http_parseRequestLine(http_t *http, string_t *string) {
     string_freeCursor(cursor);
     return false;
   }
-  url_setProtocol(http->url, string_fromCopy("http"));
+  url_setProtocol(http->url, string_fromBuffer("http"));
 
   // Get the path and parameters
   // Reads untill a space is found or null char at end on line
@@ -307,7 +307,7 @@ bool http_parseRequestTarget(http_t *http, string_t *requestTarget) {
 }
 
 bool http_parseHost(http_t *http) {
-  string_t *keyHost = string_fromCopy("Host");
+  string_t *keyHost = string_fromBuffer("Host");
   string_t *host = hash_table_getValue(http->headers, keyHost);
   string_free(keyHost);
   if (host == 0) {
@@ -322,7 +322,7 @@ bool http_parseHost(http_t *http) {
     http->url = url_create();
   if (parameter == -1) {
     url_setPort(http->url, 80);
-    url_setDomainName(http->url, string_fromCopy(string_getBuffer(host)));
+    url_setDomainName(http->url, string_fromBuffer(string_getBuffer(host)));
   } else {
     // parameter + 1 to skip colon
     string_t *portString = string_substring(host, parameter + 1, string_getSize(host));
@@ -357,15 +357,15 @@ enum httpMethod http_parseMethod(string_t *method) {
 
 string_t *http_methodToString(enum httpMethod method) {
   if (method == 1)
-    return string_fromCopy("GET");
+    return string_fromBuffer("GET");
   if (method == 2)
-    return string_fromCopy("PUT");
+    return string_fromBuffer("PUT");
   if (method == 3)
-    return string_fromCopy("POST");
+    return string_fromBuffer("POST");
   if (method == 4)
-    return string_fromCopy("HEAD");
+    return string_fromBuffer("HEAD");
   if (method == 5)
-    return string_fromCopy("OPTIONS");
+    return string_fromBuffer("OPTIONS");
 
   log(LOG_ERROR, "Cound not go from method to string '%d'", method);
   return 0;

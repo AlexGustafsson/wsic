@@ -15,17 +15,17 @@ page_t *page_create() {
   memset(page, 0, sizeof(page_t));
 
   page->templates = hash_table_create();
-  page_setTemplate(page, string_fromCopy("version"), string_fromCopy((const char *)WSIC_VERSION));
+  page_setTemplate(page, string_fromBuffer("version"), string_fromBuffer((const char *)WSIC_VERSION));
 
   return page;
 }
 
 page_t *page_create400(string_t *description) {
   page_t *page = page_create();
-  page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
+  page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
-  page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_400_HTML));
-  page_setTemplate(page, string_fromCopy("description"), description);
+  page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_400_HTML));
+  page_setTemplate(page, string_fromBuffer("description"), description);
 
   page_resolveTemplates(page);
 
@@ -34,9 +34,9 @@ page_t *page_create400(string_t *description) {
 
 page_t *page_create403() {
   page_t *page = page_create();
-  page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
+  page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
-  page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_403_HTML));
+  page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_403_HTML));
 
   page_resolveTemplates(page);
 
@@ -45,9 +45,9 @@ page_t *page_create403() {
 
 page_t *page_create413() {
   page_t *page = page_create();
-  page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
+  page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
-  page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_413_HTML));
+  page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_413_HTML));
 
   page_resolveTemplates(page);
 
@@ -56,10 +56,10 @@ page_t *page_create413() {
 
 page_t *page_create404(string_t *path) {
   page_t *page = page_create();
-  page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
+  page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
-  page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_404_HTML));
-  page_setTemplate(page, string_fromCopy("path"), path);
+  page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_404_HTML));
+  page_setTemplate(page, string_fromBuffer("path"), path);
 
   page_resolveTemplates(page);
 
@@ -68,10 +68,10 @@ page_t *page_create404(string_t *path) {
 
 page_t *page_create500(string_t *description) {
   page_t *page = page_create();
-  page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
+  page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
-  page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_500_HTML));
-  page_setTemplate(page, string_fromCopy("description"), description);
+  page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_500_HTML));
+  page_setTemplate(page, string_fromBuffer("description"), description);
 
   page_resolveTemplates(page);
 
@@ -80,9 +80,9 @@ page_t *page_create500(string_t *description) {
 
 page_t *page_create501() {
   page_t *page = page_create();
-  page_setSource(page, string_fromCopyWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
+  page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
-  page_setTemplate(page, string_fromCopy("content"), string_fromCopy((const char *)RESOURCES_WWW_501_HTML));
+  page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_501_HTML));
 
   page_resolveTemplates(page);
 

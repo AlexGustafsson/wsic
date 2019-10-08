@@ -11,7 +11,7 @@
 
 <body>
 	<header>
-	  <h1>W[!]</h1>
+	  <a href="/"><h1>W[!]</h1></a>
 	</header>
 	<main>
 		<h1>WSIC - An open source, efficient and minimalistic web server</h1>
@@ -41,19 +41,19 @@
 			<span class="toml key">daemon</span> = <span class="toml value">false</span><br />
 			<br />
 			<span class="toml table">[servers]</span><br />
-  		<span class="toml table">    [servers.test]</span><br />
-    	<span class="toml key">          domain</span> = <span class="toml string">"localhost"</span><br />
-			<span class="toml key">          rootDirectory</span> = <span class="toml string">"www"</span><br />
-			<span class="toml key">          port</span> = <span class="toml value">8080</span><br />
-  		<span class="toml table">    [servers.testSecure]</span><br />
-    	<span class="toml key">          domain</span> = <span class="toml string">"localhost"</span><br />
-			<span class="toml key">          rootDirectory</span> = <span class="toml string">"www"</span><br />
-			<span class="toml key">          port</span> = <span class="toml value">8443</span><br />
-			<span class="toml key">          certificate</span> = <span class="toml string">"server.cert"</span><br />
-			<span class="toml key">          privateKey</span> = <span class="toml string">"server.key"</span><br />
-			<span class="toml key">          ellipticCurves</span> = <span class="toml string">"P-384:P-521"</span><br />
-			<span class="toml key">          validateCertificate</span> = <span class="toml value">false</span><br />
-			<span class="toml key">          dhparams</span> = <span class="toml string">"dhparams.pem"</span><br />
+  		<span class="toml table">  [servers.test]</span><br />
+    	<span class="toml key">    domain</span> = <span class="toml string">"localhost"</span><br />
+			<span class="toml key">    rootDirectory</span> = <span class="toml string">"www"</span><br />
+			<span class="toml key">    port</span> = <span class="toml value">8080</span><br />
+  		<span class="toml table">  [servers.testSecure]</span><br />
+    	<span class="toml key">    domain</span> = <span class="toml string">"localhost"</span><br />
+			<span class="toml key">    rootDirectory</span> = <span class="toml string">"www"</span><br />
+			<span class="toml key">    port</span> = <span class="toml value">8443</span><br />
+			<span class="toml key">    certificate</span> = <span class="toml string">"server.cert"</span><br />
+			<span class="toml key">    privateKey</span> = <span class="toml string">"server.key"</span><br />
+			<span class="toml key">    ellipticCurves</span> = <span class="toml string">"P-384:P-521"</span><br />
+			<span class="toml key">    validateCertificate</span> = <span class="toml value">false</span><br />
+			<span class="toml key">    dhparams</span> = <span class="toml string">"dhparams.pem"</span><br />
 		</code>
 	</main>
 	<footer>

@@ -24,7 +24,12 @@ h1, h2, h3, h4, h5, h6 {
 	font-weight: normal;
 }
 
-header > h1 {
+header > a:link, header > a:visited {
+	text-decoration: inherit;
+	color: inherit;
+}
+
+header > a > h1 {
   font-family: 'Dosis', sans-serif;
   font-size: 120px;
 }
@@ -54,8 +59,9 @@ code {
 	display: block;
 	padding: 20px;
 	background-color: #F9F9FC;
-	white-space: break;
 	min-width: 50%;
+	word-wrap: break-word;
+	font-family: monospace;
 }
 
 .toml {

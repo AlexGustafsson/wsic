@@ -24,7 +24,7 @@ cat <<EOF
 
 <body>
 	<header>
-	  <h1>W[!]</h1>
+	  <a href="/"><h1>W[!]</h1></a>
 	</header>
 	<main>
     <h1>WSIC CGI Form</h1>

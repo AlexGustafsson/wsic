@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "datastructures/list/list.h"
@@ -64,14 +65,14 @@ int main(int argc, char const *argv[]) {
     if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--daemon") == 0) {
       daemon = 1;
     } else if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--logfile") == 0) {
-      logfile = string_fromCopy(argv[++i]);
+      logfile = string_fromBuffer(argv[++i]);
       if (logfile == 0) {
         log(LOG_ERROR, "Unable to set logfile");
         argumentParsingFailed = true;
         break;
       }
     } else if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0) {
-      configFilePath = string_fromCopy(argv[++i]);
+      configFilePath = string_fromBuffer(argv[++i]);
       if (configFilePath == 0) {
         log(LOG_ERROR, "Unable to set config file");
         argumentParsingFailed = true;

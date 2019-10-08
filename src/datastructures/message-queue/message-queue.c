@@ -21,8 +21,8 @@ message_queue_t *message_queue_create() {
 
   if (pthread_cond_init(&queue->lockCondition, NULL) != 0) {
     log(LOG_ERROR, "Failed to create locking condition for queue");
-    free(queue);
     list_free(queue->list);
+    free(queue);
     return 0;
   }
 
@@ -30,8 +30,8 @@ message_queue_t *message_queue_create() {
   if (pthread_mutex_init(&queue->mutex, NULL) != 0) {
     log(LOG_ERROR, "Failed to create mutex for thread");
     pthread_cond_destroy(&queue->lockCondition);
-    free(queue);
     list_free(queue->list);
+    free(queue);
     return 0;
   }
 

@@ -10,8 +10,7 @@ lint:
 
 analyze:
   stage: static analysis
-  script: make clean analyze
-  allow_failure: true
+  script: ./ci/analyze.sh
   artifacts:
     paths:
       - build/reports/static-analysis

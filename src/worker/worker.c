@@ -17,15 +17,15 @@
 
 // Private methods
 // The main entry point of a worker
-int worker_entryPoint();
+void *worker_entryPoint(worker_t *worker);
 int worker_handleConnection(worker_t *worker, connection_t *connection);
-hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request);
+hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request, string_t *rootDirectory, string_t *resolvedPath);
 size_t worker_return500(connection_t *connection, http_t *request, string_t *description);
 size_t worker_return404(connection_t *connection, http_t *request, string_t *path);
 size_t worker_return400(connection_t *connection, http_t *request, string_t *path, string_t *description);
 size_t worker_return413(connection_t *connection, http_t *request, string_t *path);
 size_t worker_return200(connection_t *connection, http_t *request, string_t *resolvedPath);
-size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body);
+size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *rootDirectory, string_t *body);
 
 worker_t *worker_spawn(int id, connection_t *connection, message_queue_t *queue) {
   worker_t *worker = malloc(sizeof(worker_t));
@@ -64,7 +64,7 @@ uint8_t worker_getStatus(worker_t *worker) {
   return worker->status;
 }
 
-int worker_entryPoint(worker_t *worker) {
+void *worker_entryPoint(worker_t *worker) {
   // If a connection is already set, handle it directly (immediate mode)
   if (worker->connection != 0) {
     log(LOG_DEBUG, "Handling a connection in immediate mode");
@@ -75,7 +75,7 @@ int worker_entryPoint(worker_t *worker) {
       log(LOG_ERROR, "Handling the connection resulted in a non-zero exit code: %d", exitCode);
     worker->status = WORKER_STATUS_IDLE;
     worker_free(worker);
-    return exitCode;
+    return 0;
   }
 
   log(LOG_DEBUG, "Initializing worker");
@@ -142,7 +142,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
       bool parsed = http_parseRequestLine(request, currentLine);
       if (!parsed) {
         log(LOG_ERROR, "Failed to parse request line '%s'. Closing connection", string_getBuffer(currentLine));
-        worker_return400(connection, request, 0, string_fromCopy("Bad header received"));
+        worker_return400(connection, request, 0, string_fromBuffer("Bad header received"));
         string_free(currentLine);
         http_free(request);
         return 0;
@@ -152,7 +152,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
       bool parsed = http_parseHeader(request, currentLine);
       if (!parsed) {
         log(LOG_ERROR, "Failed to parse header '%s'. Closing connection", string_getBuffer(currentLine));
-        worker_return400(connection, request, 0, string_fromCopy("Bad header received"));
+        worker_return400(connection, request, 0, string_fromBuffer("Bad header received"));
         string_free(currentLine);
         http_free(request);
         return 0;
@@ -167,26 +167,16 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
   bool parsedHost = http_parseHost(request);
   if (!parsedHost) {
     log(LOG_DEBUG, "Could not parse Host header");
-    worker_return400(connection, request, 0, string_fromCopy("Bad header received"));
+    worker_return400(connection, request, 0, string_fromBuffer("Bad header received"));
     http_free(request);
     return 0;
   }
 
   if (request->url == 0) {
     log(LOG_ERROR, "Didn't receive a header from the request");
-    worker_return400(connection, request, 0, string_fromCopy("No header received"));
+    worker_return400(connection, request, 0, string_fromBuffer("No header received"));
     http_free(request);
     return 0;
-  }
-
-  // Handle expect header (rudimentary support)
-  string_t *expectHeader = string_fromCopy("Expect");
-  string_t *expects = http_getHeader(request, expectHeader);
-  string_free(expectHeader);
-  if (expects != 0) {
-    log(LOG_DEBUG, "Got expect '%s'", string_getBuffer(expects));
-    // TODO: Handle actual expects here
-    connection_write(connection, "HTTP/1.1 100 Continue\r\n", 23);
   }
 
   string_t *domainName = url_getDomainName(http_getUrl(request));
@@ -197,12 +187,25 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
   server_config_t *serverConfig = config_getServerConfigByDomain(config, domainName, port);
   if (serverConfig == 0) {
     log(LOG_ERROR, "Got request to serve an unknown domain '%s'", string_getBuffer(domainName));
-    worker_return500(connection, request, string_fromCopy("The requested domain is not served by this server"));
+    worker_return500(connection, request, string_fromBuffer("The requested domain is not served by this server"));
     http_free(request);
     return 0;
   }
 
   string_t *path = url_getPath(http_getUrl(request));
+
+  // Ensure that the same transport is used
+  if (connection->ssl == 0 && serverConfig->sslContext != 0) {
+    log(LOG_ERROR, "Got HTTP request on HTTPS port");
+    worker_return400(connection, request, path, string_fromBuffer("Got HTTP request on HTTPS port"));
+    http_free(request);
+    return 0;
+  } else if (connection->ssl != 0 && serverConfig->sslContext == 0) {
+    log(LOG_ERROR, "Got HTTPS request on HTTP port");
+    worker_return400(connection, request, path, string_fromBuffer("Got HTTPS request on HTTP port"));
+    http_free(request);
+    return 0;
+  }
 
   // Resolve path - 404 if not found or failed
   string_t *rootDirectory = config_getRootDirectory(serverConfig);
@@ -242,9 +245,14 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
 
   // CGI can handle any method
   if (isFile && isExecutable) {
+    // Handle expect header
+    string_t *expectHeader = string_fromBuffer("Expect");
+    string_t *expects = http_getHeader(request, expectHeader);
+    string_free(expectHeader);
+
     // Read the body if one exists
     string_t *body = 0;
-    string_t *contentLengthHeader = string_fromCopy("Content-Length");
+    string_t *contentLengthHeader = string_fromBuffer("Content-Length");
     string_t *contentLengthString = http_getHeader(request, contentLengthHeader);
     string_free(contentLengthHeader);
     if (contentLengthString != 0) {
@@ -253,19 +261,31 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
       log(LOG_DEBUG, "The request has a body size of %d bytes", contentLength);
       if (contentLength > REQUEST_MAX_BODY_SIZE) {
         log(LOG_WARNING, "The client wanted to write %d bytes which is above maximum %d", contentLength, REQUEST_MAX_BODY_SIZE);
-        worker_return413(connection, request, 0);
+        if (expects != 0) {
+          log(LOG_DEBUG, "Got expect '%s'", string_getBuffer(expects));
+          connection_write(connection, "HTTP/1.1 417 Expectation Failed\r\n", 33);
+        } else {
+          worker_return413(connection, request, 0);
+        }
+
         http_free(request);
         return 0;
       } else if (contentLength == 0) {
         log(LOG_WARNING, "Got empty body");
-        worker_return400(connection, request, 0, string_fromCopy("Empty body when headers specified content length"));
+        if (expects != 0) {
+          log(LOG_DEBUG, "Got expect '%s'", string_getBuffer(expects));
+          connection_write(connection, "HTTP/1.1 417 Expectation Failed\r\n", 33);
+        } else {
+          worker_return400(connection, request, 0, string_fromBuffer("Empty body when headers specified content length"));
+        }
+
         http_free(request);
         return 0;
       } else {
         body = connection_read(connection, REQUEST_READ_TIMEOUT, contentLength);
         if (body == 0) {
           log(LOG_ERROR, "Reading body timed out or failed");
-          worker_return400(connection, request, 0, string_fromCopy("Request timed out"));
+          worker_return400(connection, request, path, string_fromBuffer("Request timed out"));
           http_free(request);
           return 0;
         }
@@ -273,7 +293,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
     }
 
     // The file exists, is a regular file and executable - run it
-    worker_returnCGI(worker, connection, request, resolvedPath, body);
+    worker_returnCGI(worker, connection, request, resolvedPath, rootDirectory, body);
     if (body != 0)
       string_free(body);
   } else {
@@ -288,7 +308,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
       }
     } else {
       // Only GET and HEAD works for files
-      worker_return400(connection, request, path, string_fromCopy("Method not supported"));
+      worker_return400(connection, request, path, string_fromBuffer("Method not supported"));
     }
   }
 
@@ -297,52 +317,66 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
   return 0;
 }
 
-hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request) {
+hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request, string_t *rootDirectory, string_t *resolvedPath) {
   hash_table_t *environment = hash_table_create();
-  hash_table_setValue(environment, string_fromCopy("HTTPS"), string_fromCopy("off"));
-  hash_table_setValue(environment, string_fromCopy("SERVER_SOFTWARE"), string_fromCopy("WSIC"));
+  hash_table_setValue(environment, string_fromBuffer("HTTPS"), string_fromBuffer("off"));
+  hash_table_setValue(environment, string_fromBuffer("SERVER_SOFTWARE"), string_fromBuffer("WSIC"));
   if (connection->sourceAddress != 0)
-    hash_table_setValue(environment, string_fromCopy("REMOTE_ADDR"), string_copy(connection->sourceAddress));
-  hash_table_setValue(environment, string_fromCopy("REMOTE_PORT"), string_fromInt(connection->sourcePort));
+    hash_table_setValue(environment, string_fromBuffer("REMOTE_ADDR"), string_copy(connection->sourceAddress));
+  hash_table_setValue(environment, string_fromBuffer("REMOTE_PORT"), string_fromInt(connection->sourcePort));
 
   uint8_t method = http_getMethod(request);
   if (method == HTTP_METHOD_GET)
-    hash_table_setValue(environment, string_fromCopy("REQUEST_METHOD"), string_fromCopy("GET"));
+    hash_table_setValue(environment, string_fromBuffer("REQUEST_METHOD"), string_fromBuffer("GET"));
   else if (method == HTTP_METHOD_POST)
-    hash_table_setValue(environment, string_fromCopy("REQUEST_METHOD"), string_fromCopy("POST"));
+    hash_table_setValue(environment, string_fromBuffer("REQUEST_METHOD"), string_fromBuffer("POST"));
 
-  string_t *cookieHeader = string_fromCopy("Cookie");
+  string_t *cookieHeader = string_fromBuffer("Cookie");
   string_t *cookie = http_getHeader(request, cookieHeader);
   string_free(cookieHeader);
   if (cookie != 0)
-    hash_table_setValue(environment, string_fromCopy("HTTP_COOKIE"), string_copy(cookie));
+    hash_table_setValue(environment, string_fromBuffer("HTTP_COOKIE"), string_copy(cookie));
 
-  string_t *refererHeader = string_fromCopy("Referer");
+  string_t *refererHeader = string_fromBuffer("Referer");
   string_t *referer = http_getHeader(request, refererHeader);
   string_free(refererHeader);
   if (referer != 0)
-    hash_table_setValue(environment, string_fromCopy("HTTP_REFERER"), string_copy(referer));
+    hash_table_setValue(environment, string_fromBuffer("HTTP_REFERER"), string_copy(referer));
 
-  string_t *userAgentHeader = string_fromCopy("User-Agent");
+  string_t *userAgentHeader = string_fromBuffer("User-Agent");
   string_t *userAgent = http_getHeader(request, userAgentHeader);
   string_free(userAgentHeader);
   if (userAgent != 0)
-    hash_table_setValue(environment, string_fromCopy("HTTP_USER_AGENT"), string_copy(userAgent));
+    hash_table_setValue(environment, string_fromBuffer("HTTP_USER_AGENT"), string_copy(userAgent));
 
   url_t *url = http_getUrl(request);
   string_t *domainName = url_getDomainName(url);
   if (domainName != 0) {
-    hash_table_setValue(environment, string_fromCopy("HTTP_HOST"), string_copy(domainName));
-    hash_table_setValue(environment, string_fromCopy("SERVER_NAME"), string_copy(domainName));
+    hash_table_setValue(environment, string_fromBuffer("HTTP_HOST"), string_copy(domainName));
+    hash_table_setValue(environment, string_fromBuffer("SERVER_NAME"), string_copy(domainName));
   }
 
   uint16_t port = url_getPort(url);
   if (port != 0)
-    hash_table_setValue(environment, string_fromCopy("SERVER_PORT"), string_fromInt(port));
+    hash_table_setValue(environment, string_fromBuffer("SERVER_PORT"), string_fromInt(port));
 
   string_t *path = url_getPath(url);
   if (path != 0)
-    hash_table_setValue(environment, string_fromCopy("REQUEST_URI"), string_copy(path));
+    hash_table_setValue(environment, string_fromBuffer("REQUEST_URI"), string_copy(path));
+
+  hash_table_setValue(environment, string_fromBuffer("DOCUMENT_ROOT"), string_copy(rootDirectory));
+
+  hash_table_setValue(environment, string_fromBuffer("SCRIPT_FILENAME"), string_copy(resolvedPath));
+
+  string_t *relativePath = path_relativeTo(resolvedPath, rootDirectory);
+  if (relativePath != 0)
+    hash_table_setValue(environment, string_fromBuffer("SCRIPT_NAME"), relativePath);
+
+  char *systemPathBuffer = getenv("PATH");
+  if (systemPathBuffer != 0) {
+    string_t *systemPath = string_fromBuffer(systemPathBuffer);
+    hash_table_setValue(environment, string_fromBuffer("PATH"), systemPath);
+  }
 
   return environment;
 }
@@ -356,8 +390,8 @@ size_t worker_return500(connection_t *connection, http_t *request, string_t *des
   if (http_getMethod(request) == HTTP_METHOD_HEAD)
     response->body = 0;
   http_setResponseCode(response, 500);
-  http_setVersion(response, string_fromCopy("1.1"));
-  http_setHeader(response, string_fromCopy("Content-Type"), string_fromCopy("text/html"));
+  http_setVersion(response, string_fromBuffer("1.1"));
+  http_setHeader(response, string_fromBuffer("Content-Type"), string_fromBuffer("text/html"));
 
   string_t *responseString = http_toResponseString(response);
   size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
@@ -383,8 +417,8 @@ size_t worker_return404(connection_t *connection, http_t *request, string_t *pat
   if (http_getMethod(request) == HTTP_METHOD_HEAD)
     response->body = 0;
   http_setResponseCode(response, 404);
-  http_setVersion(response, string_fromCopy("1.1"));
-  http_setHeader(response, string_fromCopy("Content-Type"), string_fromCopy("text/html"));
+  http_setVersion(response, string_fromBuffer("1.1"));
+  http_setHeader(response, string_fromBuffer("Content-Type"), string_fromBuffer("text/html"));
 
   string_t *responseString = http_toResponseString(response);
   size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
@@ -409,8 +443,8 @@ size_t worker_return400(connection_t *connection, http_t *request, string_t *pat
   if (http_getMethod(request) == HTTP_METHOD_HEAD)
     response->body = 0;
   http_setResponseCode(response, 400);
-  http_setVersion(response, string_fromCopy("1.1"));
-  http_setHeader(response, string_fromCopy("Content-Type"), string_fromCopy("text/html"));
+  http_setVersion(response, string_fromBuffer("1.1"));
+  http_setHeader(response, string_fromBuffer("Content-Type"), string_fromBuffer("text/html"));
 
   string_t *responseString = http_toResponseString(response);
   size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
@@ -435,8 +469,8 @@ size_t worker_return413(connection_t *connection, http_t *request, string_t *pat
   if (http_getMethod(request) == HTTP_METHOD_HEAD)
     response->body = 0;
   http_setResponseCode(response, 413);
-  http_setVersion(response, string_fromCopy("1.1"));
-  http_setHeader(response, string_fromCopy("Content-Type"), string_fromCopy("text/html"));
+  http_setVersion(response, string_fromBuffer("1.1"));
+  http_setHeader(response, string_fromBuffer("Content-Type"), string_fromBuffer("text/html"));
 
   string_t *responseString = http_toResponseString(response);
   size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
@@ -454,13 +488,13 @@ size_t worker_return413(connection_t *connection, http_t *request, string_t *pat
 size_t worker_return200(connection_t *connection, http_t *request, string_t *resolvedPath) {
   http_t *response = http_create();
   http_setResponseCode(response, 200);
-  http_setVersion(response, string_fromCopy("1.1"));
+  http_setVersion(response, string_fromBuffer("1.1"));
 
   string_t *fileContent = resources_loadFile(resolvedPath);
   if (fileContent == 0) {
     log(LOG_ERROR, "Could not read file '%s'", string_getBuffer(resolvedPath));
     http_free(response);
-    worker_return500(connection, request, string_fromCopy("Unable to access requested file"));
+    worker_return500(connection, request, string_fromBuffer("Unable to access requested file"));
     return 0;
   }
 
@@ -470,8 +504,8 @@ size_t worker_return200(connection_t *connection, http_t *request, string_t *res
     log(LOG_DEBUG, "MIME type of '%s' is '%s'", string_getBuffer(resolvedPath), string_getBuffer(mimeType));
   // Default to text/plain if no type was found
   if (mimeType == 0)
-    mimeType = string_fromCopy("text/plain");
-  http_setHeader(response, string_fromCopy("Content-Type"), mimeType);
+    mimeType = string_fromBuffer("text/plain");
+  http_setHeader(response, string_fromBuffer("Content-Type"), mimeType);
   // Remove the body if HEAD was used
   if (http_getMethod(request) == HTTP_METHOD_HEAD) {
     string_free(response->body);
@@ -488,10 +522,10 @@ size_t worker_return200(connection_t *connection, http_t *request, string_t *res
   return bytesWritten;
 }
 
-size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *body) {
+size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *rootDirectory, string_t *body) {
   log(LOG_DEBUG, "Spawning CGI process");
   list_t *arguments = 0;
-  hash_table_t *environment = worker_createEnvironment(connection, request);
+  hash_table_t *environment = worker_createEnvironment(connection, request, rootDirectory, resolvedPath);
   worker->cgi = cgi_spawn(string_getBuffer(resolvedPath), arguments, environment);
   log(LOG_DEBUG, "Spawned process with pid %d", worker->cgi->pid);
 
@@ -515,13 +549,18 @@ size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *requ
   }
 
   log(LOG_DEBUG, "Reading response from CGI process");
-  // TODO: Read more than 4096 bytes
-  char buffer[2048] = {0};
-  cgi_read(worker->cgi, buffer, 2048);
-  buffer[2048 - 1] = 0;
+  string_t *response = cgi_read(worker->cgi, CGI_READ_TIMEOUT);
+  if (response == 0) {
+    log(LOG_ERROR, "Unable to read bytes from CGI process");
+    cgi_freeProcess(worker->cgi);
+    worker->cgi = 0;
+    worker_return500(connection, request, string_fromBuffer("Unable to build response."));
+    return 0;
+  }
 
   log(LOG_DEBUG, "Got response from CGI process");
-  size_t bytesWritten = connection_write(connection, buffer, 2048);
+  size_t bytesWritten = connection_write(connection, string_getBuffer(response), string_getSize(response));
+  string_free(response);
   string_t *path = url_getPath(http_getUrl(request));
   logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 0, bytesWritten);
 
