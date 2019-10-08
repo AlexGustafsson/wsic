@@ -36,6 +36,7 @@ typedef struct {
   list_t *serverConfigs;
   string_t *logfile;
   uint8_t loggingLevel;
+  size_t threads;
 } config_t;
 
 config_t *config_parse(const char *configString);
@@ -58,6 +59,8 @@ server_config_t *config_getServerConfigBySNI(config_t *config, string_t *domain)
 server_config_t *config_getServerConfigByDomain(config_t *config, string_t *domain, uint16_t port);
 server_config_t *config_getServerConfigBySSLContext(config_t *config, SSL_CTX *sslContext);
 size_t config_getServers(config_t *config);
+
+size_t config_getNumberOfThreads(config_t *config);
 
 string_t *config_getName(server_config_t *config);
 

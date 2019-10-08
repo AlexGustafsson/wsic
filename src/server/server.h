@@ -18,7 +18,6 @@
 #define PROTOCOL 0
 
 #define SERVER_EXIT_FATAL 10
-#define WORKER_POOL_SIZE 10
 
 pid_t server_createInstance(set_t *ports);
 // Main entrypoint for a server instance

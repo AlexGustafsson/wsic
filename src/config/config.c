@@ -43,6 +43,17 @@ config_t *config_parse(const char *configString) {
       config->loggingLevel = config_parseInt(serverTable, "loggingLevel");
     else
       config->loggingLevel = LOG_NOTICE;
+    if (toml_raw_in(serverTable, "threads") != 0) {
+      int64_t rawThreads = config_parseInt(serverTable, "threads");
+      if (rawThreads <= 1) {
+        log(LOG_WARNING, "Too few threads specified in server config - using default");
+        config->threads = 32;
+      } else {
+        config->threads = rawThreads;
+      }
+    } else {
+      config->threads = 32;
+    }
   }
 
   toml_table_t *serversTable = toml_table_in(toml, "servers");
@@ -384,6 +395,10 @@ server_config_t *config_getServerConfigBySSLContext(config_t *config, SSL_CTX *s
 
 size_t config_getServers(config_t *config) {
   return list_getLength(config->serverConfigs);
+}
+
+size_t config_getNumberOfThreads(config_t *config) {
+  return config->threads;
 }
 
 string_t *config_getName(server_config_t *config) {
