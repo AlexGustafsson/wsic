@@ -198,7 +198,9 @@ size_t cgi_write(cgi_process_t *process, const char *buffer, size_t bufferSize) 
 
 void cgi_flushStdin(cgi_process_t *process) {
   const char buffer[1] = {0};
-  write(process->stdin[PIPE_WRITE], buffer, 1);
+  ssize_t bytesWritten = write(process->stdin[PIPE_WRITE], buffer, 1);
+  if (bytesWritten == -1)
+    log(LOG_ERROR, "Unable to write to CGI process - got code %d", errno);
   close(process->stdin[PIPE_WRITE]);
 }
 
