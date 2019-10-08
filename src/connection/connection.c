@@ -145,7 +145,6 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
       continue;
     }
 
-    bytesReceived = 0;
     if (connection->ssl == 0)
       bytesReceived = connection_readBytes(connection, &buffer, lineLength, READ_FLAGS_NONE);
     else
