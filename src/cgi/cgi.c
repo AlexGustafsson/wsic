@@ -76,11 +76,11 @@ cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *e
     if (arguments != 0) {
       argumentsBuffer = malloc(sizeof(char *) * (list_getLength(arguments) + 1));
       for (size_t i = 0; i < list_getLength(arguments); i++) {
-        string_t *argumentString = list_removeValue(arguments, i);
+        string_t *argumentString = list_getValue(arguments, i);
         argumentsBuffer[i] = string_getBuffer(argumentString);
       }
-      list_free(arguments);
       argumentsBuffer[list_getLength(arguments)] = 0;
+      list_free(arguments);
     }
 
     char **environmentBuffer = 0;

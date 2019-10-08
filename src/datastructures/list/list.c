@@ -153,10 +153,7 @@ void list_clear(list_t *list) {
   if (list->length == 0)
     return;
 
-  // list_removeValue alters list->length, therefore we need to store it
-  // beforehand
-  size_t length = list->length;
-  for (size_t i = 0; i < length; i++)
+  while (list->length > 0)
     list_removeValue(list, 0);
 }
 

@@ -413,6 +413,7 @@ void server_closeGracefully() {
   FIPS_mode_set(0);
   CRYPTO_cleanup_all_ex_data();
   ERR_free_strings();
+
   log(LOG_DEBUG, "Freeing message queue");
   message_queue_free(server_connectionQueue);
 
