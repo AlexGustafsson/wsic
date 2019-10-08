@@ -179,16 +179,6 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
     return 0;
   }
 
-  // Handle expect header (rudimentary support)
-  string_t *expectHeader = string_fromBuffer("Expect");
-  string_t *expects = http_getHeader(request, expectHeader);
-  string_free(expectHeader);
-  if (expects != 0) {
-    log(LOG_DEBUG, "Got expect '%s'", string_getBuffer(expects));
-    // TODO: Handle actual expects here
-    connection_write(connection, "HTTP/1.1 100 Continue\r\n", 23);
-  }
-
   string_t *domainName = url_getDomainName(http_getUrl(request));
   uint16_t port = url_getPort(http_getUrl(request));
 
@@ -255,6 +245,11 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
 
   // CGI can handle any method
   if (isFile && isExecutable) {
+    // Handle expect header
+    string_t *expectHeader = string_fromBuffer("Expect");
+    string_t *expects = http_getHeader(request, expectHeader);
+    string_free(expectHeader);
+
     // Read the body if one exists
     string_t *body = 0;
     string_t *contentLengthHeader = string_fromBuffer("Content-Length");
@@ -266,12 +261,24 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
       log(LOG_DEBUG, "The request has a body size of %d bytes", contentLength);
       if (contentLength > REQUEST_MAX_BODY_SIZE) {
         log(LOG_WARNING, "The client wanted to write %d bytes which is above maximum %d", contentLength, REQUEST_MAX_BODY_SIZE);
-        worker_return413(connection, request, 0);
+        if (expects != 0) {
+          log(LOG_DEBUG, "Got expect '%s'", string_getBuffer(expects));
+          connection_write(connection, "HTTP/1.1 417 Expectation Failed\r\n", 33);
+        } else {
+          worker_return413(connection, request, 0);
+        }
+
         http_free(request);
         return 0;
       } else if (contentLength == 0) {
         log(LOG_WARNING, "Got empty body");
-        worker_return400(connection, request, 0, string_fromBuffer("Empty body when headers specified content length"));
+        if (expects != 0) {
+          log(LOG_DEBUG, "Got expect '%s'", string_getBuffer(expects));
+          connection_write(connection, "HTTP/1.1 417 Expectation Failed\r\n", 33);
+        } else {
+          worker_return400(connection, request, 0, string_fromBuffer("Empty body when headers specified content length"));
+        }
+
         http_free(request);
         return 0;
       } else {
