@@ -10,5 +10,5 @@ if [[ "$bugs" == "" ]] || [[ "$bugs" -eq 0 ]]; then
   exit 0
 else
   echo -e "\e[31mFound $bugs bug(s)\e[0m"
-  exit 0
+  exit 1
 fi
