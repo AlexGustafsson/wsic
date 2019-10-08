@@ -93,7 +93,7 @@ int server_start(set_t *ports) {
   config_t *config = config_getGlobalConfig();
   size_t threads = config_getNumberOfThreads(config);
   log(LOG_DEBUG, "Setting up %zu workers in the pool", threads);
-  server_workerPool = malloc(sizeof(worker_t*) * threads);
+  server_workerPool = malloc(sizeof(worker_t *) * threads);
   if (server_workerPool == 0) {
     log(LOG_ERROR, "Unable to create worker pool");
     return EXIT_FAILURE;
