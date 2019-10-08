@@ -94,6 +94,62 @@ This queue is consumed by a pool of worker which handles each request separately
 
 Processes started by WSIC inherits its permissions. This only really affects CGI processes. This means that if WSIC has access to a file, so do CGI processes. It's therefore important to configure WSIC to run as a seperate user on the system with access only to necessery parts. If possible, one can deploy jails or containers (see *Running with docker*).
 
+### Configuration
+
+Configuring WSIC is generally done by a config file written in [TOML](https://github.com/toml-lang/toml). An example configuration looks like this:
+
+```TOML
+[server]
+  daemon = false
+
+[servers]
+  [servers.default]
+    domain = "localhost"
+    rootDirectory = "www"
+    port = 8080
+    directoryIndex = ["index.html", "index.sh"]
+  [servers.defaultTLS]
+    domain = "localhost"
+    rootDirectory = "www"
+    port = 8443
+    directoryIndex = ["index.html", "index.sh"]
+    certificate = "server.cert"
+    privateKey = "server.key"
+    ellipticCurves = "P-384:P-521"
+    validateCertificate = false
+```
+
+#### Options
+
+##### Server
+
+The server block has the following options.
+
+| Name | Description | Example |
+| ---- | ----------- | ------- |
+| daemon | Bool. Whether or not the process should be run in daemon mode. Defaults to `false`. | `daemon = true` |
+| logfile | String. An optional path to a logfile to write logs to. Default is empty. | `logfile = "logs.txt"` |
+| loggingLevel | Integer (0-7). The [syslog log level](https://en.wikipedia.org/wiki/Syslog#Severity_level) to use. Defaults to notice (5). | `loglevel = 5` |
+| threads | Integer larger or equal to 1. The number of worker threads to use. Default is 32. | `threads = 16` |
+| backlog | Integer (0-`SOMAXCONN`). The number of sockets allowed in the backlog (in the kernel, WSIC's queue has no limit). Defaults to `SOMAXCONN` (roughly 128). | `backlog = 64` |
+
+##### Servers
+
+The servers block takes one or more servers with the following options.
+
+| Name | Description | Example |
+| ---- | ----------- | ------- |
+| domain | Required string. The domain to handle. May be used once for HTTP and once for HTTPS. | `domain = wsic.axgn.se` |
+| port | Required integer (0-65536). The port to listen on. May be used multiple times. | `port = 80` |
+| rootDirectory | Required string. The root directory (www directory) of the website. | `rootDirectory = "/var/www"` |
+| directoryIndex | Array of strings. The index files to check when a directory is requested. No default (directory index will cause `HTTP 404 Not Found`) | `rootDirectory = ["index.html", "index.sh"]` |
+| dhparams | String. Path to a file in PEM format specifying Diffie Hellman parameters to use for RSA ephemeral keys. No default. | `dhparams = dhparams.pem` |
+| privateKey | String. Required for TLS. Path to a private key file in PEM format specifying the private key of the server. | `privateKey = "server.pem"` |
+| certificate | String. Required for TLS. Path to a certificate file in PEM format specifying the server certificate to use. | `certificate = "server.cert"` |
+| ellipticCurves | String. Elliptic curves to use. Default is specified in [config.h](https://gitlab.axgn.se/wsic/wsic/blob/development/src/config/config.h). | `ellipticCuvers = "P-256:P-384:X25519"` |
+| cipherSuite | String. The cipher suite to use for TLS 1.2 (TLS 1.3 is hard-coded). Default is specified in [config.h](https://gitlab.axgn.se/wsic/wsic/blob/development/src/config/config.h). | `cipherSuite = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"` |
+| enabled | Bool. Currently unused | `enabled = false` |
+
 ## Contributing
 
 Any contribution is welcome. If you're not able to code it yourself, perhaps someone else is - so post an issue if there's anything on your mind.
