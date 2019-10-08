@@ -81,6 +81,9 @@ cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *e
       }
       argumentsBuffer[list_getLength(arguments)] = 0;
       list_free(arguments);
+    } else {
+      argumentsBuffer = malloc(sizeof(char *) * 1);
+      argumentsBuffer[0] = 0;
     }
 
     char **environmentBuffer = 0;
@@ -99,6 +102,9 @@ cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *e
       }
       environmentBuffer[hash_table_getLength(environment)] = 0;
       hash_table_free(environment);
+    } else {
+      environmentBuffer = malloc(sizeof(char *) * 1);
+      environmentBuffer[0] = 0;
     }
 
     // Run the CGI command
