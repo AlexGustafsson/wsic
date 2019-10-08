@@ -17,7 +17,7 @@
 
 // Private methods
 // The main entry point of a worker
-int worker_entryPoint();
+void *worker_entryPoint(worker_t *worker);
 int worker_handleConnection(worker_t *worker, connection_t *connection);
 hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request, string_t *rootDirectory, string_t *resolvedPath);
 size_t worker_return500(connection_t *connection, http_t *request, string_t *description);
@@ -64,7 +64,7 @@ uint8_t worker_getStatus(worker_t *worker) {
   return worker->status;
 }
 
-int worker_entryPoint(worker_t *worker) {
+void *worker_entryPoint(worker_t *worker) {
   // If a connection is already set, handle it directly (immediate mode)
   if (worker->connection != 0) {
     log(LOG_DEBUG, "Handling a connection in immediate mode");
@@ -75,7 +75,7 @@ int worker_entryPoint(worker_t *worker) {
       log(LOG_ERROR, "Handling the connection resulted in a non-zero exit code: %d", exitCode);
     worker->status = WORKER_STATUS_IDLE;
     worker_free(worker);
-    return exitCode;
+    return 0;
   }
 
   log(LOG_DEBUG, "Initializing worker");
