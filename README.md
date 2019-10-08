@@ -147,7 +147,7 @@ The servers block takes one or more servers with the following options.
 | privateKey | String. Required for TLS. Path to a private key file in PEM format specifying the private key of the server. | `privateKey = "server.pem"` |
 | certificate | String. Required for TLS. Path to a certificate file in PEM format specifying the server certificate to use. | `certificate = "server.cert"` |
 | ellipticCurves | String. Elliptic curves to use. Default is specified in [config.h](https://gitlab.axgn.se/wsic/wsic/blob/development/src/config/config.h). | `ellipticCuvers = "P-256:P-384:X25519"` |
-| cipherSuite | String. The cipher suite to use for TLS 1.2 (TLS 1.3 is hard-coded). Default is specified in [config.h](https://gitlab.axgn.se/wsic/wsic/blob/development/src/config/config.h). | `cipherSuite = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"` |
+| cipherSuite | String. The cipher suite to use for TLS 1.2 (TLS 1.3 is hard-coded). Supported values are those for TLS 1.2 and TLS 1.3 specified here: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html. Default is specified in [config.h](https://gitlab.axgn.se/wsic/wsic/blob/development/src/config/config.h). | `cipherSuite = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"` |
 | enabled | Bool. Currently unused | `enabled = false` |
 
 ## Contributing
