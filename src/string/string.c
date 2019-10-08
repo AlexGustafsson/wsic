@@ -204,6 +204,9 @@ string_t *string_substring(string_t *string, size_t firstIndex, size_t lastIndex
   // Out of bounds
   if (firstIndex >= string->size || lastIndex > string->size)
     return 0;
+  // No buffer specified
+  if (string->buffer == 0)
+    return 0;
 
   string_t *substring = string_fromBufferWithLength(string->buffer + firstIndex, lastIndex - firstIndex);
   // Unable to allocate substring
