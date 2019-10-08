@@ -37,6 +37,7 @@ typedef struct {
   string_t *logfile;
   uint8_t loggingLevel;
   size_t threads;
+  size_t backlog;
 } config_t;
 
 config_t *config_parse(const char *configString);
@@ -61,6 +62,8 @@ server_config_t *config_getServerConfigBySSLContext(config_t *config, SSL_CTX *s
 size_t config_getServers(config_t *config);
 
 size_t config_getNumberOfThreads(config_t *config);
+
+size_t config_getBacklogSize(config_t *config);
 
 string_t *config_getName(server_config_t *config);
 

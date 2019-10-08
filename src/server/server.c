@@ -109,11 +109,12 @@ int server_start(set_t *ports) {
   }
   log(LOG_DEBUG, "Set up %zu workers", threads);
 
+  size_t backlog = config_getBacklogSize(config);
   // Set up listening sockets for each port
   for (size_t i = 0; i < list_getLength(ports); i++) {
     uint16_t port = (uint16_t)list_getValue(ports, i);
-    log(LOG_DEBUG, "Setting up port %d for listening", port);
-    int socketDescriptor = server_listen(port);
+    log(LOG_DEBUG, "Setting up port %d for listening (backlog size of %zu)", port, backlog);
+    int socketDescriptor = server_listen(port, backlog);
     if (socketDescriptor != 0) {
       socketDescriptors[i].fd = socketDescriptor;
       // Listen for incoming data
@@ -156,7 +157,7 @@ int server_start(set_t *ports) {
   free(socketDescriptors);
 }
 
-int server_listen(uint16_t port) {
+int server_listen(uint16_t port, size_t backlog) {
   int socketDescriptor = socket(AF_INET, SOCK_STREAM, PROTOCOL);
   // Test to see if socket is created
   if (socketDescriptor < 0) {
@@ -195,7 +196,7 @@ int server_listen(uint16_t port) {
   log(LOG_DEBUG, "Successfully bound 0.0.0.0:%d", port);
 
   // Listen to the socket
-  if (listen(socketDescriptor, BACKLOG) < 0) {
+  if (listen(socketDescriptor, backlog) < 0) {
     log(LOG_ERROR, "Could not listen on 0.0.0.0:%d", port);
     return 0;
   }

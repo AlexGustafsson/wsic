@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <string.h>
+#include <sys/socket.h>
 
 #include "../logging/logging.h"
 
@@ -38,11 +39,14 @@ config_t *config_parse(const char *configString) {
   toml_table_t *serverTable = toml_table_in(toml, "server");
   if (serverTable != 0) {
     config->daemon = config_parseBool(serverTable, "daemon");
+
     config->logfile = config_parseString(serverTable, "logfile");
+
     if (toml_raw_in(serverTable, "loggingLevel") != 0)
       config->loggingLevel = config_parseInt(serverTable, "loggingLevel");
     else
       config->loggingLevel = LOG_NOTICE;
+
     if (toml_raw_in(serverTable, "threads") != 0) {
       int64_t rawThreads = config_parseInt(serverTable, "threads");
       if (rawThreads <= 1) {
@@ -53,6 +57,21 @@ config_t *config_parse(const char *configString) {
       }
     } else {
       config->threads = 32;
+    }
+
+    if (toml_raw_in(serverTable, "backlog") != 0) {
+      int64_t rawBacklog = config_parseInt(serverTable, "backlog");
+      if (rawBacklog <= 1) {
+        log(LOG_WARNING, "Too small of a backlog specified in server config - using default");
+        config->backlog = SOMAXCONN;
+      } else if (rawBacklog > SOMAXCONN) {
+        log(LOG_WARNING, "Too large of a backlog specified in server config - using default");
+        config->backlog = SOMAXCONN;
+      } else {
+        config->backlog = rawBacklog;
+      }
+    } else {
+      config->backlog = SOMAXCONN;
     }
   }
 
@@ -399,6 +418,10 @@ size_t config_getServers(config_t *config) {
 
 size_t config_getNumberOfThreads(config_t *config) {
   return config->threads;
+}
+
+size_t config_getBacklogSize(config_t *config) {
+  return config->backlog;
 }
 
 string_t *config_getName(server_config_t *config) {
