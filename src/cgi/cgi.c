@@ -90,7 +90,7 @@ cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *e
         string_t *key = hash_table_getKeyByIndex(environment, i);
         string_t *value = hash_table_getValueByIndex(environment, i);
 
-        string_t *keyValuePair = string_fromCopyWithLength(string_getBuffer(key), string_getSize(key));
+        string_t *keyValuePair = string_fromBufferWithLength(string_getBuffer(key), string_getSize(key));
         string_appendChar(keyValuePair, '=');
         string_append(keyValuePair, value);
         string_free(value);

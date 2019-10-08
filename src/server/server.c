@@ -243,7 +243,7 @@ int server_acceptConnections() {
       }
       connection_setSocket(connection, socket);
       connection_setSourcePort(connection, ntohs(peerAddress.sin_port));
-      connection_setSourceAddress(connection, string_fromCopy(inet_ntoa(peerAddress.sin_addr)));
+      connection_setSourceAddress(connection, string_fromBuffer(inet_ntoa(peerAddress.sin_addr)));
 
       log(LOG_DEBUG, "Setting up connection for %s:%i", string_getBuffer(connection->sourceAddress), connection->sourcePort);
 
@@ -277,7 +277,7 @@ int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg) {
   }
 
   config_t *config = config_getGlobalConfig();
-  string_t *domain = string_fromCopy(rawDomain);
+  string_t *domain = string_fromBuffer(rawDomain);
   server_config_t *serverConfig = config_getServerConfigBySNI(config, domain);
   string_free(domain);
   if (serverConfig == 0) {

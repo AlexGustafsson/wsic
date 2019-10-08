@@ -5,11 +5,11 @@
 void hash_table_test_canStoreValues() {
   hash_table_t *hashTable = hash_table_create();
 
-  string_t *key1 = string_fromCopy("Foo");
+  string_t *key1 = string_fromBuffer("Foo");
   int value1 = 5;
-  string_t *key2 = string_fromCopy("Bar");
+  string_t *key2 = string_fromBuffer("Bar");
   int value2 = 7;
-  string_t *key3 = string_fromCopy("Foo");
+  string_t *key3 = string_fromBuffer("Foo");
   int value3 = 2;
 
   // Add pair 1 and make sure the length increased

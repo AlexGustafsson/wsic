@@ -8,7 +8,7 @@ void string_test_canCreateStringFromBuffer() {
   // A null terminated buffer-based string
   const char *buffer = "Hello world";
   // Create a string from the buffer
-  string_t *string = string_fromCopy(buffer);
+  string_t *string = string_fromBuffer(buffer);
 
   // Ensure that the buffer size is at least as large as the string and a null byte
   TEST_ASSERT(string->bufferSize >= 11 + 1);
@@ -30,7 +30,7 @@ void string_test_canCreateStringFromBufferWithLength() {
   const char *buffer = "Hello world - not everything is added";
   const char *expectedStoredString = "Hello world";
   // Create a string from the buffer
-  string_t *string = string_fromCopyWithLength(buffer, 11);
+  string_t *string = string_fromBufferWithLength(buffer, 11);
 
   // Ensure that the buffer size is at least as large as the string and a null byte
   TEST_ASSERT(string->bufferSize >= 11 + 1);
@@ -51,7 +51,7 @@ void string_test_canClearString() {
   // A null terminated buffer-based string
   const char *buffer = "Hello world";
   // Create a string from the buffer
-  string_t *string = string_fromCopy(buffer);
+  string_t *string = string_fromBuffer(buffer);
 
   // Clear the string
   string_clear(string);
@@ -111,9 +111,9 @@ void string_test_canCreateStringFromNegativeInt() {
 
 void string_test_canAppendString() {
   // The base string to append to
-  string_t *base = string_fromCopy("Foo");
+  string_t *base = string_fromBuffer("Foo");
   // The string to append
-  string_t *stringToAppend = string_fromCopy(" Bar");
+  string_t *stringToAppend = string_fromBuffer(" Bar");
   // The expected result after appending
   const char *expectedResult = "Foo Bar";
 
@@ -138,7 +138,7 @@ void string_test_canAppendString() {
 
 void string_test_canAppendChar() {
   // The base string to append to
-  string_t *base = string_fromCopy("Hello World");
+  string_t *base = string_fromBuffer("Hello World");
   // The char to append
   char character = '!';
   // The expected result after appending
@@ -164,7 +164,7 @@ void string_test_canAppendChar() {
 
 void string_test_canAppendBuffer() {
   // The base string to append to
-  string_t *base = string_fromCopy("Foo");
+  string_t *base = string_fromBuffer("Foo");
   // The buffer to append
   const char *buffer = " Bar";
   // The expected result after appending
@@ -190,7 +190,7 @@ void string_test_canAppendBuffer() {
 
 void string_test_canAppendBufferWithLength() {
   // The base string to append to
-  string_t *base = string_fromCopy("Foo");
+  string_t *base = string_fromBuffer("Foo");
   // The buffer to append
   const char *buffer = " Bar Baz";
   // The expected result after appending
@@ -213,7 +213,7 @@ void string_test_canAppendBufferWithLength() {
 
   string_free(base);
 
-  string_t *string = string_fromCopy("Hello Wolrd!");
+  string_t *string = string_fromBuffer("Hello Wolrd!");
   char *b = "";
   string_appendBufferWithLength(string, b, 1);
 
@@ -222,7 +222,7 @@ void string_test_canAppendBufferWithLength() {
 
 void string_test_canGetExistingChar() {
   // A base string
-  string_t *string = string_fromCopy("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+  string_t *string = string_fromBuffer("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
   char expected = 'M';
   char actual = string_getCharAt(string, 12);
 
@@ -234,7 +234,7 @@ void string_test_canGetExistingChar() {
 
 void string_test_cannotGetNonExistingChar() {
   // A base string
-  string_t *string = string_fromCopy("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+  string_t *string = string_fromBuffer("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
   char expected = 0;
   char actual = string_getCharAt(string, 100);
 
@@ -246,7 +246,7 @@ void string_test_cannotGetNonExistingChar() {
 
 void string_test_canSetExistingChar() {
   // A base string
-  string_t *string = string_fromCopy("Foo Car Baz");
+  string_t *string = string_fromBuffer("Foo Car Baz");
   const char *expected = "Foo Bar Baz";
 
   // Replace the 'C' with a 'B'
@@ -260,7 +260,7 @@ void string_test_canSetExistingChar() {
 
 void string_test_cannotSetNonExistingChar() {
   // A base string
-  string_t *string = string_fromCopy("Foo Bar Baz");
+  string_t *string = string_fromBuffer("Foo Bar Baz");
   const char *expected = "Foo Bar Baz";
 
   // Try to set a character out of bounds
@@ -276,7 +276,7 @@ void string_test_cannotSetNonExistingChar() {
 
 void string_test_canTrimEnd() {
   // A base string
-  string_t *string = string_fromCopy("Hello world \n\r\t ");
+  string_t *string = string_fromBuffer("Hello world \n\r\t ");
   const char *expected = "Hello world";
 
   // Perform trim the end
@@ -299,8 +299,8 @@ void string_test_canTrimEnd() {
 
 void string_test_canCanCompareEqualStrings() {
   // Two equal strings
-  string_t *equal1 = string_fromCopy("Foo Bar");
-  string_t *equal2 = string_fromCopy("Foo Bar");
+  string_t *equal1 = string_fromBuffer("Foo Bar");
+  string_t *equal2 = string_fromBuffer("Foo Bar");
 
   // Ensure that the strings are equal
   TEST_ASSERT_TRUE(string_equals(equal1, equal2));
@@ -311,8 +311,8 @@ void string_test_canCanCompareEqualStrings() {
 
 void string_test_canCompareNonEqualStrings() {
   // Two non-equal strings
-  string_t *nonEqual1 = string_fromCopy("Foo Bar");
-  string_t *nonEqual2 = string_fromCopy("Baz Biz");
+  string_t *nonEqual1 = string_fromBuffer("Foo Bar");
+  string_t *nonEqual2 = string_fromBuffer("Baz Biz");
 
   // Ensure that the strings are not equal
   TEST_ASSERT_FALSE(string_equals(nonEqual1, nonEqual2));
@@ -323,7 +323,7 @@ void string_test_canCompareNonEqualStrings() {
 
 void string_test_canCanCompareEqualStringAndBuffer() {
   // Two equal strings
-  string_t *equal1 = string_fromCopy("Foo Bar");
+  string_t *equal1 = string_fromBuffer("Foo Bar");
   const char *equal2 = "Foo Bar";
 
   // Ensure that the strings are equal
@@ -334,7 +334,7 @@ void string_test_canCanCompareEqualStringAndBuffer() {
 
 void string_test_canCompareNonEqualStringAndBuffer() {
   // Two non-equal strings
-  string_t *nonEqual1 = string_fromCopy("Foo Bar");
+  string_t *nonEqual1 = string_fromBuffer("Foo Bar");
   const char *nonEqual2 = "Baz Biz";
 
   // Ensure that the strings are not equal
@@ -344,7 +344,7 @@ void string_test_canCompareNonEqualStringAndBuffer() {
 }
 
 void string_test_canLoopThroughCharacters() {
-  string_t *characters = string_fromCopy("a1b2c3");
+  string_t *characters = string_fromBuffer("a1b2c3");
   string_cursor_t *cursor = string_createCursor(characters);
 
   // Ensure that each character matches
@@ -370,7 +370,7 @@ void string_test_canLoopThroughCharacters() {
 }
 
 void string_test_canLoopThroughLines() {
-  string_t *lines = string_fromCopy("Line1\nLine2\r\nLine3");
+  string_t *lines = string_fromBuffer("Line1\nLine2\r\nLine3");
   string_cursor_t *cursor = string_createCursor(lines);
 
   string_t *line1 = string_getNextLine(cursor);
@@ -400,7 +400,7 @@ void string_test_canLoopThroughLines() {
 }
 
 void string_test_canFindNextChar() {
-  string_t *string = string_fromCopy("3h43SD#!*()DD*");
+  string_t *string = string_fromBuffer("3h43SD#!*()DD*");
   string_cursor_t *cursor = string_createCursor(string);
   ssize_t parameter0 = 8;
   ssize_t parameter1 = 13;
@@ -414,7 +414,7 @@ void string_test_canFindNextChar() {
 }
 
 void string_test_canGetSubstring() {
-  string_t *string = string_fromCopy("I've got a really good UDP joke to tell you, but I don't know if you'll get it");
+  string_t *string = string_fromBuffer("I've got a really good UDP joke to tell you, but I don't know if you'll get it");
   string_t *stringToCompare = string_substring(string, 23, 26);
 
   // Testing expected functionality of substring
@@ -442,7 +442,7 @@ void string_test_canGetSubstring() {
 }
 
 void string_test_canGetSize() {
-  string_t *string = string_fromCopy("Hello World!");
+  string_t *string = string_fromBuffer("Hello World!");
 
   TEST_ASSERT(string_getSize(string) == 12);
 
@@ -450,7 +450,7 @@ void string_test_canGetSize() {
 }
 
 void string_test_canResetCursor() {
-  string_t *string = string_fromCopy("Hello World!");
+  string_t *string = string_fromBuffer("Hello World!");
   string_cursor_t *cursor = string_createCursor(string);
 
   // Set cursor to 12
@@ -466,7 +466,7 @@ void string_test_canResetCursor() {
 }
 
 void string_test_canShrinkStringSize() {
-  string_t *string = string_fromCopy("Hello World!");
+  string_t *string = string_fromBuffer("Hello World!");
 
   string_setBufferSize(string, 4);
 
@@ -477,7 +477,7 @@ void string_test_canShrinkStringSize() {
 }
 
 void string_test_canFromCopyOnEmpty() {
-  string_t *string = string_fromCopy("");
+  string_t *string = string_fromBuffer("");
 
   TEST_ASSERT_EQUAL_STRING("", string_getBuffer(string));
   TEST_ASSERT(string_getSize(string) == 0);
@@ -486,8 +486,8 @@ void string_test_canFromCopyOnEmpty() {
 }
 
 void string_test_canAppendBufferWithLengthOfZero() {
-  string_t *string = string_fromCopy("Hello");
-  string_t *buffer = string_fromCopy("");
+  string_t *string = string_fromBuffer("Hello");
+  string_t *buffer = string_fromBuffer("");
   size_t length = string_getSize(buffer);
 
   string_appendBufferWithLength(string, string_getBuffer(buffer), length);

@@ -83,7 +83,7 @@ string_t *connection_read(connection_t *connection, int timeout, size_t bytesToR
     if (buffer == 0)
       return 0;
 
-    string_t *content = string_fromCopyWithLength(buffer, bytesReceived);
+    string_t *content = string_fromBufferWithLength(buffer, bytesReceived);
     free(buffer);
     return content;
   }
@@ -123,7 +123,7 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
       continue;
 
     // Create a string from the buffer
-    string_t *string = string_fromCopyWithLength(buffer, bytesReceived);
+    string_t *string = string_fromBufferWithLength(buffer, bytesReceived);
     free(buffer);
     buffer = 0;
 
@@ -154,7 +154,7 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
     if (buffer == 0)
       return 0;
 
-    string_t *line = string_fromCopyWithLength(buffer, bytesReceived);
+    string_t *line = string_fromBufferWithLength(buffer, bytesReceived);
     free(buffer);
     // Remove the trailing newlines
     string_trimEnd(line);

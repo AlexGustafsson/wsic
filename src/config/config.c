@@ -112,7 +112,7 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
   memset(config, 0, sizeof(server_config_t));
 
   const char *rawName = toml_table_key(serverTable);
-  config->name = string_fromCopy(rawName);
+  config->name = string_fromBuffer(rawName);
   config->domain = config_parseString(serverTable, "domain");
   // Parse and resolve the root directory
   string_t *relativePath = config_parseString(serverTable, "rootDirectory");
@@ -125,7 +125,7 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
       return 0;
     }
     string_free(relativePath);
-    config->rootDirectory = string_fromCopy(absolutePathBuffer);
+    config->rootDirectory = string_fromBuffer(absolutePathBuffer);
     free(absolutePathBuffer);
   }
   config->enabled = config_parseBool(serverTable, "enabled");
@@ -250,7 +250,7 @@ string_t *config_parseString(toml_table_t *table, const char *key) {
     return 0;
   }
 
-  string_t *string = string_fromCopy(value);
+  string_t *string = string_fromBuffer(value);
   free(value);
 
   return string;
@@ -316,7 +316,7 @@ list_t *config_parseArray(toml_table_t *table, const char *key) {
       // The value is not a string
       toml_rtos(rawValue, &value);
 
-      string_t *string = string_fromCopy(value);
+      string_t *string = string_fromBuffer(value);
       free(value);
 
       // Could not allocate string

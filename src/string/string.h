@@ -37,9 +37,9 @@ string_cursor_t *string_createCursor(string_t *string);
 // Reset a cursor to point to the start of a string
 void string_resetCursor(string_cursor_t *cursor);
 // Create a string by copying a buffer with a specified length
-string_t *string_fromCopyWithLength(const char *buffer, size_t length);
+string_t *string_fromBufferWithLength(const char *buffer, size_t length);
 // Create a string by copying a buffer-based string
-string_t *string_fromCopy(const char *buffer);
+string_t *string_fromBuffer(const char *buffer);
 // Create a string by duplicating another string;
 string_t *string_copy(string_t *string);
 // Create a string by converting from a base 10 integer

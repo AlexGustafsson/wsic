@@ -198,7 +198,7 @@ void config_test_canSetIsDaemon() {
 void config_test_canGetName() {
   server_config_t config;
   memset(&config, 0, sizeof(config));
-  config.name = string_fromCopy("Foo Bar");
+  config.name = string_fromBuffer("Foo Bar");
 
   TEST_ASSERT_EQUAL_STRING("Foo Bar", string_getBuffer(config_getName(&config)));
 
@@ -208,7 +208,7 @@ void config_test_canGetName() {
 void config_test_canGetDomain() {
   server_config_t config;
   memset(&config, 0, sizeof(config));
-  config.domain = string_fromCopy("Foo Bar");
+  config.domain = string_fromBuffer("Foo Bar");
 
   TEST_ASSERT_EQUAL_STRING("Foo Bar", string_getBuffer(config_getDomain(&config)));
 
@@ -218,7 +218,7 @@ void config_test_canGetDomain() {
 void config_test_canGetRootDirectory() {
   server_config_t config;
   memset(&config, 0, sizeof(config));
-  config.rootDirectory = string_fromCopy("Foo Bar");
+  config.rootDirectory = string_fromBuffer("Foo Bar");
 
   TEST_ASSERT_EQUAL_STRING("Foo Bar", string_getBuffer(config_getRootDirectory(&config)));
 
@@ -244,7 +244,7 @@ void config_test_canSetPort() {
 void config_test_canGetLogfile() {
   config_t config;
   memset(&config, 0, sizeof(config));
-  config.logfile = string_fromCopy("foo");
+  config.logfile = string_fromBuffer("foo");
 
   TEST_ASSERT_EQUAL_STRING("foo", string_getBuffer(config_getLogfile(&config)));
 
@@ -254,7 +254,7 @@ void config_test_canGetLogfile() {
 void config_test_canSetLogfile() {
   config_t config;
   memset(&config, 0, sizeof(config));
-  config_setLogfile(&config, string_fromCopy("foo"));
+  config_setLogfile(&config, string_fromBuffer("foo"));
 
   TEST_ASSERT_EQUAL_STRING("foo", string_getBuffer(config.logfile));
 

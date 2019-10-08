@@ -72,7 +72,7 @@ string_t *resources_getMIMEType(string_t *filePath) {
     if (string_equalsBuffer(extension, mime_extensions[i])) {
       string_free(extension);
       log(LOG_DEBUG, "Found mime type '%s'", mime_types[i]);
-      return string_fromCopy(mime_types[i]);
+      return string_fromBuffer(mime_types[i]);
     }
   }
 
