@@ -24,6 +24,9 @@
 // Don't allow bodies larger than 1 MB
 #define REQUEST_MAX_BODY_SIZE 1048576
 
+// The maximum time allowed for reading the response from a CGI process
+#define CGI_READ_TIMEOUT 1000
+
 typedef struct {
   // Always NULL if in immediate mode
   pthread_t thread;

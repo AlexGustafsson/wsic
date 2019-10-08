@@ -549,13 +549,18 @@ size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *requ
   }
 
   log(LOG_DEBUG, "Reading response from CGI process");
-  // TODO: Read more than 4096 bytes
-  char buffer[2048] = {0};
-  cgi_read(worker->cgi, buffer, 2048);
-  buffer[2048 - 1] = 0;
+  string_t *response = cgi_read(worker->cgi, CGI_READ_TIMEOUT);
+  if (response == 0) {
+    log(LOG_ERROR, "Unable to read bytes from CGI process");
+    cgi_freeProcess(worker->cgi);
+    worker->cgi = 0;
+    worker_return500(connection, request, string_fromBuffer("Unable to build response."));
+    return 0;
+  }
 
   log(LOG_DEBUG, "Got response from CGI process");
-  size_t bytesWritten = connection_write(connection, buffer, 2048);
+  size_t bytesWritten = connection_write(connection, string_getBuffer(response), string_getSize(response));
+  string_free(response);
   string_t *path = url_getPath(http_getUrl(request));
   logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 0, bytesWritten);
 

@@ -16,8 +16,8 @@ typedef struct {
 
 cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *environment);
 
-// NOTE: This is a blocking call
-void cgi_read(cgi_process_t *process, char *buffer, size_t bufferSize);
+// NOTE: This will the read all available bytes. Will block until the pipe has data to read
+string_t *cgi_read(cgi_process_t *process, size_t timeout);
 size_t cgi_write(cgi_process_t *process, const char *buffer, size_t bufferSize);
 // Flush the input to the process (no more writes can occur after this point)
 void cgi_flushStdin(cgi_process_t *process);

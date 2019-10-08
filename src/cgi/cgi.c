@@ -1,7 +1,9 @@
 #include <errno.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -126,11 +128,59 @@ cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *e
   return process;
 }
 
-void cgi_read(cgi_process_t *process, char *buffer, size_t bufferSize) {
-  char current = 0;
-  size_t offset = 0;
-  while (read(process->stdout[PIPE_READ], &current, 1) && offset < bufferSize)
-    buffer[offset++] = current;
+string_t *cgi_read(cgi_process_t *process, size_t timeout) {
+  string_t *content = string_create();
+  uint8_t timeouts = 0;
+  while (true) {
+    // Set up structures necessary for polling
+    struct pollfd descriptors[1];
+    memset(descriptors, 0, sizeof(struct pollfd));
+    descriptors[0].fd = process->stdout[PIPE_READ];
+    descriptors[0].events = POLLIN;
+
+    log(LOG_DEBUG, "Waiting for data to be readable");
+
+    // Wait for the pipe to be ready to read
+    int status = poll(descriptors, 1, timeout);
+    if (status <= -1) {
+      log(LOG_ERROR, "Could not wait for CGI pipe to write data");
+      string_free(content);
+      return 0;
+    } else if (status == 0) {
+      // Try again if the poll timed out
+      if (timeouts++ > 5)
+        return 0;
+      continue;
+    }
+
+    int bytesAvailable = 0;
+    if (ioctl(process->stdout[PIPE_READ], FIONREAD, &bytesAvailable) == -1) {
+      const char *reason = strerror(errno);
+      log(LOG_ERROR, "Could not check number of bytes available for reading. Got code %d (%s)", errno, reason);
+      string_free(content);
+      return 0;
+    }
+
+    if (bytesAvailable == 0) {
+      log(LOG_DEBUG, "Read %zu bytes from the CGI process", string_getSize(content));
+      return content;
+    }
+
+    log(LOG_DEBUG, "There are %d bytes available for reading", bytesAvailable);
+
+    char *buffer = malloc(sizeof(char) * bytesAvailable);
+    ssize_t bytesRead = read(process->stdout[PIPE_READ], buffer, bytesAvailable);
+    if (bytesRead < 0) {
+      log(LOG_ERROR, "Unable to read bytes from CGI process - got code %d", errno);
+      free(buffer);
+      string_free(content);
+      return 0;
+    }
+    string_appendBufferWithLength(content, buffer, bytesRead);
+    free(buffer);
+  }
+
+  return content;
 }
 
 size_t cgi_write(cgi_process_t *process, const char *buffer, size_t bufferSize) {
