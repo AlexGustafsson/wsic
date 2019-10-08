@@ -204,6 +204,19 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
 
   string_t *path = url_getPath(http_getUrl(request));
 
+  // Ensure that the same transport is used
+  if (connection->ssl == 0 && serverConfig->sslContext != 0) {
+    log(LOG_ERROR, "Got HTTP request on HTTPS port");
+    worker_return400(connection, request, path, string_fromCopy("Got HTTP request on HTTPS port"));
+    http_free(request);
+    return 0;
+  } else if (connection->ssl != 0 && serverConfig->sslContext == 0) {
+    log(LOG_ERROR, "Got HTTPS request on HTTP port");
+    worker_return400(connection, request, path, string_fromCopy("Got HTTPS request on HTTP port"));
+    http_free(request);
+    return 0;
+  }
+
   // Resolve path - 404 if not found or failed
   string_t *rootDirectory = config_getRootDirectory(serverConfig);
   string_t *resolvedPath = path_resolve(path, rootDirectory);
@@ -265,7 +278,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
         body = connection_read(connection, REQUEST_READ_TIMEOUT, contentLength);
         if (body == 0) {
           log(LOG_ERROR, "Reading body timed out or failed");
-          worker_return400(connection, request, 0, string_fromCopy("Request timed out"));
+          worker_return400(connection, request, path, string_fromCopy("Request timed out"));
           http_free(request);
           return 0;
         }
