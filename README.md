@@ -90,6 +90,10 @@ The server process of WSIC offers multiplexing with support for an amount of lis
 
 This queue is consumed by a pool of worker which handles each request separately and concurrently. Whenever a worker is done handling a connection, it gets back to consuming the message queue which enables the worker to sleep most of the time. As previously stated, this allows WSIC to consume near 0 resources when idle.
 
+### Security considerations
+
+Processes started by WSIC inherits its permissions. This only really affects CGI processes. This means that if WSIC has access to a file, so do CGI processes. It's therefore important to configure WSIC to run as a seperate user on the system with access only to necessery parts. If possible, one can deploy jails or containers (see *Running with docker*).
+
 ## Contributing
 
 Any contribution is welcome. If you're not able to code it yourself, perhaps someone else is - so post an issue if there's anything on your mind.
