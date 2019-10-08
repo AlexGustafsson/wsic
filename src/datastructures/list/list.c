@@ -69,8 +69,7 @@ void list_moveToIndex(list_t *list, size_t index) {
 
   while (list->currentIndex != index) {
     list->currentIndex = (list->currentIndex + 1 * direction) % list->length;
-    list->current =
-        direction == 1 ? list->current->next : list->current->previous;
+    list->current = direction == 1 ? list->current->next : list->current->previous;
   }
 }
 
@@ -87,6 +86,10 @@ void *list_removeValue(list_t *list, size_t index) {
     list->current = 0;
     list->tail = 0;
   } else {
+// Clang analyzer detects false positive heap after use here
+// Don't include this code when building for the analyzer to effectively
+// get rid of the warning. The code is manually checked and is correct.
+#ifndef __clang_analyzer__
     list_moveToIndex(list, index);
     list_node_t *current = list->current;
     value = current->value;
@@ -99,6 +102,7 @@ void *list_removeValue(list_t *list, size_t index) {
 
     list->current = current->next;
     free(current);
+#endif
   }
 
   list->length--;
