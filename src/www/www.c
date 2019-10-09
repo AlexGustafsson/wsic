@@ -54,6 +54,17 @@ page_t *page_create413() {
   return page;
 }
 
+page_t *page_create417() {
+  page_t *page = page_create();
+  page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
+
+  page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_417_HTML));
+
+  page_resolveTemplates(page);
+
+  return page;
+}
+
 page_t *page_create404(string_t *path) {
   page_t *page = page_create();
   page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
