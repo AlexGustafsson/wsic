@@ -184,6 +184,14 @@ bool http_parseRequestLine(http_t *http, string_t *string) {
 
   // Check to see if the version starts with HTTP/
   string_t *compareString = string_substring(versionString, 0, 5);
+  if (compareString == 0) {
+    log(LOG_ERROR, "Could not parse HTTP version. Unknown value was passed");
+    if (compareString != 0)
+      string_free(compareString);
+    if (versionString != 0)
+      string_free(versionString);
+    return false;
+  }
   // If the version does not start with "HTTP/" then exit
   if (string_equalsBuffer(compareString, "HTTP/") == false) {
     log(LOG_ERROR, "Could not parse request:version. Invalid input missing 'HTTP/''");
