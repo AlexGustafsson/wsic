@@ -72,6 +72,11 @@ void http_test_canParseRequestLine() {
   //TEST_ASSERT(http_parseRequestLine(http, request) == false);
   //string_free(request);
 
+  // Trying to parse to many arguments
+  string_t *request12 = string_fromBuffer("GET /in / as");
+  TEST_ASSERT(http_parseRequestLine(http, request12) == false);
+  string_free(request12);
+
   http_free(http);
 }
 
