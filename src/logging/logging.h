@@ -94,6 +94,8 @@ extern FILE *LOGGING_OUTPUT_FILE;
 bool logging_start();
 // Deconstruct logging (should always be closed right before exit)
 void logging_stop();
+// Open specified logfile
+bool logging_openOutputFile(const char *filePath);
 // A general function that logs to specified file, can be both a path and stderr
 void logging_logToFile(FILE *filePointer, const char *label, int color, const char *file, int line, const char *function, const char *format, ...);
 // Log the request in format CLF
