@@ -6,6 +6,7 @@
 #include "hash-table-test.c"
 #include "http-test.c"
 #include "list-test.c"
+#include "path-test.c"
 #include "queue-test.c"
 #include "response-codes-test.c"
 #include "set-test.c"
@@ -30,6 +31,7 @@ int main() {
   www_test_run();
   config_test_run();
   time_test_run();
+  path_test_run();
 
   return UNITY_END();
 }
