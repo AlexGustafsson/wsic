@@ -53,6 +53,7 @@ input {
 code {
 	padding: 5px;
 	background-color: #F9F9FC;
+	word-break: break-all;
 }
 
 .code-block {
@@ -65,7 +66,7 @@ code {
 }
 
 .toml {
-	white-space: pre;
+	white-space: pre-wrap;
 }
 
 .toml.table {
