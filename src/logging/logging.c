@@ -62,7 +62,7 @@ void logging_logToFile(FILE *filePointer, const char *label, int color, const ch
   localtime_r(&calendarNow, &timeInfo);
 
   pthread_mutex_lock(&mutex);
-  fprintf(filePointer, "\x1b[90m[%02d/%02d/%04d %02d:%02d:0%d]", timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_sec);
+  fprintf(filePointer, "\x1b[90m[%02d/%02d/%04d %02d:%02d:0%d][", timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_sec);
 
   if (days != 0)
     fprintf(filePointer, "%llud ", (unsigned long long)days);
@@ -73,7 +73,7 @@ void logging_logToFile(FILE *filePointer, const char *label, int color, const ch
   if (seconds != 0)
     fprintf(filePointer, "%llus ", (unsigned long long)seconds);
 
-  fprintf(filePointer, "[%llu.%llums][\x1b[%dm%s\x1b[90m][%s@%d][%s]\n    └──\x1b[0m ", (unsigned long long)milliseconds, (unsigned long long)nanoseconds, color, label, file, line, function);
+  fprintf(filePointer, "%llu.%llums][\x1b[%dm%s\x1b[90m][%s@%d][%s]\n    └──\x1b[0m ", (unsigned long long)milliseconds, (unsigned long long)nanoseconds, color, label, file, line, function);
   // Print the text and arguments that commes from the log(log_lvl, "%d %s %c", a, b, c)
   va_list arguments;
   va_start(arguments, format);
