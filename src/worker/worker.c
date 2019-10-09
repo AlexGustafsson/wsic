@@ -550,7 +550,7 @@ size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *requ
 
   log(LOG_DEBUG, "Reading response from CGI process");
   string_t *response = cgi_read(worker->cgi, CGI_READ_TIMEOUT);
-  if (response == 0) {
+  if (response == 0 || response->buffer == 0) {
     log(LOG_ERROR, "Unable to read bytes from CGI process");
     cgi_freeProcess(worker->cgi);
     worker->cgi = 0;
