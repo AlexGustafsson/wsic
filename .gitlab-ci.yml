@@ -55,7 +55,7 @@ benchmark:
     when: always
   allow_failure: true
 
-test:
+unit tests:
   stage: test
   script: ./ci/test.sh ./build/wsic.test
   dependencies:
