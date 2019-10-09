@@ -126,6 +126,9 @@ int main(int argc, char const *argv[]) {
   config_setGlobalConfig(config);
 
   LOGGING_LEVEL = config_getLoggingLevel(config);
+  logfile = config_getLogfile(config);
+  if (logfile != 0)
+    logging_openOutputFile(string_getBuffer(logfile));
 
   if (config_getIsDaemon(config)) {
     // Daemonize the server
