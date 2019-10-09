@@ -16,16 +16,24 @@ function assert() {
   if [[ $1 -eq 1 ]]; then
     echo -e "\e[32m$2: PASSED\e[0m"
   else
-    echo -e "\e[31m$2: FAILED\e[0m"
+    echo -ne "\e[31m$2: FAILED\e[0m"
+    if [[ ! -z "$3" ]]; then
+      echo -ne " - $3"
+    fi
+    echo ""
   fi
 }
 export -f assert
 
 function assertEquals() {
-  result="$([[ "$1" == "$2" ]] && echo 1 || echo 0)"
-  assert "$result" "$3"
+  assert "$([[ "$1" == "$2" ]] && echo 1 || echo 0)" "$3" "expected '$1', got '$2'"
 }
 export -f assertEquals
+
+function assertExists() {
+  assert "$([[ -z "$1" ]] && echo 0 || echo 1)" "$2"
+}
+export -f assertExists
 
 # Clean up on exit
 function cleanup {
@@ -53,7 +61,7 @@ function runTests() {
   mkdir -p build/reports/integration
 
   # Start wsic in the background
-  $wsic -p 8080 > "build/reports/integration/log.txt" 2>&1 &
+  $wsic start > "build/reports/integration/log.txt" 2>&1 &
   wsicPID="$!"
 
   # Wait for WSIC to start
@@ -62,8 +70,16 @@ function runTests() {
 
   while read -r file; do
     echo "$file"
+    # Print ====.... the same width as the summary
     echo "$(yes '=' | head -n "$(echo -n "$file" | wc -c)" | tr -d '\n')"
+
     runTest "$file"
+
+    isAlive="$(kill -0 $wsicPID &> /dev/null && echo 1 || echo 0)"
+    if [[ $isAlive -eq 0 ]]; then
+      echo -e "\e[31mWSIC has been terminated - cannot proceed test\e[0m"
+      exit 1
+    fi
   done <<<"$(find ci/integration/tests -type f -name 'test-*.sh')"
 }
 
@@ -75,8 +91,10 @@ function printSummary() {
   echo -e "$summary"
   if [[ $failed -gt 0 ]]; then
     echo -e "\e[31mTest failed\e[0m"
+    exit 1
   else
     echo -e "\e[32mTest succeeded\e[0m"
+    exit 0
   fi
 }
 
