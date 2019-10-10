@@ -81,7 +81,6 @@ export -f assertExists
 # Clean up on exit
 function cleanup {
   if [[ ! -z "$wsicPID" ]]; then
-    echo "Killing WSIC"
     kill "$wsicPID" > /dev/null 2>&1
   fi
 }
@@ -99,7 +98,9 @@ function runTests() {
   mkdir -p build/reports/integration
 
   # Start wsic in the background
-  $wsic start --verbose > "build/reports/integration/log.txt" 2>&1 &
+  export ASAN_OPTIONS=detect_leaks=1:symbolize=1
+  export LSAN_OPTIONS=suppressions=asan-ignores.txt
+  $wsic start --verbose &> "build/reports/integration/log.txt" &
   wsicPID="$!"
 
   # Wait for WSIC to start
@@ -134,20 +135,37 @@ function printSummary() {
   # Print ====.... the same width as the summary
   echo "$(echo -n "$summary" | tr '[:alnum:] ' '=')"
   echo -e "$summary"
+
+  leaks="$(grep --text -e '    #' -e 'leak of' -e 'detected memory leaks' "build/reports/integration/log.txt")"
+
   if [[ $failed -gt 0 ]]; then
     echo -e "\e[31mTest failed\e[0m"
     exit 1
   else
-    hasCrashed="$(grep -e '==ERROR' "build/reports/integration/log.txt" &> /dev/null && echo 1 || echo 0)"
+    hasCrashed="$(grep -e '==ERROR: AddressSanitizer:' "build/reports/integration/log.txt" &> /dev/null && echo 1 || echo 0)"
     if [[ "$hasCrashed" -eq 1 ]]; then
       echo -e "\e[31mTest failed. WSIC crashed\e[0m"
       exit 1
     else
-      echo -e "\e[32mTest succeeded\e[0m"
-      exit 0
+      if [[ -z "$leaks" ]]; then
+        echo -e "\e[32mTest succeeded\e[0m"
+        echo -e "\e[32mNo memory leaks detected\e[0m"
+        exit 0
+      else
+        echo "$leaks"
+        echo -e "\e[32mTest succeeded\e[0m"
+        echo -e "\e[31mMemory leaks detected\e[0m"
+        exit 1
+      fi
     fi
   fi
 }
 
 runTests
+
+echo "Killing WSIC"
+kill "$wsicPID" > /dev/null 2>&1
+echo "Waiting for WSIC to exit"
+sleep 5
+
 printSummary

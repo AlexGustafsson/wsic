@@ -66,18 +66,12 @@ unit tests:
     when: always
   coverage: '/Line coverage: (.*)/'
 
-detect memory leaks:
-  stage: test
-  script: ./ci/memory-leaks.sh ./build/wsic.debug
-  dependencies:
-    - debug build
-  artifacts:
-    paths:
-      - build/reports/memory-leaks
-    when: always
-
 integration tests:
   stage: test
   script: ./ci/integration/test.sh ./build/wsic.debug
   dependencies:
     - debug build
+  artifacts:
+    paths:
+      - build/reports/integration
+    when: always
