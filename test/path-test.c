@@ -10,7 +10,9 @@ void path_test_canResolvePathThatExists() {
   // The path that we want to GET
   string_t *relativePath = string_fromBuffer("/index.html");
   // Working directory where www is located
-  string_t *root = string_fromBuffer(realpath("www", NULL));
+  char *realPath = realpath("www", NULL);
+  string_t *root = string_fromBuffer(realPath);
+  free(realPath);
   // The result
   string_t *path = path_resolve(relativePath, root);
   string_free(relativePath);
@@ -31,7 +33,9 @@ void path_test_cannotResolvePathThatDoesNotExists() {
   // The path that we want to GET
   string_t *relativePath = string_fromBuffer("/howToHackNSA.html");
   // Working directory where www is located
-  string_t *root = string_fromBuffer(realpath("www", NULL));
+  char *realPath = realpath("www", NULL);
+  string_t *root = string_fromBuffer(realPath);
+  free(realPath);
   // The result
   string_t *path = path_resolve(relativePath, root);
   string_free(relativePath);
@@ -45,9 +49,11 @@ void path_test_cannotResolvePathThatDoesNotExists() {
 
 void path_test_canResolvePathAbsoluteToRelativePath() {
   string_t *path = string_fromBuffer("www/index.html");
-  string_t *root = string_fromBuffer(realpath("www", NULL));
+  char *realPath = realpath("www", NULL);
+  string_t *root = string_fromBuffer(realPath);
   string_t *result = path_relativeTo(path, root);
   string_free(path);
+  free(realPath);
   string_free(root);
 
   TEST_ASSERT_NOT_NULL(result);

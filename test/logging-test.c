@@ -46,6 +46,9 @@ void logging_test_canLogRequest() {
   string_t *path = string_fromBuffer("/index.html");
   string_t *version = string_fromBuffer("1.1");
   logging_request(remoteHost, HTTP_METHOD_GET, path, version, 200, 700);
+  string_free(remoteHost);
+  string_free(path);
+  string_free(version);
 
   int fileClosed = EOF;
   fileClosed = logging_stop();

@@ -313,6 +313,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
         }
 
         http_free(request);
+        string_free(resolvedPath);
         return 0;
       } else if (contentLength == 0) {
         log(LOG_WARNING, "Got empty body");
@@ -324,6 +325,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
         }
 
         http_free(request);
+        string_free(resolvedPath);
         return 0;
       } else {
         body = connection_read(connection, REQUEST_READ_TIMEOUT, contentLength);
@@ -331,6 +333,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
           log(LOG_ERROR, "Reading body timed out or failed");
           worker_return400(connection, request, path, string_fromBuffer("Request timed out"));
           http_free(request);
+          string_free(resolvedPath);
           return 0;
         }
       }
@@ -501,8 +504,7 @@ size_t worker_return400(const connection_t *connection, const http_t *request, c
   if (response == 0)
     return 0;
 
-  // Copy the path since we want to keep ownership
-  page_t *page = page_create400(string_copy(description));
+  page_t *page = page_create400(description);
   if (page == 0) {
     http_free(response);
     return 0;

@@ -5,7 +5,9 @@
 #include "../src/resources/resources.h"
 
 void resources_test_canLoadFile() {
-  string_t *path = string_fromBuffer(realpath("test/resources-test.c", NULL));
+  char *realPath = realpath("test/resources-test.c", NULL);
+  string_t *path = string_fromBuffer(realPath);
+  free(realPath);
   string_t *result = resources_loadFile(path);
   string_cursor_t *cursor = string_createCursor(result);
   string_t *firstRowInResult = string_getNextLine(cursor);
@@ -61,15 +63,19 @@ void resources_test_cannotGetInvalidMIMEType() {
 }
 
 void resources_test_canIsExecutable() {
-  string_t *path = string_fromBuffer(realpath("build/wsic.test", NULL));
+  char *realPath = realpath("build/wsic.test", NULL);
+  string_t *path = string_fromBuffer(realPath);
+  free(realPath);
   bool result = resources_isExecutable(path);
 
   TEST_ASSERT_TRUE(result);
 
   string_free(path);
 
-  string_t *path1 = string_fromBuffer(realpath("test/resources-test.c", NULL));
+  const *realPath1 = realpath("test/resources-test.c", NULL);
+  string_t *path1 = string_fromBuffer(realPath1);
   bool result1 = resources_isExecutable(path1);
+  free(realPath1);
 
   TEST_ASSERT_FALSE(result1);
 
@@ -77,14 +83,18 @@ void resources_test_canIsExecutable() {
 }
 
 void resources_test_canIsFile() {
-  string_t *path = string_fromBuffer(realpath("build/wsic.test", NULL));
+  char *realPath = realpath("build/wsic.test", NULL);
+  string_t *path = string_fromBuffer(realPath);
+  free(realPath);
   bool result = resources_isFile(path);
 
   TEST_ASSERT_TRUE(result);
 
   string_free(path);
 
-  string_t *path1 = string_fromBuffer(realpath("test/resources-test.c", NULL));
+  char *realPath1 = realpath("test/resources-test.c", NULL);
+  string_t *path1 = string_fromBuffer(realPath1);
+  free(realPath1);
   bool result1 = resources_isFile(path1);
 
   TEST_ASSERT_TRUE(result1);

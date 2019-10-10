@@ -23,7 +23,7 @@ void config_test_canParseString() {
   TEST_ASSERT_EQUAL_STRING("Foo Bar", string_getBuffer(string));
 
   string_free(string);
-  toml_free(table);
+  toml_free(toml);
 }
 
 void config_test_cannotParseNonExistingString() {
@@ -36,7 +36,7 @@ void config_test_cannotParseNonExistingString() {
   // Assert that the value was not found and therefore returned null
   TEST_ASSERT_NULL(string);
 
-  toml_free(table);
+  toml_free(toml);
 }
 
 void config_test_cannotParseInvalidString() {
@@ -49,7 +49,7 @@ void config_test_cannotParseInvalidString() {
   // Assert that the value was not parsed correctly and therefore returned null
   TEST_ASSERT_NULL(string);
 
-  toml_free(table);
+  toml_free(toml);
 }
 
 void config_test_canParseInt() {
@@ -62,7 +62,7 @@ void config_test_canParseInt() {
   // Assert that it matches our expected integer
   TEST_ASSERT_EQUAL_INT64(1337, integer);
 
-  toml_free(table);
+  toml_free(toml);
 }
 
 void config_test_cannotParseNonExistingInt() {
@@ -75,7 +75,7 @@ void config_test_cannotParseNonExistingInt() {
   // Assert that it matches our expected integer
   TEST_ASSERT_EQUAL_INT64(0, integer);
 
-  toml_free(table);
+  toml_free(toml);
 }
 
 void config_test_cannotParseInvalidInt() {
@@ -88,7 +88,7 @@ void config_test_cannotParseInvalidInt() {
   // Assert that it matches our expected integer
   TEST_ASSERT_EQUAL_INT64(0, integer);
 
-  toml_free(table);
+  toml_free(toml);
 }
 
 void config_test_canParseBool() {
@@ -101,7 +101,7 @@ void config_test_canParseBool() {
   // Assert that it matches our expected integer
   TEST_ASSERT_EQUAL_INT8(true, value);
 
-  toml_free(table);
+  toml_free(toml);
 }
 
 void config_test_cannotParseNonExistingBool() {
@@ -114,7 +114,7 @@ void config_test_cannotParseNonExistingBool() {
   // Assert that it matches our expected integer
   TEST_ASSERT_EQUAL_INT8(-1, value);
 
-  toml_free(table);
+  toml_free(toml);
 }
 
 void config_test_cannotParseInvalidBool() {
@@ -127,7 +127,7 @@ void config_test_cannotParseInvalidBool() {
   // Assert that it matches our expected integer
   TEST_ASSERT_EQUAL_INT8(-1, value);
 
-  toml_free(table);
+  toml_free(toml);
 }
 
 void config_test_canParseStringArray() {
@@ -142,8 +142,10 @@ void config_test_canParseStringArray() {
   TEST_ASSERT_EQUAL_STRING("Foo", string_getBuffer(list_getValue(strings, 0)));
   TEST_ASSERT_EQUAL_STRING("Bar", string_getBuffer(list_getValue(strings, 1)));
 
+  while (list_getLength(strings) > 0)
+    string_free(list_removeValue(strings, 0));
   list_free(strings);
-  toml_free(table);
+  toml_free(toml);
 }
 
 void config_test_canParseIntArray() {
@@ -160,7 +162,7 @@ void config_test_canParseIntArray() {
   TEST_ASSERT_EQUAL_INT64(0, list_getValue(integers, 2));
 
   list_free(integers);
-  toml_free(table);
+  toml_free(toml);
 }
 
 void config_test_canParseBoolArray() {
@@ -177,7 +179,7 @@ void config_test_canParseBoolArray() {
   TEST_ASSERT_EQUAL_INT8(false, list_getValue(bools, 2));
 
   list_free(bools);
-  toml_free(table);
+  toml_free(toml);
 }
 
 void config_test_canAccessGlobalConfig() {
@@ -270,6 +272,8 @@ void config_test_canParseWithoutServerTable() {
 
   config_t *config = config_parse(configString);
   TEST_ASSERT_NOT_NULL(config);
+
+  config_free(config);
 }
 
 void config_test_canParseDuplicateServerTables() {

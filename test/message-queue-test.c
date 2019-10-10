@@ -13,14 +13,14 @@ void message_queue_test_canPushAndPop() {
   if (pthread_create(&thread0, NULL, (void *(*)(void *))thread_job, queue) != 0) {
     log(LOG_ERROR, "Unable to start thread for worker");
     message_queue_free(queue);
-    return 0;
+    return;
   }
 
   pthread_t thread1;
   if (pthread_create(&thread1, NULL, (void *(*)(void *))thread_job, queue) != 0) {
     log(LOG_ERROR, "Unable to start thread for worker");
     message_queue_free(queue);
-    return 0;
+    return;
   }
 
   int value0 = 10;
@@ -49,14 +49,14 @@ void messsage_queue_test_canUnlockQueue() {
   if (pthread_create(&thread0, NULL, (void *(*)(void *))thread_job, queue) != 0) {
     log(LOG_ERROR, "Unable to start thread for worker");
     message_queue_free(queue);
-    return 0;
+    return;
   }
 
   pthread_t thread1;
   if (pthread_create(&thread1, NULL, (void *(*)(void *))thread_job, queue) != 0) {
     log(LOG_ERROR, "Unable to start thread for worker");
     message_queue_free(queue);
-    return 0;
+    return;
   }
 
   message_queue_unlock(queue);

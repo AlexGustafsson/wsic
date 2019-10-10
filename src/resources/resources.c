@@ -85,7 +85,7 @@ string_t *resources_getMIMEType(const string_t *filePath) {
   }
 
   log(LOG_DEBUG, "Unknown MIME type for extension '%s'", string_getBuffer(extension));
-
+  string_free(extension);
   return 0;
 }
 
