@@ -55,7 +55,7 @@ void time_test_canGetTimeSinceStart() {
   TEST_ASSERT(nanoseconds2 > nanoseconds1);
   TEST_ASSERT(seconds2 > seconds1);
 
-  TEST_ASSERT_FALSE(time_getTimeSinceStart(NULL, NULL))
+  TEST_ASSERT_FALSE(time_getTimeSinceStart(NULL, NULL));
 }
 
 void time_test_canResetTime() {
@@ -75,7 +75,7 @@ void time_test_canGetElapsedTime() {
   time_getTimeSinceStartOfEpoch(&now);
   uint64_t nanoseconds = time_getElapsedTime(&now);
 
-  TEST_ASSERT(nanoseconds > 1)
+  TEST_ASSERT(nanoseconds > 1);
 }
 
 void time_test_run() {

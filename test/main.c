@@ -6,6 +6,7 @@
 #include "hash-table-test.c"
 #include "http-test.c"
 #include "list-test.c"
+#include "logging-test.c"
 #include "message-queue-test.c"
 #include "path-test.c"
 #include "queue-test.c"
@@ -36,6 +37,7 @@ int main() {
   path_test_run();
   message_queue_test_run();
   resources_test_run();
+  logging_test_run();
 
   return UNITY_END();
 }

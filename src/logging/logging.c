@@ -31,18 +31,21 @@ bool logging_start() {
   return true;
 }
 
-void logging_stop() {
+int logging_stop() {
   closelog();
   pthread_mutex_unlock(&mutex);
 
+  int fileClosed = EOF;
   if (LOGGING_OUTPUT_FILE != 0)
-    fclose(LOGGING_OUTPUT_FILE);
+    fileClosed = fclose(LOGGING_OUTPUT_FILE);
+
+  return fileClosed;
 }
 
 bool logging_openOutputFile(const char *filePath) {
   LOGGING_OUTPUT_FILE = fopen(filePath, "a");
 
-  return LOGGING_OUTPUT_FILE == 0;
+  return LOGGING_OUTPUT_FILE != 0;
 }
 
 void logging_logToFile(FILE *filePointer, const char *label, int color, const char *file, int line, const char *function, const char *format, ...) {

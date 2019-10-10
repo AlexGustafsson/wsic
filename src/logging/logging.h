@@ -93,7 +93,7 @@ extern FILE *LOGGING_OUTPUT_FILE;
 // Start logging (should always be called from the main process as soon as possible)
 bool logging_start();
 // Deconstruct logging (should always be closed right before exit)
-void logging_stop();
+int logging_stop();
 // Open specified logfile
 bool logging_openOutputFile(const char *filePath) __attribute__((nonnull(1)));
 // A general function that logs to specified file, can be both a path and stderr
