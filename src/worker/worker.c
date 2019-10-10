@@ -23,6 +23,7 @@ hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request
 size_t worker_return500(connection_t *connection, http_t *request, string_t *description);
 size_t worker_return404(connection_t *connection, http_t *request, string_t *path);
 size_t worker_return400(connection_t *connection, http_t *request, string_t *path, string_t *description);
+size_t worker_return417(connection_t *connection, http_t *request, string_t *path);
 size_t worker_return413(connection_t *connection, http_t *request, string_t *path);
 size_t worker_return200(connection_t *connection, http_t *request, string_t *resolvedPath);
 size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *rootDirectory, string_t *body);
@@ -263,9 +264,9 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
         log(LOG_WARNING, "The client wanted to write %d bytes which is above maximum %d", contentLength, REQUEST_MAX_BODY_SIZE);
         if (expects != 0) {
           log(LOG_DEBUG, "Got expect '%s'", string_getBuffer(expects));
-          connection_write(connection, "HTTP/1.1 417 Expectation Failed\r\n", 33);
+          worker_return417(connection, request, path);
         } else {
-          worker_return413(connection, request, 0);
+          worker_return413(connection, request, path);
         }
 
         http_free(request);
@@ -274,9 +275,9 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
         log(LOG_WARNING, "Got empty body");
         if (expects != 0) {
           log(LOG_DEBUG, "Got expect '%s'", string_getBuffer(expects));
-          connection_write(connection, "HTTP/1.1 417 Expectation Failed\r\n", 33);
+          worker_return417(connection, request, path);
         } else {
-          worker_return400(connection, request, 0, string_fromBuffer("Empty body when headers specified content length"));
+          worker_return400(connection, request, path, string_fromBuffer("Empty body when headers specified content length"));
         }
 
         http_free(request);
@@ -449,6 +450,32 @@ size_t worker_return400(connection_t *connection, http_t *request, string_t *pat
   string_t *responseString = http_toResponseString(response);
   size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
   logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 400, bytesWritten);
+  string_free(responseString);
+  page_free(page);
+  // Freeing the page also frees the source, which we gave to http.
+  // Not having this line would cause a double free
+  response->body = 0;
+  http_free(response);
+
+  return bytesWritten;
+}
+
+size_t worker_return417(connection_t *connection, http_t *request, string_t *path) {
+  http_t *response = http_create();
+  // Copy the path since we want to keep ownership
+  page_t *page = page_create417();
+  string_t *source = page_getSource(page);
+  http_setBody(response, source);
+  // Remove the body if HEAD was used
+  if (http_getMethod(request) == HTTP_METHOD_HEAD)
+    response->body = 0;
+  http_setResponseCode(response, 417);
+  http_setVersion(response, string_fromBuffer("1.1"));
+  http_setHeader(response, string_fromBuffer("Content-Type"), string_fromBuffer("text/html"));
+
+  string_t *responseString = http_toResponseString(response);
+  size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
+  logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 417, bytesWritten);
   string_free(responseString);
   page_free(page);
   // Freeing the page also frees the source, which we gave to http.

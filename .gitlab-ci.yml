@@ -55,7 +55,7 @@ benchmark:
     when: always
   allow_failure: true
 
-test:
+unit tests:
   stage: test
   script: ./ci/test.sh ./build/wsic.test
   dependencies:
@@ -75,3 +75,9 @@ detect memory leaks:
     paths:
       - build/reports/memory-leaks
     when: always
+
+integration tests:
+  stage: test
+  script: ./ci/integration/test.sh ./build/wsic.debug
+  dependencies:
+    - debug build
