@@ -9,6 +9,7 @@
 #include "message-queue-test.c"
 #include "path-test.c"
 #include "queue-test.c"
+#include "resources-test.c"
 #include "response-codes-test.c"
 #include "set-test.c"
 #include "string-test.c"
@@ -34,6 +35,7 @@ int main() {
   time_test_run();
   path_test_run();
   message_queue_test_run();
+  resources_test_run();
 
   return UNITY_END();
 }
