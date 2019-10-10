@@ -49,7 +49,7 @@ bool server_setNonBlocking(int socketDescriptor) {
   return true;
 }
 
-pid_t server_createInstance(set_t *ports) {
+pid_t server_createInstance(const set_t *ports) {
   // Fork the process
   fflush(stdout);
   fflush(stderr);
@@ -70,7 +70,7 @@ pid_t server_createInstance(set_t *ports) {
   }
 }
 
-int server_start(set_t *ports) {
+int server_start(const set_t *ports) {
   // Setup signal handling for main process
   signal(SIGINT, server_closeGracefully);
   signal(SIGTERM, server_closeGracefully);

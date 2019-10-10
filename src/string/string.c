@@ -43,7 +43,7 @@ void string_clear(string_t *string) {
     string->buffer[0] = 0;
 }
 
-string_cursor_t *string_createCursor(string_t *string) {
+string_cursor_t *string_createCursor(const string_t *string) {
   string_cursor_t *cursor = malloc(sizeof(string_cursor_t));
   if (cursor == 0)
     return 0;
@@ -84,7 +84,7 @@ string_t *string_fromBuffer(const char *buffer) {
   return string_fromBufferWithLength(buffer, length);
 }
 
-string_t *string_copy(string_t *string) {
+string_t *string_copy(const string_t *string) {
   string_t *copy = string_fromBufferWithLength(string_getBuffer(string), string_getSize(string));
   return copy;
 }
@@ -94,6 +94,8 @@ string_t *string_fromInt(int number) {
     return string_fromBuffer("0");
 
   string_t *string = string_create();
+  if (string == 0)
+    return 0;
   // Get the rough number of digits in the number
   int digits = (int)log10(abs(number)) + 1;
   // Pre-allocate the rough number of necessary digits
@@ -114,7 +116,7 @@ string_t *string_fromInt(int number) {
   return string;
 }
 
-void string_append(string_t *string, string_t *string2) {
+void string_append(string_t *string, const string_t *string2) {
   string_appendBuffer(string, string2->buffer);
 }
 
@@ -148,15 +150,15 @@ void string_appendChar(string_t *string, char character) {
   string_appendBufferWithLength(string, buffer, 1);
 }
 
-const char *string_getBuffer(string_t *string) {
+const char *string_getBuffer(const string_t *string) {
   return (const char *)string->buffer;
 }
 
-size_t string_getSize(string_t *string) {
+size_t string_getSize(const string_t *string) {
   return string->size;
 }
 
-char string_getCharAt(string_t *string, size_t index) {
+char string_getCharAt(const string_t *string, size_t index) {
   // Out of bounds
   if (index >= string->size)
     return 0;
@@ -200,7 +202,7 @@ void string_trimEnd(string_t *string) {
   }
 }
 
-string_t *string_substring(string_t *string, size_t firstIndex, size_t lastIndex) {
+string_t *string_substring(const string_t *string, size_t firstIndex, size_t lastIndex) {
   // Out of bounds
   if (firstIndex >= string->size || lastIndex > string->size)
     return 0;
@@ -273,11 +275,11 @@ void string_setOffset(string_cursor_t *cursor, size_t offset) {
   cursor->offset = offset;
 }
 
-bool string_equalsBuffer(string_t *string, const char *buffer) {
+bool string_equalsBuffer(const string_t *string, const char *buffer) {
   return strcmp(string->buffer, buffer) == 0;
 }
 
-bool string_equals(string_t *string, string_t *string2) {
+bool string_equals(const string_t *string, const string_t *string2) {
   return string_equalsBuffer(string, string2->buffer);
 }
 

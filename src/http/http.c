@@ -26,7 +26,7 @@ void http_setMethod(http_t *http, enum httpMethod method) {
   http->method = method;
 }
 
-enum httpMethod http_getMethod(http_t *http) {
+enum httpMethod http_getMethod(const http_t *http) {
   return http->method;
 }
 
@@ -37,7 +37,7 @@ void http_setVersion(http_t *http, string_t *version) {
   http->version = version;
 }
 
-string_t *http_getVersion(http_t *http) {
+string_t *http_getVersion(const http_t *http) {
   return http->version;
 }
 
@@ -46,7 +46,7 @@ void http_setResponseCode(http_t *http, uint16_t code) {
   http->responseCodeText = http_codeToString(code);
 }
 
-uint16_t http_getResponseCode(http_t *http) {
+uint16_t http_getResponseCode(const http_t *http) {
   return http->responseCode;
 }
 
@@ -56,7 +56,7 @@ void http_setHeader(http_t *http, string_t *key, string_t *value) {
     string_free(oldValue);
 }
 
-string_t *http_getHeader(http_t *http, string_t *key) {
+string_t *http_getHeader(const http_t *http, const string_t *key) {
   return hash_table_getValue(http->headers, key);
 }
 
@@ -66,19 +66,22 @@ void http_setBody(http_t *http, string_t *body) {
 
   http->body = body;
   // Content-Length
-  http_setHeader(http, string_fromBuffer("Content-Length"), string_fromInt(string_getSize(http->body)));
+  if (body != 0)
+    http_setHeader(http, string_fromBuffer("Content-Length"), string_fromInt(string_getSize(http->body)));
 }
 
-string_t *http_getBody(http_t *http) {
+string_t *http_getBody(const http_t *http) {
   return http->body;
 }
 
-url_t *http_getUrl(http_t *http) {
+url_t *http_getUrl(const http_t *http) {
   return http->url;
 }
 
-string_t *http_toResponseString(http_t *http) {
+string_t *http_toResponseString(const http_t *http) {
   string_t *result = string_create();
+  if (result == 0)
+    return 0;
   // First line is roughly 40 bytes, a header entry is roughly 40 bytes - allows for some speedup
   string_setBufferSize(result, 40 + hash_table_getLength(http->headers) * 40 + (http->body == 0 ? 0 : string_getSize(http->body)));
 
@@ -119,10 +122,16 @@ string_t *http_toResponseString(http_t *http) {
   return result;
 }
 
-bool http_parseRequestLine(http_t *http, string_t *string) {
+bool http_parseRequestLine(http_t *http, const string_t *string) {
   char current = 0;
   string_t *tempString = string_create();
+  if (tempString == 0)
+    return 0;
   string_cursor_t *cursor = string_createCursor(string);
+  if (cursor == 0) {
+    string_free(tempString);
+    return 0;
+  }
 
   // Parse method
   // Reads untill a space is found or null char at end on line
@@ -153,6 +162,11 @@ bool http_parseRequestLine(http_t *http, string_t *string) {
   // Get the path and parameters
   // Reads untill a space is found or null char at end on line
   string_t *requestTarget = string_create();
+  if (requestTarget == 0) {
+    string_freeCursor(cursor);
+    return false;
+  }
+
   while ((current = string_getNextChar(cursor)) != ' ' && current != 0)
     string_appendChar(requestTarget, current);
 
@@ -174,9 +188,12 @@ bool http_parseRequestLine(http_t *http, string_t *string) {
   string_free(requestTarget);
 
   // Parse version
-  // Reads untill null char at end on line
+  // Reads until null char at end on line
   string_t *versionString = string_create();
-  http_setVersion(http, string_create());
+  if (versionString == 0) {
+    return false;
+  }
+
   while ((current = string_getNextChar(cursor)) != 0)
     string_appendChar(versionString, current);
   // Free cursor, not in use anny more
@@ -186,10 +203,7 @@ bool http_parseRequestLine(http_t *http, string_t *string) {
   string_t *compareString = string_substring(versionString, 0, 5);
   if (compareString == 0) {
     log(LOG_ERROR, "Could not parse HTTP version. Unknown value was passed");
-    if (compareString != 0)
-      string_free(compareString);
-    if (versionString != 0)
-      string_free(versionString);
+    string_free(versionString);
     return false;
   }
   // If the version does not start with "HTTP/" then exit
@@ -229,8 +243,11 @@ bool http_parseRequestLine(http_t *http, string_t *string) {
   return true;
 }
 
-bool http_parseHeader(http_t *http, string_t *string) {
+bool http_parseHeader(http_t *http, const string_t *string) {
   string_cursor_t *cursor = string_createCursor(string);
+  if (cursor == 0)
+    return false;
+
   ssize_t offset = string_findNextChar(cursor, ':');
   string_freeCursor(cursor);
 
@@ -259,14 +276,14 @@ bool http_parseHeader(http_t *http, string_t *string) {
   return true;
 }
 
-void http_parseBody(http_t *http, string_t *string, size_t offset) {
+void http_parseBody(http_t *http, const string_t *string, size_t offset) {
   if (http->body != 0)
     string_free(http->body);
   // After headers is added we put everything that is left in the request into the body variable
   http->body = string_substring(string, offset, string_getSize(string));
 }
 
-bool http_parseRequestTarget(http_t *http, string_t *requestTarget) {
+bool http_parseRequestTarget(http_t *http, const string_t *requestTarget) {
   string_cursor_t *requestCursor = string_createCursor(requestTarget);
   ssize_t firstParameter = string_findNextChar(requestCursor, '?');
 
@@ -347,7 +364,7 @@ bool http_parseHost(http_t *http) {
   return true;
 }
 
-enum httpMethod http_parseMethod(string_t *method) {
+enum httpMethod http_parseMethod(const string_t *method) {
   if (string_equalsBuffer(method, "GET") == 1)
     return HTTP_METHOD_GET;
   if (string_equalsBuffer(method, "PUT") == 1)

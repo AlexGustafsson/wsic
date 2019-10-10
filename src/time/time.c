@@ -69,7 +69,7 @@ void time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds) {
   }
 }
 
-uint64_t time_getElapsedTime(struct timespec *timespec) {
+uint64_t time_getElapsedTime(const struct timespec *timespec) {
   struct timespec start;
   time_getTimeSinceStartOfEpoch(&start);
 

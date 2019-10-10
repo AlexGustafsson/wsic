@@ -14,11 +14,15 @@ url_t *url_create() {
   memset(url, 0, sizeof(url_t));
 
   url->parameters = hash_table_create();
+  if (url->parameters == 0) {
+    free(url);
+    return 0;
+  }
 
   return url;
 }
 
-url_t *url_copy(url_t *url) {
+url_t *url_copy(const url_t *url) {
   url_t *newUrl = url_create();
   if (newUrl == 0)
     return 0;
@@ -44,8 +48,10 @@ url_t *url_copy(url_t *url) {
   return newUrl;
 }
 
-string_t *url_toString(url_t *url) {
+string_t *url_toString(const url_t *url) {
   string_t *result = string_create();
+  if (result == 0)
+    return 0;
 
   if (url->protocol != 0) {
     string_append(result, url->protocol);
@@ -84,12 +90,14 @@ string_t *url_toString(url_t *url) {
   return result;
 }
 
-string_t *url_toQueryString(url_t *url) {
+string_t *url_toQueryString(const url_t *url) {
   if (url->parameters == 0) {
     return 0;
   }
 
   string_t *result = string_create();
+  if (result == 0)
+    return 0;
   size_t parameters = hash_table_getLength(url->parameters);
 
   for (size_t i = 0; i < parameters; i++) {
@@ -114,7 +122,7 @@ void url_setProtocol(url_t *url, string_t *protocol) {
   url->protocol = protocol;
 }
 
-string_t *url_getProtocol(url_t *url) {
+string_t *url_getProtocol(const url_t *url) {
   return url->protocol;
 }
 
@@ -125,7 +133,7 @@ void url_setDomainName(url_t *url, string_t *domainName) {
   url->domainName = domainName;
 }
 
-string_t *url_getDomainName(url_t *url) {
+string_t *url_getDomainName(const url_t *url) {
   return url->domainName;
 }
 
@@ -133,7 +141,7 @@ void url_setPort(url_t *url, uint16_t port) {
   url->port = port;
 }
 
-uint16_t url_getPort(url_t *url) {
+uint16_t url_getPort(const url_t *url) {
   return url->port;
 }
 
@@ -144,7 +152,7 @@ void url_setPath(url_t *url, string_t *path) {
   url->path = path;
 }
 
-string_t *url_getPath(url_t *url) {
+string_t *url_getPath(const url_t *url) {
   return url->path;
 }
 
@@ -154,7 +162,7 @@ void url_setParameter(url_t *url, string_t *key, string_t *value) {
     string_free(oldValue);
 }
 
-string_t *url_getParameter(url_t *url, string_t *key) {
+string_t *url_getParameter(const url_t *url, const string_t *key) {
   return hash_table_getValue(url->parameters, key);
 }
 

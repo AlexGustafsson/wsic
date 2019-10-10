@@ -32,8 +32,15 @@ config_t *config_parse(const char *configString) {
   config_t *config = malloc(sizeof(config_t));
   if (config == 0)
     return 0;
+
   memset(config, 0, sizeof(config_t));
+
   config->serverConfigs = list_create();
+  if (config->serverConfigs == 0) {
+    log(LOG_ERROR, "Failed to create list for serverConfigs");
+    free(config);
+    return 0;
+  }
 
   // Parse the server table if it exists
   toml_table_t *serverTable = toml_table_in(toml, "server");
@@ -124,13 +131,13 @@ config_t *config_parse(const char *configString) {
   return config;
 }
 
-server_config_t *config_parseServerTable(toml_table_t *serverTable) {
+server_config_t *config_parseServerTable(const toml_table_t *serverTable) {
   server_config_t *config = malloc(sizeof(server_config_t));
   if (config == 0)
     return 0;
   memset(config, 0, sizeof(server_config_t));
 
-  const char *rawName = toml_table_key(serverTable);
+  const char *rawName = toml_table_key((toml_table_t *)serverTable);
   config->name = string_fromBuffer(rawName);
   config->domain = config_parseString(serverTable, "domain");
   // Parse and resolve the root directory
@@ -149,7 +156,7 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
   }
   config->enabled = config_parseBool(serverTable, "enabled");
 
-  if (toml_raw_in(serverTable, "port") != 0) {
+  if (toml_raw_in((toml_table_t *)serverTable, "port") != 0) {
     int64_t port = config_parseInt(serverTable, "port");
     if (port < 0 || port > 1 << 16) {
       log(LOG_ERROR, "The port in config for server '%s' was unexpected", string_getBuffer(config->name));
@@ -253,11 +260,8 @@ server_config_t *config_parseServerTable(toml_table_t *serverTable) {
   return config;
 }
 
-string_t *config_parseString(toml_table_t *table, const char *key) {
-  if (table == 0)
-    return 0;
-
-  const char *rawValue = toml_raw_in(table, key);
+string_t *config_parseString(const toml_table_t *table, const char *key) {
+  const char *rawValue = toml_raw_in((toml_table_t *)table, key);
   // The value is missing
   if (rawValue == 0)
     return 0;
@@ -265,7 +269,7 @@ string_t *config_parseString(toml_table_t *table, const char *key) {
   char *value;
   // The value is not a string
   if (toml_rtos(rawValue, &value)) {
-    log(LOG_ERROR, "Bad string in config: table '%s', key '%s'", toml_table_key(table), key);
+    log(LOG_ERROR, "Bad string in config: table '%s', key '%s'", toml_table_key((toml_table_t *)table), key);
     return 0;
   }
 
@@ -275,38 +279,38 @@ string_t *config_parseString(toml_table_t *table, const char *key) {
   return string;
 }
 
-int64_t config_parseInt(toml_table_t *table, const char *key) {
-  const char *rawValue = toml_raw_in(table, key);
+int64_t config_parseInt(const toml_table_t *table, const char *key) {
+  const char *rawValue = toml_raw_in((toml_table_t *)table, key);
   // The value is missing
   if (rawValue == 0)
     return 0;
 
   int64_t value = 0;
   if (toml_rtoi(rawValue, &value)) {
-    log(LOG_ERROR, "Bad integer in config: table '%s', key '%s'", toml_table_key(table), key);
+    log(LOG_ERROR, "Bad integer in config: table '%s', key '%s'", toml_table_key((toml_table_t *)table), key);
     return 0;
   }
 
   return value;
 }
 
-int8_t config_parseBool(toml_table_t *table, const char *key) {
-  const char *rawValue = toml_raw_in(table, key);
+int8_t config_parseBool(const toml_table_t *table, const char *key) {
+  const char *rawValue = toml_raw_in((toml_table_t *)table, key);
   // The value is missing
   if (rawValue == 0)
     return -1;
 
   int value = 0;
   if (toml_rtob(rawValue, &value)) {
-    log(LOG_ERROR, "Bad bool in config: table '%s', key '%s'", toml_table_key(table), key);
+    log(LOG_ERROR, "Bad bool in config: table '%s', key '%s'", toml_table_key((toml_table_t *)table), key);
     return -1;
   }
 
   return value;
 }
 
-list_t *config_parseArray(toml_table_t *table, const char *key) {
-  toml_array_t *array = toml_array_in(table, key);
+list_t *config_parseArray(const toml_table_t *table, const char *key) {
+  toml_array_t *array = toml_array_in((toml_table_t *)table, key);
   if (array == 0)
     return 0;
 
@@ -354,7 +358,7 @@ list_t *config_parseArray(toml_table_t *table, const char *key) {
   return list;
 }
 
-int8_t config_getIsDaemon(config_t *config) {
+int8_t config_getIsDaemon(const config_t *config) {
   return config->daemon;
 }
 
@@ -362,7 +366,7 @@ void config_setIsDaemon(config_t *config, int8_t isDaemon) {
   config->daemon = isDaemon;
 }
 
-uint8_t config_getLoggingLevel(config_t *config) {
+uint8_t config_getLoggingLevel(const config_t *config) {
   return config->loggingLevel;
 }
 
@@ -370,11 +374,11 @@ void config_setLoggingLevel(config_t *config, uint8_t loggingLevel) {
   config->loggingLevel = loggingLevel;
 }
 
-server_config_t *config_getServerConfig(config_t *config, size_t index) {
+server_config_t *config_getServerConfig(const config_t *config, size_t index) {
   return list_getValue(config->serverConfigs, index);
 }
 
-server_config_t *config_getServerConfigByHTTPSDomain(config_t *config, string_t *domain) {
+server_config_t *config_getServerConfigByHTTPSDomain(const config_t *config, const string_t *domain) {
   size_t servers = list_getLength(config->serverConfigs);
   for (size_t i = 0; i < servers; i++) {
     server_config_t *serverConfig = config_getServerConfig(config, i);
@@ -387,7 +391,7 @@ server_config_t *config_getServerConfigByHTTPSDomain(config_t *config, string_t 
   return 0;
 }
 
-server_config_t *config_getServerConfigByHTTPDomain(config_t *config, string_t *domain) {
+server_config_t *config_getServerConfigByHTTPDomain(const config_t *config, const string_t *domain) {
   size_t servers = list_getLength(config->serverConfigs);
   for (size_t i = 0; i < servers; i++) {
     server_config_t *serverConfig = config_getServerConfig(config, i);
@@ -400,7 +404,7 @@ server_config_t *config_getServerConfigByHTTPDomain(config_t *config, string_t *
   return 0;
 }
 
-server_config_t *config_getServerConfigByDomain(config_t *config, string_t *domain, uint16_t port) {
+server_config_t *config_getServerConfigByDomain(const config_t *config, const string_t *domain, uint16_t port) {
   size_t servers = list_getLength(config->serverConfigs);
   for (size_t i = 0; i < servers; i++) {
     server_config_t *serverConfig = config_getServerConfig(config, i);
@@ -413,7 +417,7 @@ server_config_t *config_getServerConfigByDomain(config_t *config, string_t *doma
   return 0;
 }
 
-server_config_t *config_getServerConfigBySSLContext(config_t *config, SSL_CTX *sslContext) {
+server_config_t *config_getServerConfigBySSLContext(const config_t *config, const SSL_CTX *sslContext) {
   size_t servers = list_getLength(config->serverConfigs);
   for (size_t i = 0; i < servers; i++) {
     server_config_t *serverConfig = config_getServerConfig(config, i);
@@ -425,31 +429,31 @@ server_config_t *config_getServerConfigBySSLContext(config_t *config, SSL_CTX *s
   return 0;
 }
 
-size_t config_getServers(config_t *config) {
+size_t config_getServers(const config_t *config) {
   return list_getLength(config->serverConfigs);
 }
 
-size_t config_getNumberOfThreads(config_t *config) {
+size_t config_getNumberOfThreads(const config_t *config) {
   return config->threads;
 }
 
-size_t config_getBacklogSize(config_t *config) {
+size_t config_getBacklogSize(const config_t *config) {
   return config->backlog;
 }
 
-string_t *config_getName(server_config_t *config) {
+string_t *config_getName(const server_config_t *config) {
   return config->name;
 }
 
-string_t *config_getDomain(server_config_t *config) {
+string_t *config_getDomain(const server_config_t *config) {
   return config->domain;
 }
 
-string_t *config_getRootDirectory(server_config_t *config) {
+string_t *config_getRootDirectory(const server_config_t *config) {
   return config->rootDirectory;
 }
 
-int16_t config_getPort(server_config_t *config) {
+int16_t config_getPort(const server_config_t *config) {
   return config->port;
 }
 
@@ -457,7 +461,7 @@ void config_setPort(server_config_t *config, int16_t port) {
   config->port = port;
 }
 
-string_t *config_getLogfile(config_t *config) {
+string_t *config_getLogfile(const config_t *config) {
   return config->logfile;
 }
 
@@ -468,15 +472,15 @@ void config_setLogfile(config_t *config, string_t *logfile) {
   config->logfile = logfile;
 }
 
-SSL_CTX *config_getSSLContext(server_config_t *config) {
+SSL_CTX *config_getSSLContext(const server_config_t *config) {
   return config->sslContext;
 }
 
-DH *config_getDiffieHellmanParameters(server_config_t *config) {
+DH *config_getDiffieHellmanParameters(const server_config_t *config) {
   return config->dhparams;
 }
 
-list_t *config_getDirectoryIndex(server_config_t *config) {
+list_t *config_getDirectoryIndex(const server_config_t *config) {
   return config->directoryIndex;
 }
 

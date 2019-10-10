@@ -21,7 +21,7 @@
 
 // Note that the start of epoch may be anything - since start of UNIX epoch or since start of computer
 // Only use for telling time difference
-void time_getTimeSinceStartOfEpoch(struct timespec *timespec);
+void time_getTimeSinceStartOfEpoch(struct timespec *timespec) __attribute__((nonnull(1)));
 // Resets the time
 void time_reset();
 // Convert epoch time to human readable format
@@ -29,5 +29,5 @@ void time_getFormattedElapsedTime(uint64_t nanoseconds, uint64_t seconds, uint64
 // Time since time_reset() was called. Undefined behaviour if it hasn't been called
 void time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds);
 
-uint64_t time_getElapsedTime(struct timespec *timespec);
+uint64_t time_getElapsedTime(const struct timespec *timespec) __attribute__((nonnull(1)));
 #endif

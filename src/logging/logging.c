@@ -87,7 +87,7 @@ void logging_logToFile(FILE *filePointer, const char *label, int color, const ch
   pthread_mutex_unlock(&mutex);
 }
 
-void logging_request(string_t *remoteHost, enum httpMethod method, string_t *path, string_t *version, uint16_t responseCode, size_t bytesSent) {
+void logging_request(const string_t *remoteHost, enum httpMethod method, const string_t *path, const string_t *version, uint16_t responseCode, size_t bytesSent) {
   // Get current time
   time_t rawTime = time(NULL);
   // Convert time to local time

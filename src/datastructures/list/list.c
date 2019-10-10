@@ -111,12 +111,12 @@ void *list_removeValue(list_t *list, size_t index) {
   return value;
 }
 
-void *list_getValue(list_t *list, size_t index) {
+void *list_getValue(const list_t *list, size_t index) {
   // Return null if index does not exist
   if (list->length <= index)
     return 0;
 
-  list_moveToIndex(list, index);
+  list_moveToIndex((list_t *)list, index);
 
   return list->current->value;
 }
@@ -134,19 +134,19 @@ void *list_setValue(list_t *list, size_t index, void *value) {
   return oldValue;
 }
 
-size_t list_getLength(list_t *list) {
+size_t list_getLength(const list_t *list) {
   return list->length;
 }
 
 // NOTE: does not compare values, only pointers - looking for null is undefined
 // behaviour
-ssize_t list_findIndex(list_t *list, void *value) {
+ssize_t list_findIndex(const list_t *list, void *value) {
   size_t currentIndex = list->currentIndex;
   for (size_t i = 0; i < list->length; i++) {
     if (list->current->value == value)
       return (currentIndex + i) % list->length;
 
-    list_moveToIndex(list, (currentIndex + i + 1) % list->length);
+    list_moveToIndex((list_t *)list, (currentIndex + i + 1) % list->length);
   }
 
   return -1;

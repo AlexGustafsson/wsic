@@ -4,7 +4,7 @@
 
 #include "path.h"
 
-string_t *path_resolve(string_t *relativePath, string_t *root) {
+string_t *path_resolve(const string_t *relativePath, const string_t *root) {
   string_t *path = string_fromBufferWithLength(string_getBuffer(root), string_getSize(root));
   // Ensure that the root path ends with a '/' (doubles don't hurt)
   string_appendChar(path, '/');
@@ -38,7 +38,7 @@ string_t *path_resolve(string_t *relativePath, string_t *root) {
   return resolvedPath;
 }
 
-string_t *path_relativeTo(string_t *path, string_t *root) {
+string_t *path_relativeTo(const string_t *path, const string_t *root) {
   char *resolvedPathBuffer = realpath(string_getBuffer(path), NULL);
   // The realpath call failed
   if (resolvedPathBuffer == 0)

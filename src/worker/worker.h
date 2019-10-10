@@ -46,16 +46,16 @@ typedef struct {
 // Pass a connection to handle it directly and destroy the thread after use (immediate mode)
 // Or pass NULL and a queue in order to make the thread listen for incoming connections (pool mode)
 // Returns NULL if ran in immediate mode (the thread takes care of the memory)
+// The connection (if passed) is owned
 worker_t *worker_spawn(int id, connection_t *connection, message_queue_t *queue);
-connection_t *worker_acceptConnection(worker_t *worker);
-uint8_t worker_getStatus(worker_t *worker);
+uint8_t worker_getStatus(const worker_t *worker) __attribute__((nonnull(1)));
 // Wait for the worker to exit naturally or after killing (undefined behaviour for immediate mode)
-void worker_waitForExit(worker_t *worker);
+void worker_waitForExit(const worker_t *worker) __attribute__((nonnull(1)));
 // Kill the worker (undefined behaviour for immediate mode)
-void worker_kill(worker_t *worker);
+void worker_kill(worker_t *worker) __attribute__((nonnull(1)));
 // Mark a worker as dead, letting it exit when ready
-void worker_closeGracefully(worker_t *worker);
+void worker_closeGracefully(worker_t *worker) __attribute__((nonnull(1)));
 // Undefined behaviour for immediate mode
-void worker_free(worker_t *worker);
+void worker_free(worker_t *worker) __attribute__((nonnull(1)));
 
 #endif

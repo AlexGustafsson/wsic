@@ -9,7 +9,7 @@
 #include "mime.h"
 #include "resources.h"
 
-string_t *resources_loadFile(string_t *filePath) {
+string_t *resources_loadFile(const string_t *filePath) {
   // Open the file in read mode and fail if the path is a directory
   FILE *file = fopen(string_getBuffer(filePath), "r+");
   if (file == 0) {
@@ -38,6 +38,11 @@ string_t *resources_loadFile(string_t *filePath) {
   log(LOG_DEBUG, "Reading %zu bytes from '%s'", fileSize, string_getBuffer(filePath));
   // Create a string with a predefined (expandable) buffer
   string_t *content = string_create();
+  if (content == 0) {
+    log(LOG_ERROR, "Failed to allocate string for content");
+    fclose(file);
+    return 0;
+  }
   string_setBufferSize(content, fileSize);
 
   // Read the file, character by character until EOF
@@ -49,9 +54,12 @@ string_t *resources_loadFile(string_t *filePath) {
   return content;
 }
 
-string_t *resources_getMIMEType(string_t *filePath) {
+string_t *resources_getMIMEType(const string_t *filePath) {
   // Get the extension of the file
   string_cursor_t *cursor = string_createCursor(filePath);
+  if (cursor == 0)
+    return 0;
+
   ssize_t dotIndex = string_findNextChar(cursor, '.');
   string_freeCursor(cursor);
   // There's no "extension" in the path
@@ -81,7 +89,7 @@ string_t *resources_getMIMEType(string_t *filePath) {
   return 0;
 }
 
-bool resources_isExecutable(string_t *filePath) {
+bool resources_isExecutable(const string_t *filePath) {
   struct stat info;
   if (stat(string_getBuffer(filePath), &info) == 0)
     return info.st_mode & S_IXUSR;
@@ -89,7 +97,7 @@ bool resources_isExecutable(string_t *filePath) {
     return false;
 }
 
-bool resources_isFile(string_t *filePath) {
+bool resources_isFile(const string_t *filePath) {
   struct stat info;
   if (stat(string_getBuffer(filePath), &info) == 0)
     return S_ISREG(info.st_mode);
