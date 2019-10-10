@@ -130,6 +130,11 @@ cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *e
 
 string_t *cgi_read(const cgi_process_t *process, size_t timeout) {
   string_t *content = string_create();
+  if (content == 0) {
+    log(LOG_ERROR, "Failed to allocate string for content");
+    return 0;
+  }
+
   uint8_t timeouts = 0;
   while (true) {
     // Set up structures necessary for polling

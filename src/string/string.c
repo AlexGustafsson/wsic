@@ -94,6 +94,8 @@ string_t *string_fromInt(int number) {
     return string_fromBuffer("0");
 
   string_t *string = string_create();
+  if (string == 0)
+    return 0;
   // Get the rough number of digits in the number
   int digits = (int)log10(abs(number)) + 1;
   // Pre-allocate the rough number of necessary digits

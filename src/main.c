@@ -153,6 +153,11 @@ int main(int argc, char const *argv[]) {
   }
 
   set_t *ports = set_create();
+  if (ports == 0) {
+    log(LOG_ERROR, "Unable to create set of ports");
+    return EXIT_FAILURE;
+  }
+
   // Extract unique ports used by the configuration
   for (size_t i = 0; i < list_getLength(config->serverConfigs); i++) {
     server_config_t *serverConfig = config_getServerConfig(config, i);

@@ -19,6 +19,7 @@ connection_t *connection_create() {
   connection_t *connection = malloc(sizeof(connection_t));
   if (connection == 0)
     return 0;
+
   memset(connection, 0, sizeof(connection_t));
 
   return connection;

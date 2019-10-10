@@ -15,6 +15,11 @@ page_t *page_create() {
   memset(page, 0, sizeof(page_t));
 
   page->templates = hash_table_create();
+  if (page->templates == 0) {
+    free(page);
+    return 0;
+  }
+
   page_setTemplate(page, string_fromBuffer("version"), string_fromBuffer((const char *)WSIC_VERSION));
 
   return page;
@@ -22,6 +27,9 @@ page_t *page_create() {
 
 page_t *page_create400(string_t *description) {
   page_t *page = page_create();
+  if (page == 0)
+    return 0;
+
   page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
   page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_400_HTML));
@@ -34,6 +42,9 @@ page_t *page_create400(string_t *description) {
 
 page_t *page_create403() {
   page_t *page = page_create();
+  if (page == 0)
+    return 0;
+
   page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
   page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_403_HTML));
@@ -45,6 +56,9 @@ page_t *page_create403() {
 
 page_t *page_create413() {
   page_t *page = page_create();
+  if (page == 0)
+    return 0;
+
   page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
   page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_413_HTML));
@@ -56,6 +70,9 @@ page_t *page_create413() {
 
 page_t *page_create417() {
   page_t *page = page_create();
+  if (page == 0)
+    return 0;
+
   page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
   page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_417_HTML));
@@ -67,6 +84,9 @@ page_t *page_create417() {
 
 page_t *page_create404(string_t *path) {
   page_t *page = page_create();
+  if (page == 0)
+    return 0;
+
   page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
   page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_404_HTML));
@@ -79,6 +99,9 @@ page_t *page_create404(string_t *path) {
 
 page_t *page_create500(string_t *description) {
   page_t *page = page_create();
+  if (page == 0)
+    return 0;
+
   page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
   page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_500_HTML));
@@ -91,6 +114,9 @@ page_t *page_create500(string_t *description) {
 
 page_t *page_create501() {
   page_t *page = page_create();
+  if (page == 0)
+    return 0;
+
   page_setSource(page, string_fromBufferWithLength((const char *)RESOURCES_WWW_TEMPLATE_HTML, RESOURCES_WWW_TEMPLATE_HTML_LENGTH));
 
   page_setTemplate(page, string_fromBuffer("content"), string_fromBuffer((const char *)RESOURCES_WWW_501_HTML));
@@ -117,6 +143,9 @@ void page_setTemplate(page_t *page, string_t *key, string_t *value) {
 
 ssize_t page_resolveTemplate(page_t *page, size_t offset) {
   string_t *templateKey = string_create();
+  if (templateKey == 0)
+    return -1;
+
   // Pre-allocate 100 bytes (determined to be enough for current use cases)
   string_setBufferSize(templateKey, 100);
 

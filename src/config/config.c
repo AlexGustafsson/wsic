@@ -32,8 +32,15 @@ config_t *config_parse(const char *configString) {
   config_t *config = malloc(sizeof(config_t));
   if (config == 0)
     return 0;
+
   memset(config, 0, sizeof(config_t));
+
   config->serverConfigs = list_create();
+  if (config->serverConfigs == 0) {
+    log(LOG_ERROR, "Failed to create list for serverConfigs");
+    free(config);
+    return 0;
+  }
 
   // Parse the server table if it exists
   toml_table_t *serverTable = toml_table_in(toml, "server");

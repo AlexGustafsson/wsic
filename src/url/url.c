@@ -14,6 +14,10 @@ url_t *url_create() {
   memset(url, 0, sizeof(url_t));
 
   url->parameters = hash_table_create();
+  if (url->parameters == 0) {
+    free(url);
+    return 0;
+  }
 
   return url;
 }
@@ -46,6 +50,8 @@ url_t *url_copy(const url_t *url) {
 
 string_t *url_toString(const url_t *url) {
   string_t *result = string_create();
+  if (result == 0)
+    return 0;
 
   if (url->protocol != 0) {
     string_append(result, url->protocol);
@@ -90,6 +96,8 @@ string_t *url_toQueryString(const url_t *url) {
   }
 
   string_t *result = string_create();
+  if (result == 0)
+    return 0;
   size_t parameters = hash_table_getLength(url->parameters);
 
   for (size_t i = 0; i < parameters; i++) {

@@ -80,6 +80,8 @@ url_t *http_getUrl(const http_t *http) {
 
 string_t *http_toResponseString(const http_t *http) {
   string_t *result = string_create();
+  if (result == 0)
+    return 0;
   // First line is roughly 40 bytes, a header entry is roughly 40 bytes - allows for some speedup
   string_setBufferSize(result, 40 + hash_table_getLength(http->headers) * 40 + (http->body == 0 ? 0 : string_getSize(http->body)));
 
@@ -123,7 +125,13 @@ string_t *http_toResponseString(const http_t *http) {
 bool http_parseRequestLine(http_t *http, const string_t *string) {
   char current = 0;
   string_t *tempString = string_create();
+  if (tempString == 0)
+    return 0;
   string_cursor_t *cursor = string_createCursor(string);
+  if (cursor == 0) {
+    string_free(tempString);
+    return 0;
+  }
 
   // Parse method
   // Reads untill a space is found or null char at end on line
@@ -154,6 +162,12 @@ bool http_parseRequestLine(http_t *http, const string_t *string) {
   // Get the path and parameters
   // Reads untill a space is found or null char at end on line
   string_t *requestTarget = string_create();
+  if (requestTarget == 0) {
+    string_freeCursor(cursor);
+    string_free(requestTarget);
+    return false;
+  }
+
   while ((current = string_getNextChar(cursor)) != ' ' && current != 0)
     string_appendChar(requestTarget, current);
 
@@ -175,9 +189,12 @@ bool http_parseRequestLine(http_t *http, const string_t *string) {
   string_free(requestTarget);
 
   // Parse version
-  // Reads untill null char at end on line
+  // Reads until null char at end on line
   string_t *versionString = string_create();
-  http_setVersion(http, string_create());
+  if (versionString == 0) {
+    return false;
+  }
+
   while ((current = string_getNextChar(cursor)) != 0)
     string_appendChar(versionString, current);
   // Free cursor, not in use anny more
@@ -187,10 +204,7 @@ bool http_parseRequestLine(http_t *http, const string_t *string) {
   string_t *compareString = string_substring(versionString, 0, 5);
   if (compareString == 0) {
     log(LOG_ERROR, "Could not parse HTTP version. Unknown value was passed");
-    if (compareString != 0)
-      string_free(compareString);
-    if (versionString != 0)
-      string_free(versionString);
+    string_free(versionString);
     return false;
   }
   // If the version does not start with "HTTP/" then exit
@@ -232,6 +246,9 @@ bool http_parseRequestLine(http_t *http, const string_t *string) {
 
 bool http_parseHeader(http_t *http, const string_t *string) {
   string_cursor_t *cursor = string_createCursor(string);
+  if (cursor == 0)
+    return false;
+
   ssize_t offset = string_findNextChar(cursor, ':');
   string_freeCursor(cursor);
 
