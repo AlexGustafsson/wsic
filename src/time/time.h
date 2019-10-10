@@ -29,5 +29,5 @@ void time_getFormattedElapsedTime(uint64_t nanoseconds, uint64_t seconds, uint64
 // Time since time_reset() was called. Undefined behaviour if it hasn't been called
 void time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds);
 
-uint64_t time_getElapsedTime(struct timespec *timespec);
+uint64_t time_getElapsedTime(const struct timespec *timespec);
 #endif

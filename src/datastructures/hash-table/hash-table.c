@@ -71,7 +71,7 @@ void *hash_table_setValue(hash_table_t *hashTable, string_t *key, void *value) {
   return removedValue;
 }
 
-void *hash_table_removeValue(hash_table_t *hashTable, string_t *key) {
+void *hash_table_removeValue(hash_table_t *hashTable, const string_t *key) {
   uint32_t keyHash = hash_table_hash(string_getBuffer(key));
   ssize_t keyIndex = hash_table_findIndex(hashTable, keyHash);
 
@@ -86,7 +86,7 @@ void *hash_table_removeValue(hash_table_t *hashTable, string_t *key) {
   return removedValue;
 }
 
-void *hash_table_getValue(hash_table_t *hashTable, string_t *key) {
+void *hash_table_getValue(const hash_table_t *hashTable, const string_t *key) {
   uint32_t keyHash = hash_table_hash(string_getBuffer(key));
   ssize_t keyIndex = hash_table_findIndex(hashTable, keyHash);
 
@@ -97,7 +97,7 @@ void *hash_table_getValue(hash_table_t *hashTable, string_t *key) {
   return entry->value;
 }
 
-hash_table_entry_t *hash_table_getEntryByIndex(hash_table_t *hashTable, size_t index) {
+hash_table_entry_t *hash_table_getEntryByIndex(const hash_table_t *hashTable, size_t index) {
   // Out of bounds
   if (index >= list_getLength(hashTable->entries))
     return 0;
@@ -105,7 +105,7 @@ hash_table_entry_t *hash_table_getEntryByIndex(hash_table_t *hashTable, size_t i
   return list_getValue(hashTable->entries, index);
 }
 
-string_t *hash_table_getKeyByIndex(hash_table_t *hashTable, size_t index) {
+string_t *hash_table_getKeyByIndex(const hash_table_t *hashTable, size_t index) {
   hash_table_entry_t *entry = hash_table_getEntryByIndex(hashTable, index);
   if (entry == 0)
     return 0;
@@ -113,7 +113,7 @@ string_t *hash_table_getKeyByIndex(hash_table_t *hashTable, size_t index) {
   return entry->key;
 }
 
-void *hash_table_getValueByIndex(hash_table_t *hashTable, size_t index) {
+void *hash_table_getValueByIndex(const hash_table_t *hashTable, size_t index) {
   hash_table_entry_t *entry = hash_table_getEntryByIndex(hashTable, index);
   if (entry == 0)
     return 0;
@@ -121,20 +121,20 @@ void *hash_table_getValueByIndex(hash_table_t *hashTable, size_t index) {
   return entry->value;
 }
 
-ssize_t hash_table_findIndex(hash_table_t *hashTable, uint32_t keyHash) {
+ssize_t hash_table_findIndex(const hash_table_t *hashTable, uint32_t keyHash) {
   for (size_t i = 0; i < hashTable->entries->length; i++) {
     hash_table_entry_t *entry = (hash_table_entry_t *)hashTable->entries->current->value;
 
     if (entry->keyHash == keyHash)
       return hashTable->entries->currentIndex;
 
-    list_moveToIndex(hashTable->entries, (hashTable->entries->currentIndex + 1) % hashTable->entries->length);
+    list_moveToIndex((list_t *)hashTable->entries, (hashTable->entries->currentIndex + 1) % hashTable->entries->length);
   }
 
   return -1;
 }
 
-size_t hash_table_getLength(hash_table_t *hashTable) {
+size_t hash_table_getLength(const hash_table_t *hashTable) {
   return list_getLength(hashTable->entries);
 }
 

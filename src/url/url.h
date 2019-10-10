@@ -17,25 +17,25 @@ typedef struct {
 
 url_t *url_create();
 
-url_t *url_copy();
+url_t *url_copy(const url_t *url);
 
-string_t *url_toString(url_t *url);
-string_t *url_toQueryString(url_t *url);
+string_t *url_toString(const url_t *url);
+string_t *url_toQueryString(const url_t *url);
 
 void url_setProtocol(url_t *url, string_t *protocol);
-string_t *url_getProtocol(url_t *url);
+string_t *url_getProtocol(const url_t *url);
 
 void url_setDomainName(url_t *url, string_t *domainName);
-string_t *url_getDomainName(url_t *url);
+string_t *url_getDomainName(const url_t *url);
 
 void url_setPort(url_t *url, uint16_t port);
-uint16_t url_getPort(url_t *url);
+uint16_t url_getPort(const url_t *url);
 
 void url_setPath(url_t *url, string_t *path);
-string_t *url_getPath(url_t *url);
+string_t *url_getPath(const url_t *url);
 
 void url_setParameter(url_t *url, string_t *key, string_t *value);
-string_t *url_getParameter(url_t *url, string_t *key);
+string_t *url_getParameter(const url_t *url, const string_t *key);
 
 void url_free(url_t *url);
 

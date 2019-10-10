@@ -128,7 +128,7 @@ cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *e
   return process;
 }
 
-string_t *cgi_read(cgi_process_t *process, size_t timeout) {
+string_t *cgi_read(const cgi_process_t *process, size_t timeout) {
   string_t *content = string_create();
   uint8_t timeouts = 0;
   while (true) {
@@ -183,7 +183,7 @@ string_t *cgi_read(cgi_process_t *process, size_t timeout) {
   return content;
 }
 
-size_t cgi_write(cgi_process_t *process, const char *buffer, size_t bufferSize) {
+size_t cgi_write(const cgi_process_t *process, const char *buffer, size_t bufferSize) {
   ssize_t bytesSent = write(process->stdin[PIPE_WRITE], buffer, bufferSize);
 
   if (bytesSent == -1) {
@@ -196,7 +196,7 @@ size_t cgi_write(cgi_process_t *process, const char *buffer, size_t bufferSize) 
   return bytesSent;
 }
 
-void cgi_flushStdin(cgi_process_t *process) {
+void cgi_flushStdin(const cgi_process_t *process) {
   const char buffer[1] = {0};
   ssize_t bytesWritten = write(process->stdin[PIPE_WRITE], buffer, 1);
   if (bytesWritten == -1)
@@ -204,21 +204,21 @@ void cgi_flushStdin(cgi_process_t *process) {
   close(process->stdin[PIPE_WRITE]);
 }
 
-bool cgi_isAlive(cgi_process_t *process) {
+bool cgi_isAlive(const cgi_process_t *process) {
   int status;
   pid_t pid = waitpid(process->pid, &status, WNOHANG);
 
   return pid == 0;
 }
 
-int8_t cgi_waitForExit(cgi_process_t *process) {
+int8_t cgi_waitForExit(const cgi_process_t *process) {
   int status;
   waitpid(process->pid, &status, 0);
 
   return WEXITSTATUS(status);
 }
 
-void cgi_closeProcess(cgi_process_t *process) {
+void cgi_closeProcess(const cgi_process_t *process) {
   kill(process->pid, SIGKILL);
 
   // Close stdin

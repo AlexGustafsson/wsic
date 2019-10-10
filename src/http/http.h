@@ -30,37 +30,37 @@ typedef struct {
 
 http_t *http_create();
 
-http_t *http_parseRequest(string_t *request);
-bool http_parseRequestLine(http_t *http, string_t *string);
-bool http_parseHeader(http_t *http, string_t *string);
+http_t *http_parseRequest(const string_t *request);
+bool http_parseRequestLine(http_t *http, const string_t *string);
+bool http_parseHeader(http_t *http, const string_t *string);
 void http_parseBody(http_t *http, string_t *string, size_t offset);
-bool http_parseRequestTarget(http_t *http, string_t *requestTarget);
+bool http_parseRequestTarget(http_t *http, const string_t *requestTarget);
 bool http_parseHost(http_t *http);
 bool http_parseUrl(http_t *http);
-enum httpMethod http_parseMethod(string_t *method);
+enum httpMethod http_parseMethod(const string_t *method);
 string_t *http_methodToString(enum httpMethod method);
 
 void http_setMethod(http_t *http, enum httpMethod method);
-enum httpMethod http_getMethod(http_t *http);
+enum httpMethod http_getMethod(const http_t *http);
 
 void http_setVersion(http_t *http, string_t *version);
-string_t *http_getVersion(http_t *http);
+string_t *http_getVersion(const http_t *http);
 
 void http_setResponseCode(http_t *http, uint16_t code);
-uint16_t http_getResponseCode(http_t *http);
+uint16_t http_getResponseCode(const http_t *http);
 
 void http_setHeader(http_t *http, string_t *key, string_t *value);
-string_t *http_getHeader(http_t *http, string_t *key);
+string_t *http_getHeader(const http_t *http, const string_t *key);
 
 void http_setVersion(http_t *http, string_t *version);
-string_t *http_getVersion(http_t *http);
+string_t *http_getVersion(const http_t *http);
 
 void http_setBody(http_t *http, string_t *body);
-string_t *http_getBody(http_t *http);
+string_t *http_getBody(const http_t *http);
 
-url_t *http_getUrl(http_t *http);
+url_t *http_getUrl(const http_t *http);
 
-string_t *http_toResponseString(http_t *http);
+string_t *http_toResponseString(const http_t *http);
 
 void http_free(http_t *http);
 

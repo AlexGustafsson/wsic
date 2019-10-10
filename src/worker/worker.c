@@ -19,14 +19,14 @@
 // The main entry point of a worker
 void *worker_entryPoint(worker_t *worker);
 int worker_handleConnection(worker_t *worker, connection_t *connection);
-hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request, string_t *rootDirectory, string_t *resolvedPath);
-size_t worker_return500(connection_t *connection, http_t *request, string_t *description);
-size_t worker_return404(connection_t *connection, http_t *request, string_t *path);
-size_t worker_return400(connection_t *connection, http_t *request, string_t *path, string_t *description);
-size_t worker_return417(connection_t *connection, http_t *request, string_t *path);
-size_t worker_return413(connection_t *connection, http_t *request, string_t *path);
-size_t worker_return200(connection_t *connection, http_t *request, string_t *resolvedPath);
-size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *rootDirectory, string_t *body);
+hash_table_t *worker_createEnvironment(const connection_t *connection, const http_t *request, const string_t *rootDirectory, const string_t *resolvedPath);
+size_t worker_return500(const connection_t *connection, const http_t *request, string_t *description);
+size_t worker_return404(const connection_t *connection, const http_t *request, const string_t *path);
+size_t worker_return400(const connection_t *connection, const http_t *request, const string_t *path, string_t *description);
+size_t worker_return417(const connection_t *connection, const http_t *request, const string_t *path);
+size_t worker_return413(const connection_t *connection, const http_t *request, const string_t *path);
+size_t worker_return200(const connection_t *connection, const http_t *request, const string_t *resolvedPath);
+size_t worker_returnCGI(worker_t *worker, const connection_t *connection, const http_t *request, const string_t *resolvedPath, const string_t *rootDirectory, const string_t *body);
 
 worker_t *worker_spawn(int id, connection_t *connection, message_queue_t *queue) {
   worker_t *worker = malloc(sizeof(worker_t));
@@ -61,7 +61,7 @@ worker_t *worker_spawn(int id, connection_t *connection, message_queue_t *queue)
   }
 }
 
-uint8_t worker_getStatus(worker_t *worker) {
+uint8_t worker_getStatus(const worker_t *worker) {
   return worker->status;
 }
 
@@ -360,7 +360,7 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
   return 0;
 }
 
-hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request, string_t *rootDirectory, string_t *resolvedPath) {
+hash_table_t *worker_createEnvironment(const connection_t *connection, const http_t *request, const string_t *rootDirectory, const string_t *resolvedPath) {
   hash_table_t *environment = hash_table_create();
   hash_table_setValue(environment, string_fromBuffer("HTTPS"), string_fromBuffer("off"));
   hash_table_setValue(environment, string_fromBuffer("SERVER_SOFTWARE"), string_fromBuffer("WSIC"));
@@ -424,7 +424,7 @@ hash_table_t *worker_createEnvironment(connection_t *connection, http_t *request
   return environment;
 }
 
-size_t worker_return500(connection_t *connection, http_t *request, string_t *description) {
+size_t worker_return500(const connection_t *connection, const http_t *request, string_t *description) {
   http_t *response = http_create();
   page_t *page = page_create500(description);
   string_t *source = page_getSource(page);
@@ -450,7 +450,7 @@ size_t worker_return500(connection_t *connection, http_t *request, string_t *des
   return bytesWritten;
 }
 
-size_t worker_return404(connection_t *connection, http_t *request, string_t *path) {
+size_t worker_return404(const connection_t *connection, const http_t *request, const string_t *path) {
   http_t *response = http_create();
   // Copy the path since we want to keep ownership
   page_t *page = page_create404(string_copy(path));
@@ -476,7 +476,7 @@ size_t worker_return404(connection_t *connection, http_t *request, string_t *pat
   return bytesWritten;
 }
 
-size_t worker_return400(connection_t *connection, http_t *request, string_t *path, string_t *description) {
+size_t worker_return400(const connection_t *connection, const http_t *request, const string_t *path, string_t *description) {
   http_t *response = http_create();
   // Copy the path since we want to keep ownership
   page_t *page = page_create400(string_copy(description));
@@ -502,7 +502,7 @@ size_t worker_return400(connection_t *connection, http_t *request, string_t *pat
   return bytesWritten;
 }
 
-size_t worker_return417(connection_t *connection, http_t *request, string_t *path) {
+size_t worker_return417(const connection_t *connection, const http_t *request, const string_t *path) {
   http_t *response = http_create();
   // Copy the path since we want to keep ownership
   page_t *page = page_create417();
@@ -528,7 +528,7 @@ size_t worker_return417(connection_t *connection, http_t *request, string_t *pat
   return bytesWritten;
 }
 
-size_t worker_return413(connection_t *connection, http_t *request, string_t *path) {
+size_t worker_return413(const connection_t *connection, const http_t *request, const string_t *path) {
   http_t *response = http_create();
   // Copy the path since we want to keep ownership
   page_t *page = page_create413();
@@ -554,7 +554,7 @@ size_t worker_return413(connection_t *connection, http_t *request, string_t *pat
   return bytesWritten;
 }
 
-size_t worker_return200(connection_t *connection, http_t *request, string_t *resolvedPath) {
+size_t worker_return200(const connection_t *connection, const http_t *request, const string_t *resolvedPath) {
   http_t *response = http_create();
   http_setResponseCode(response, 200);
   http_setVersion(response, string_fromBuffer("1.1"));
@@ -591,7 +591,7 @@ size_t worker_return200(connection_t *connection, http_t *request, string_t *res
   return bytesWritten;
 }
 
-size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *request, string_t *resolvedPath, string_t *rootDirectory, string_t *body) {
+size_t worker_returnCGI(worker_t *worker, const connection_t *connection, const http_t *request, const string_t *resolvedPath, const string_t *rootDirectory, const string_t *body) {
   log(LOG_DEBUG, "Spawning CGI process");
   list_t *arguments = 0;
   hash_table_t *environment = worker_createEnvironment(connection, request, rootDirectory, resolvedPath);
@@ -646,7 +646,7 @@ size_t worker_returnCGI(worker_t *worker, connection_t *connection, http_t *requ
   return bytesWritten;
 }
 
-void worker_waitForExit(worker_t *worker) {
+void worker_waitForExit(const worker_t *worker) {
   pthread_join(worker->thread, NULL);
 }
 

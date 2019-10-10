@@ -19,12 +19,12 @@
 #define FILE_READ_WRITE "rw"
 
 // Read a file as a string (does not follow symlinks)
-string_t *resources_loadFile(string_t *filePath);
+string_t *resources_loadFile(const string_t *filePath);
 // Try to get the MIME type of a file (does not follow symlinks)
-string_t *resources_getMIMEType(string_t *filePath);
+string_t *resources_getMIMEType(const string_t *filePath);
 // Whether or not the user can execute the file path (does not follow symlinks, works for files and directories)
-bool resources_isExecutable(string_t *filePath);
+bool resources_isExecutable(const string_t *filePath);
 // Whether or not a path is a regular file (does not follow symlinks)
-bool resources_isFile(string_t *filePath);
+bool resources_isFile(const string_t *filePath);
 
 #endif

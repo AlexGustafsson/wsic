@@ -28,7 +28,7 @@ void connection_setSocket(connection_t *connection, int socket) {
   connection->socket = socket;
 }
 
-int connection_getSocket(connection_t *connection) {
+int connection_getSocket(const connection_t *connection) {
   return connection->socket;
 }
 
@@ -40,7 +40,7 @@ void connection_setSourceAddress(connection_t *connection, string_t *sourceAddre
   connection->sourceAddress = sourceAddress;
 }
 
-string_t *connection_getSourceAddress(connection_t *connection) {
+string_t *connection_getSourceAddress(const connection_t *connection) {
   return connection->sourceAddress;
 }
 
@@ -48,11 +48,11 @@ void connection_setSourcePort(connection_t *connection, uint16_t sourcePort) {
   connection->sourcePort = sourcePort;
 }
 
-uint16_t connection_getSourcePort(connection_t *connection) {
+uint16_t connection_getSourcePort(const connection_t *connection) {
   return connection->sourcePort;
 }
 
-string_t *connection_read(connection_t *connection, int timeout, size_t bytesToRead) {
+string_t *connection_read(const connection_t *connection, int timeout, size_t bytesToRead) {
   uint8_t timeouts = 0;
   while (true) {
     bool dataIsAvailable = connection_pollForData(connection, timeout);
@@ -89,7 +89,7 @@ string_t *connection_read(connection_t *connection, int timeout, size_t bytesToR
   }
 }
 
-string_t *connection_readLine(connection_t *connection, int timeout, size_t maxBytes) {
+string_t *connection_readLine(const connection_t *connection, int timeout, size_t maxBytes) {
   size_t offset = 0;
   uint8_t timeouts = 0;
   while (true) {
@@ -161,7 +161,7 @@ string_t *connection_readLine(connection_t *connection, int timeout, size_t maxB
   }
 }
 
-bool connection_pollForData(connection_t *connection, int timeout) {
+bool connection_pollForData(const connection_t *connection, int timeout) {
   if (connection->ssl != 0 && SSL_pending(connection->ssl) > 0)
     return true;
 
@@ -186,7 +186,7 @@ bool connection_pollForData(connection_t *connection, int timeout) {
   return true;
 }
 
-ssize_t connection_getAvailableBytes(connection_t *connection) {
+ssize_t connection_getAvailableBytes(const connection_t *connection) {
   // Get the number of bytes immediately available for reading
   int bytesAvailable = -1;
   if (connection->ssl == 0) {
@@ -223,7 +223,7 @@ ssize_t connection_getAvailableBytes(connection_t *connection) {
   return (ssize_t)bytesAvailable;
 }
 
-size_t connection_readBytes(connection_t *connection, char **buffer, size_t bytesToRead, int flags) {
+size_t connection_readBytes(const connection_t *connection, char **buffer, size_t bytesToRead, int flags) {
   (*buffer) = malloc(sizeof(char) * bytesToRead);
   ssize_t bytesReceived = recv(connection->socket, (*buffer), bytesToRead, flags);
   if (bytesReceived == -1) {
@@ -250,7 +250,7 @@ size_t connection_readBytes(connection_t *connection, char **buffer, size_t byte
   return bytesReceived;
 }
 
-size_t connection_readSSLBytes(connection_t *connection, char **buffer, size_t bytesToRead, int flags) {
+size_t connection_readSSLBytes(const connection_t *connection, char **buffer, size_t bytesToRead, int flags) {
   (*buffer) = malloc(sizeof(char) * bytesToRead);
   size_t bytesReceived = 0;
   if (flags == READ_FLAGS_PEEK) {
@@ -276,7 +276,7 @@ size_t connection_readSSLBytes(connection_t *connection, char **buffer, size_t b
   return bytesReceived;
 }
 
-size_t connection_write(connection_t *connection, const char *buffer, size_t bufferSize) {
+size_t connection_write(const connection_t *connection, const char *buffer, size_t bufferSize) {
   const char *sourceAddress = string_getBuffer(connection->sourceAddress);
   uint16_t sourcePort = connection->sourcePort;
 
@@ -304,10 +304,6 @@ size_t connection_write(connection_t *connection, const char *buffer, size_t buf
   return bytesSent;
 }
 
-void connection_parseRequest(connection_t *connection, char *buffer, size_t bufferSize) {
-  log(LOG_WARNING, "Not implemented");
-}
-
 void connection_close(connection_t *connection) {
   if (shutdown(connection->socket, SHUT_RDWR) == -1) {
     if (errno != ENOTCONN && errno != EINVAL) {
@@ -327,7 +323,7 @@ void connection_close(connection_t *connection) {
 }
 
 // Detect if TLS was used
-bool connection_isSSL(connection_t *connection) {
+bool connection_isSSL(const connection_t *connection) {
   char *buffer = 0;
   connection_readBytes(connection, &buffer, 6, READ_FLAGS_PEEK);
   if (buffer == 0)

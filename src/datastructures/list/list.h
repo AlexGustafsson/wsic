@@ -21,10 +21,10 @@ list_t *list_create();
 void list_addValue(list_t *list, void *value);
 void list_moveToIndex(list_t *list, size_t index);
 void *list_removeValue(list_t *list, size_t index);
-void *list_getValue(list_t *list, size_t index);
+void *list_getValue(const list_t *list, size_t index);
 void *list_setValue(list_t *list, size_t index, void *value);
-size_t list_getLength(list_t *list);
-ssize_t list_findIndex(list_t *list, void *value);
+size_t list_getLength(const list_t *list);
+ssize_t list_findIndex(const list_t *list, void *value);
 void list_clear(list_t *list);
 void list_free(list_t *list);
 

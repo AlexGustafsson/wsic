@@ -47,46 +47,46 @@ config_t *config_getGlobalConfig();
 void config_setGlobalConfig(config_t *config);
 void config_freeGlobalConfig();
 
-server_config_t *config_parseServerTable(toml_table_t *serverTable);
+server_config_t *config_parseServerTable(const toml_table_t *serverTable);
 
-int8_t config_getIsDaemon(config_t *config);
+int8_t config_getIsDaemon(const config_t *config);
 void config_setIsDaemon(config_t *config, int8_t isDaemon);
 
-uint8_t config_getLoggingLevel(config_t *config);
+uint8_t config_getLoggingLevel(const config_t *config);
 void config_setLoggingLevel(config_t *config, uint8_t loggingLevel);
 
-server_config_t *config_getServerConfig(config_t *config, size_t index);
-server_config_t *config_getServerConfigByHTTPSDomain(config_t *config, string_t *domain);
-server_config_t *config_getServerConfigByHTTPDomain(config_t *config, string_t *domain);
-server_config_t *config_getServerConfigByDomain(config_t *config, string_t *domain, uint16_t port);
-server_config_t *config_getServerConfigBySSLContext(config_t *config, SSL_CTX *sslContext);
-size_t config_getServers(config_t *config);
+server_config_t *config_getServerConfig(const config_t *config, size_t index);
+server_config_t *config_getServerConfigByHTTPSDomain(const config_t *config, const string_t *domain);
+server_config_t *config_getServerConfigByHTTPDomain(const config_t *config, const string_t *domain);
+server_config_t *config_getServerConfigByDomain(const config_t *config, const string_t *domain, uint16_t port);
+server_config_t *config_getServerConfigBySSLContext(const config_t *config, const SSL_CTX *sslContext);
+size_t config_getServers(const config_t *config);
 
-size_t config_getNumberOfThreads(config_t *config);
+size_t config_getNumberOfThreads(const config_t *config);
 
-size_t config_getBacklogSize(config_t *config);
+size_t config_getBacklogSize(const config_t *config);
 
-string_t *config_getName(server_config_t *config);
+string_t *config_getName(const server_config_t *config);
 
-string_t *config_getDomain(server_config_t *config);
+string_t *config_getDomain(const server_config_t *config);
 
-string_t *config_getRootDirectory(server_config_t *config);
+string_t *config_getRootDirectory(const server_config_t *config);
 
-int16_t config_getPort(server_config_t *config);
+int16_t config_getPort(const server_config_t *config);
 void config_setPort(server_config_t *config, int16_t port);
 
-string_t *config_getLogfile(config_t *config);
+string_t *config_getLogfile(const config_t *config);
 void config_setLogfile(config_t *config, string_t *logfile);
 
-SSL_CTX *config_getSSLContext(server_config_t *config);
-DH *config_getDiffieHellmanParameters(server_config_t *config);
+SSL_CTX *config_getSSLContext(const server_config_t *config);
+DH *config_getDiffieHellmanParameters(const server_config_t *config);
 
-list_t *config_getDirectoryIndex(server_config_t *config);
+list_t *config_getDirectoryIndex(const server_config_t *config);
 
-string_t *config_parseString(toml_table_t *table, const char *key);
-int64_t config_parseInt(toml_table_t *table, const char *key);
-int8_t config_parseBool(toml_table_t *table, const char *key);
-list_t *config_parseArray(toml_table_t *table, const char *key);
+string_t *config_parseString(const toml_table_t *table, const char *key);
+int64_t config_parseInt(const toml_table_t *table, const char *key);
+int8_t config_parseBool(const toml_table_t *table, const char *key);
+list_t *config_parseArray(const toml_table_t *table, const char *key);
 
 // NOTE: Called by config_free automatically
 void config_freeServerConfig(server_config_t *serverConfig);

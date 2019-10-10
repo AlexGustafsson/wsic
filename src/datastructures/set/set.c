@@ -17,11 +17,11 @@ void *set_removeValue(set_t *set, size_t index) {
   return list_removeValue(set, index);
 }
 
-void *set_getValue(set_t *set, size_t index) {
+void *set_getValue(const set_t *set, size_t index) {
   return list_getValue(set, index);
 }
 
-size_t set_getLength(set_t *set) {
+size_t set_getLength(const set_t *set) {
   return list_getLength(set);
 }
 
