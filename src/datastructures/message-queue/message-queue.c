@@ -72,18 +72,6 @@ void *message_queue_pop(message_queue_t *queue) {
   return value;
 }
 
-size_t message_queue_getLength(message_queue_t *queue) {
-  pthread_mutex_lock(&queue->mutex);
-  size_t length = list_getLength(queue->list);
-  pthread_mutex_unlock(&queue->mutex);
-
-  return length;
-}
-
-void message_queue_clear(message_queue_t *queue) {
-  list_clear(queue->list);
-}
-
 void message_queue_unlock(message_queue_t *queue) {
   pthread_mutex_lock(&queue->mutex);
   queue->unlocked = true;
