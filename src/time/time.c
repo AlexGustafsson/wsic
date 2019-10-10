@@ -49,23 +49,27 @@ void time_getFormattedElapsedTime(uint64_t nanoseconds, uint64_t seconds, uint64
   return;
 }
 
-void time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds) {
+bool time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds) {
   struct timespec now;
   time_getTimeSinceStartOfEpoch(&now);
 
   if (nanoseconds == 0 && seconds != 0) {
     // Return time since start in seconds
     *seconds = now.tv_sec - time_start.tv_sec;
+    return true;
   } else if (nanoseconds != 0 && seconds == 0) {
     // Return time since start in nanoseconds
     *nanoseconds = (now.tv_nsec + now.tv_sec * 1000000000) - (time_start.tv_nsec + time_start.tv_sec * 1000000000);
+    return true;
   } else if (nanoseconds != 0 && seconds != 0) {
     // Return time since start in separet seconds and nanoseconds
     *nanoseconds = now.tv_nsec - time_start.tv_nsec;
     *seconds = now.tv_sec - time_start.tv_sec;
+    return true;
   } else {
     // If both in patameters was null, do nothing
     log(LOG_ERROR, "Can get time, inparameters was null");
+    return false;
   }
 }
 
