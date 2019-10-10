@@ -32,8 +32,11 @@ void message_queue_test_canPushAndPop() {
   int *result0 = 0;
   int *result1 = 0;
 
-  pthread_join(thread0, (void *)result0);
-  pthread_join(thread1, (void *)result1);
+  pthread_join(thread0, (void **)&result0);
+  pthread_join(thread1, (void **)&result1);
+
+  TEST_ASSERT_NOT_NULL(result0);
+  TEST_ASSERT_NOT_NULL(result1);
 
   TEST_ASSERT(*result0 != *result1);
   TEST_ASSERT(*result0 == value0 || *result0 == value1);
@@ -62,8 +65,8 @@ void messsage_queue_test_canUnlockQueue() {
   int *result0 = 0;
   int *result1 = 0;
 
-  pthread_join(thread0, (void *)result0);
-  pthread_join(thread1, (void *)result1);
+  pthread_join(thread0, (void **)&result0);
+  pthread_join(thread1, (void **)&result1);
 
   TEST_ASSERT_NULL(result0);
   TEST_ASSERT_NULL(result1);
