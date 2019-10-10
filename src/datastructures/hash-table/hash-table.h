@@ -26,10 +26,12 @@ typedef struct {
 uint32_t hash_table_hash(const char *value) __attribute__((nonnull(1)));
 
 hash_table_t *hash_table_create();
+// The hash table owns the key, but not the value
 void *hash_table_setValue(hash_table_t *hashTable, string_t *key, void *value) __attribute__((nonnull(1, 2)));
 void *hash_table_removeValue(hash_table_t *hashTable, const string_t *key) __attribute__((nonnull(1, 2)));
 void *hash_table_getValue(const hash_table_t *hashTable, const string_t *key) __attribute__((nonnull(1, 2)));
 hash_table_entry_t *hash_table_getEntryByIndex(const hash_table_t *hashTable, size_t index) __attribute__((nonnull(1)));
+// The hash table owns the returned key
 string_t *hash_table_getKeyByIndex(const hash_table_t *hashTable, size_t index) __attribute__((nonnull(1)));
 void *hash_table_getValueByIndex(const hash_table_t *hashTable, size_t index) __attribute__((nonnull(1)));
 ssize_t hash_table_findIndex(const hash_table_t *hashTable, uint32_t keyHash) __attribute__((nonnull(1)));

@@ -14,17 +14,23 @@ typedef struct {
 
 page_t *page_create();
 
+// The description is owned
 page_t *page_create400(string_t *description) __attribute__((nonnull(1)));
 page_t *page_create403();
 page_t *page_create413();
 page_t *page_create417();
+// The path is owned
 page_t *page_create404(string_t *path) __attribute__((nonnull(1)));
+// The description is owned
 page_t *page_create500(string_t *description) __attribute__((nonnull(1)));
 page_t *page_create501();
 
+// The source is owned
 void page_setSource(page_t *page, string_t *source) __attribute__((nonnull(1, 2)));
+// The returned source is owned
 string_t *page_getSource(page_t *page) __attribute__((nonnull(1)));
 
+// The key and value is owned
 void page_setTemplate(page_t *page, string_t *key, string_t *value) __attribute__((nonnull(1, 2)));
 
 ssize_t page_resolveTemplate(page_t *page, size_t offset) __attribute__((nonnull(1)));

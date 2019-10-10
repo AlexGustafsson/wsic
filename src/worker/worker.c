@@ -18,6 +18,7 @@
 // Private methods
 // The main entry point of a worker
 void *worker_entryPoint(worker_t *worker);
+// The function will own the connection
 int worker_handleConnection(worker_t *worker, connection_t *connection);
 hash_table_t *worker_createEnvironment(const connection_t *connection, const http_t *request, const string_t *rootDirectory, const string_t *resolvedPath);
 size_t worker_return500(const connection_t *connection, const http_t *request, string_t *description);

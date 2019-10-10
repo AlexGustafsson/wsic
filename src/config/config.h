@@ -76,6 +76,7 @@ int16_t config_getPort(const server_config_t *config) __attribute__((nonnull(1))
 void config_setPort(server_config_t *config, int16_t port) __attribute__((nonnull(1)));
 
 string_t *config_getLogfile(const config_t *config) __attribute__((nonnull(1)));
+// Config owns logfile
 void config_setLogfile(config_t *config, string_t *logfile) __attribute__((nonnull(1)));
 
 SSL_CTX *config_getSSLContext(const server_config_t *config) __attribute__((nonnull(1)));

@@ -52,7 +52,7 @@ void string_appendBuffer(string_t *string, const char *buffer) __attribute__((no
 void string_appendBufferWithLength(string_t *string, const char *buffer, size_t bufferSize) __attribute__((nonnull(1, 2)));
 // Append a char to a string
 void string_appendChar(string_t *string, char character) __attribute__((nonnull(1)));
-// Get the raw buffer of the string
+// Get the raw buffer of the string. Still owned by the string
 const char *string_getBuffer(const string_t *string) __attribute__((nonnull(1)));
 // Get the actual size of the string (content's length)
 size_t string_getSize(const string_t *string) __attribute__((nonnull(1)));

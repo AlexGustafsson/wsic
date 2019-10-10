@@ -21,9 +21,11 @@ typedef struct {
 
 connection_t *connection_create();
 
+// Connection owns the socket.
 void connection_setSocket(connection_t *connection, int socket) __attribute__((nonnull(1)));
 int connection_getSocket(const connection_t *connection) __attribute__((nonnull(1)));
 
+// Connection owns the source address.
 void connection_setSourceAddress(connection_t *connection, string_t *sourceAddress) __attribute__((nonnull(1)));
 string_t *connection_getSourceAddress(const connection_t *connection) __attribute__((nonnull(1)));
 

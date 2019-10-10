@@ -14,6 +14,7 @@ typedef struct {
   int stderr[2];
 } cgi_process_t;
 
+// Spawn a CGI process. Owns arguments and environment.
 cgi_process_t *cgi_spawn(const char *command, list_t *arguments, hash_table_t *environment) __attribute__((nonnull(1)));
 
 // NOTE: This will the read all available bytes. Will block until the pipe has data to read

@@ -277,7 +277,7 @@ bool http_parseHeader(http_t *http, const string_t *string) {
   return true;
 }
 
-void http_parseBody(http_t *http, string_t *string, size_t offset) {
+void http_parseBody(http_t *http, const string_t *string, size_t offset) {
   if (http->body != 0)
     string_free(http->body);
   // After headers is added we put everything that is left in the request into the body variable
