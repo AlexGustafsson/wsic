@@ -279,7 +279,7 @@ int server_handleServerNameIdentification(SSL *ssl, int *alert, void *arg) {
 
   config_t *config = config_getGlobalConfig();
   string_t *domain = string_fromBuffer(rawDomain);
-  server_config_t *serverConfig = config_getServerConfigBySNI(config, domain);
+  server_config_t *serverConfig = config_getServerConfigByHTTPSDomain(config, domain);
   string_free(domain);
   if (serverConfig == 0) {
     log(LOG_ERROR, "Got unknown domain '%s' for TLS handshake", rawDomain);

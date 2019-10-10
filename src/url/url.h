@@ -17,6 +17,8 @@ typedef struct {
 
 url_t *url_create();
 
+url_t *url_copy();
+
 string_t *url_toString(url_t *url);
 string_t *url_toQueryString(url_t *url);
 
