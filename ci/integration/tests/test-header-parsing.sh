@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 function cannotParseIncorrectRequestLine() {
-  output="$(echo -ne "GET /in / as\r\n" | nc -w 10 -G 10 localhost 8080 2>&1 | tr -d '\r')"
+  output="$(echo -ne "GET /in / as\r\n" | nc localhost 8080 2>&1 | tr -d '\r')"
   failed="$(grep -e 'HTTP/1.1 400' <<<"$output" > /dev/null && echo 1 || echo 0)"
   contentLength="$(grep -e 'Content-Length:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
   contentType="$(grep -e 'Content-Type:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
@@ -14,7 +14,7 @@ function cannotParseIncorrectRequestLine() {
 }
 
 function cannotParseIncorrectRequestLine2() {
-  output="$(echo -ne "GET /in / as\r\n\r\n" | nc -w 10 -G 10 localhost 8080 2>&1 | tr -d '\r')"
+  output="$(echo -ne "GET /in / as\r\n\r\n" | nc localhost 8080 2>&1 | tr -d '\r')"
   failed="$(grep -e 'HTTP/1.1 400' <<<"$output" > /dev/null && echo 1 || echo 0)"
   contentLength="$(grep -e 'Content-Length:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
   contentType="$(grep -e 'Content-Type:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
@@ -27,7 +27,7 @@ function cannotParseIncorrectRequestLine2() {
 }
 
 function cannotParseIncorrectMethod() {
-  output="$(echo -ne "check /index.html HTTP/1.1\r\n\r\n" | nc -w 10 -G 10 localhost 8080 2>&1 | tr -d '\r')"
+  output="$(echo -ne "check /index.html HTTP/1.1\r\n\r\n" | nc localhost 8080 2>&1 | tr -d '\r')"
   failed="$(grep -e 'HTTP/1.1 400' <<<"$output" > /dev/null && echo 1 || echo 0)"
   contentLength="$(grep -e 'Content-Length:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
   contentType="$(grep -e 'Content-Type:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
@@ -40,7 +40,7 @@ function cannotParseIncorrectMethod() {
 }
 
 function cannotParseIncorrectVersion() {
-  output="$(echo -ne "GET /index.html HTP/1.1\r\n\r\n" | nc -w 10 -G 10 localhost 8080 2>&1 | tr -d '\r')"
+  output="$(echo -ne "GET /index.html HTP/1.1\r\n\r\n" | nc localhost 8080 2>&1 | tr -d '\r')"
   failed="$(grep -e 'HTTP/1.1 400' <<<"$output" > /dev/null && echo 1 || echo 0)"
   contentLength="$(grep -e 'Content-Length:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
   contentType="$(grep -e 'Content-Type:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
@@ -53,7 +53,7 @@ function cannotParseIncorrectVersion() {
 }
 
 function cannotParseIncorrectVersion2() {
-  output="$(echo -ne "GET /index.html HTTP 1.1\r\n\r\n" | nc -w 10 -G 10 localhost 8080 2>&1 | tr -d '\r')"
+  output="$(echo -ne "GET /index.html HTTP 1.1\r\n\r\n" | nc localhost 8080 2>&1 | tr -d '\r')"
   failed="$(grep -e 'HTTP/1.1 400' <<<"$output" > /dev/null && echo 1 || echo 0)"
   contentLength="$(grep -e 'Content-Length:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
   contentType="$(grep -e 'Content-Type:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
@@ -66,7 +66,7 @@ function cannotParseIncorrectVersion2() {
 }
 
 function cannotParseIncorrectHeaders() {
-  output="$(echo -ne "GET /index.html HTTP/1.1\r\nHost localhost\r\n\r\n" | nc -w 10 -G 10 localhost 8080 2>&1 | tr -d '\r')"
+  output="$(echo -ne "GET /index.html HTTP/1.1\r\nHost localhost\r\n\r\n" | nc localhost 8080 2>&1 | tr -d '\r')"
   failed="$(grep -e 'HTTP/1.1 400' <<<"$output" > /dev/null && echo 1 || echo 0)"
   contentLength="$(grep -e 'Content-Length:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
   contentType="$(grep -e 'Content-Type:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
@@ -79,7 +79,7 @@ function cannotParseIncorrectHeaders() {
 }
 
 function cannotParseIncorrectHeaders2() {
-  output="$(echo -ne "GET /index.html HTTP/1.1\r\nHost:localhost\r\n\r\n" | nc -w 10 -G 10 localhost 8080 2>&1 | tr -d '\r')"
+  output="$(echo -ne "GET /index.html HTTP/1.1\r\nHost:localhost\r\n\r\n" | nc localhost 8080 2>&1 | tr -d '\r')"
   failed="$(grep -e 'HTTP/1.1 400' <<<"$output" > /dev/null && echo 1 || echo 0)"
   contentLength="$(grep -e 'Content-Length:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
   contentType="$(grep -e 'Content-Type:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
@@ -92,7 +92,7 @@ function cannotParseIncorrectHeaders2() {
 }
 
 function cannotParseIncorrectHeaders3() {
-  output="$(echo -ne "GET /index.html HTTP/1.1\r\nHost:localhost\r\n\r\n" | nc -w 10 -G 10 localhost 8080 2>&1 | tr -d '\r')"
+  output="$(echo -ne "GET /index.html HTTP/1.1\r\nHost:localhost\r\n\r\n" | nc localhost 8080 2>&1 | tr -d '\r')"
   failed="$(grep -e 'HTTP/1.1 400' <<<"$output" > /dev/null && echo 1 || echo 0)"
   contentLength="$(grep -e 'Content-Length:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
   contentType="$(grep -e 'Content-Type:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"

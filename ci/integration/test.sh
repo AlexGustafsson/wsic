@@ -15,6 +15,23 @@ passed=0
 currentPassed=0
 currentFailed=0
 
+netcatHasTimeout="$(command nc 2>&1 | grep -e "-w" > /dev/null && echo 1 || echo 0)"
+export netcatHasTimeout
+netcatHasReceiveTimeout="$(command nc 2>&1 | grep -e "-q" > /dev/null && echo 1 || echo 0)"
+export netcatHasReceiveTimeout
+
+function nc() {
+  parameters=""
+  if [[ "$netcatHasTimeout" -eq 1 ]]; then
+    parameters="-w 10 $parameters"
+  fi
+  if [[ "$netcatHasReceiveTimeout" -eq 1 ]]; then
+    parameters="-q 10 $parameters"
+  fi
+  command nc $parameters "$@"
+}
+export -f nc
+
 function beginTest() {
   echo -e "\n$1"
   # Print ====.... the same width as the summary

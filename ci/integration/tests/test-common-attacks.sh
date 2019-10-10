@@ -15,7 +15,7 @@ function cannotSendLargeFiles() {
 function cannotSendLargeFiles2() {
   # Create a temporary file of some bytes
   dd if=/dev/urandom of=5M.data bs=1M count=5 &>/dev/null
-  output="$(echo -e "POST /cgi/form HTTP/1.1\r\nContent-Length: 100\r\nHost: localhost:8080\r\n\r\n$(cat 5M.data | tr -d '\0')" | nc -w 10 -G 10 localhost 8080 | tr -d '\r')"
+  output="$(echo -e "POST /cgi/form HTTP/1.1\r\nContent-Length: 100\r\nHost: localhost:8080\r\n\r\n$(cat 5M.data | tr -d '\0')" | nc localhost 8080 | tr -d '\r')"
   isOK="$(grep -e 'HTTP/1.1 200' <<<"$output" > /dev/null && echo 1 || echo 0)"
   hasBody="$(grep -e '<html' <<<"$output" > /dev/null && echo 1 || echo 0)"
 
@@ -27,7 +27,7 @@ function cannotSendLargeFiles2() {
 function cannotSendLargeFiles3() {
   # Create a temporary file of some bytes
   dd if=/dev/urandom of=5M.data bs=1M count=5 &>/dev/null
-  output="$(echo -e "POST /cgi/form HTTP/1.1\r\nContent-Length: 100\r\nHost: localhost:8080\r\nContent-Length: 5242880\r\n\r\n$(cat 5M.data | tr -d '\0')" | nc -w 10 -G 10 localhost 8080 | tr -d '\r')"
+  output="$(echo -e "POST /cgi/form HTTP/1.1\r\nContent-Length: 100\r\nHost: localhost:8080\r\nContent-Length: 5242880\r\n\r\n$(cat 5M.data | tr -d '\0')" | nc localhost 8080 | tr -d '\r')"
   failed="$(grep -e 'HTTP/1.1 413' <<<"$output" > /dev/null && echo 1 || echo 0)"
   hasBody="$(grep -e '<html' <<<"$output" > /dev/null && echo 1 || echo 0)"
 
@@ -37,7 +37,7 @@ function cannotSendLargeFiles3() {
 }
 
 function cannotKeepConnectionOpenForever() {
-  output="$(nc -d -w 10 -G 10 localhost 8080 | tr -d '\r')"
+  output="$(nc -d localhost 8080 | tr -d '\r')"
   failed="$(grep -e 'HTTP/1.1 400' <<<"$output" > /dev/null && echo 1 || echo 0)"
   contentLength="$(grep -e 'Content-Length:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
   contentType="$(grep -e 'Content-Type:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
@@ -50,7 +50,7 @@ function cannotKeepConnectionOpenForever() {
 }
 
 function cannotKeepConnectionOpenForever2() {
-  output="$(echo -ne "GET / HTTP/1.1\r\n" | nc -w 10 -G 10 localhost 8080 | tr -d '\r')"
+  output="$(echo -ne "GET / HTTP/1.1\r\n" | nc localhost 8080 | tr -d '\r')"
   failed="$(grep -e 'HTTP/1.1 400' <<<"$output" > /dev/null && echo 1 || echo 0)"
   contentLength="$(grep -e 'Content-Length:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
   contentType="$(grep -e 'Content-Type:' <<<"$output" | sed -e 's/.*: \(.*\)/\1/')"
