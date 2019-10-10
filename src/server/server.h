@@ -17,15 +17,15 @@
 
 #define SERVER_EXIT_FATAL 10
 
-pid_t server_createInstance(const set_t *ports);
+pid_t server_createInstance(const set_t *ports) __attribute__((nonnull(1)));
 // Main entrypoint for a server instance
-int server_start(const set_t *ports);
+int server_start(const set_t *ports) __attribute__((nonnull(1)));
 // Start listening on a port. Returns the listening socket or 0 if failed
 int server_listen(uint16_t port, size_t backlog);
 // Block until at least one of the bound ports receives a request. Returns the number of sockets to handle (0 if failed)
 int server_acceptConnections();
-SSL *server_handleSSL(connection_t *connection);
-void server_closeConnection(connection_t *connection);
+SSL *server_handleSSL(connection_t *connection) __attribute__((nonnull(1)));
+void server_closeConnection(connection_t *connection) __attribute__((nonnull(1)));
 
 void server_close();
 #endif

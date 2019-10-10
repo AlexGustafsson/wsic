@@ -95,9 +95,9 @@ bool logging_start();
 // Deconstruct logging (should always be closed right before exit)
 void logging_stop();
 // Open specified logfile
-bool logging_openOutputFile(const char *filePath);
+bool logging_openOutputFile(const char *filePath) __attribute__((nonnull(1)));
 // A general function that logs to specified file, can be both a path and stderr
-void logging_logToFile(FILE *filePointer, const char *label, int color, const char *file, int line, const char *function, const char *format, ...);
+void logging_logToFile(FILE *filePointer, const char *label, int color, const char *file, int line, const char *function, const char *format, ...)  __attribute__((nonnull(1)));
 // Log the request in format CLF
 void logging_request(const string_t *remoteHost, enum httpMethod method, const string_t *path, const string_t *version, uint16_t responseCode, size_t bytesSent);
 

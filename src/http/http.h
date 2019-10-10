@@ -30,38 +30,38 @@ typedef struct {
 
 http_t *http_create();
 
-http_t *http_parseRequest(const string_t *request);
-bool http_parseRequestLine(http_t *http, const string_t *string);
-bool http_parseHeader(http_t *http, const string_t *string);
-void http_parseBody(http_t *http, string_t *string, size_t offset);
-bool http_parseRequestTarget(http_t *http, const string_t *requestTarget);
-bool http_parseHost(http_t *http);
-bool http_parseUrl(http_t *http);
-enum httpMethod http_parseMethod(const string_t *method);
+http_t *http_parseRequest(const string_t *request) __attribute__((nonnull(1)));
+bool http_parseRequestLine(http_t *http, const string_t *string) __attribute__((nonnull(1, 2)));
+bool http_parseHeader(http_t *http, const string_t *string) __attribute__((nonnull(1, 2)));
+void http_parseBody(http_t *http, string_t *string, size_t offset) __attribute__((nonnull(1, 2)));
+bool http_parseRequestTarget(http_t *http, const string_t *requestTarget) __attribute__((nonnull(1, 2)));
+bool http_parseHost(http_t *http) __attribute__((nonnull(1)));
+bool http_parseUrl(http_t *http) __attribute__((nonnull(1)));
+enum httpMethod http_parseMethod(const string_t *method) __attribute__((nonnull(1)));
 string_t *http_methodToString(enum httpMethod method);
 
-void http_setMethod(http_t *http, enum httpMethod method);
-enum httpMethod http_getMethod(const http_t *http);
+void http_setMethod(http_t *http, enum httpMethod method) __attribute__((nonnull(1)));
+enum httpMethod http_getMethod(const http_t *http) __attribute__((nonnull(1)));
 
-void http_setVersion(http_t *http, string_t *version);
-string_t *http_getVersion(const http_t *http);
+void http_setVersion(http_t *http, string_t *version) __attribute__((nonnull(1)));
+string_t *http_getVersion(const http_t *http) __attribute__((nonnull(1)));
 
-void http_setResponseCode(http_t *http, uint16_t code);
-uint16_t http_getResponseCode(const http_t *http);
+void http_setResponseCode(http_t *http, uint16_t code) __attribute__((nonnull(1)));
+uint16_t http_getResponseCode(const http_t *http) __attribute__((nonnull(1)));
 
-void http_setHeader(http_t *http, string_t *key, string_t *value);
-string_t *http_getHeader(const http_t *http, const string_t *key);
+void http_setHeader(http_t *http, string_t *key, string_t *value) __attribute__((nonnull(1, 2)));
+string_t *http_getHeader(const http_t *http, const string_t *key) __attribute__((nonnull(1, 2)));
 
-void http_setVersion(http_t *http, string_t *version);
-string_t *http_getVersion(const http_t *http);
+void http_setVersion(http_t *http, string_t *version) __attribute__((nonnull(1)));
+string_t *http_getVersion(const http_t *http) __attribute__((nonnull(1)));
 
-void http_setBody(http_t *http, string_t *body);
-string_t *http_getBody(const http_t *http);
+void http_setBody(http_t *http, string_t *body) __attribute__((nonnull(1)));
+string_t *http_getBody(const http_t *http) __attribute__((nonnull(1)));
 
-url_t *http_getUrl(const http_t *http);
+url_t *http_getUrl(const http_t *http) __attribute__((nonnull(1)));
 
-string_t *http_toResponseString(const http_t *http);
+string_t *http_toResponseString(const http_t *http) __attribute__((nonnull(1)));
 
-void http_free(http_t *http);
+void http_free(http_t *http) __attribute__((nonnull(1)));
 
 #endif

@@ -66,7 +66,8 @@ void http_setBody(http_t *http, string_t *body) {
 
   http->body = body;
   // Content-Length
-  http_setHeader(http, string_fromBuffer("Content-Length"), string_fromInt(string_getSize(http->body)));
+  if (body != 0)
+    http_setHeader(http, string_fromBuffer("Content-Length"), string_fromInt(string_getSize(http->body)));
 }
 
 string_t *http_getBody(const http_t *http) {

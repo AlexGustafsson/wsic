@@ -40,56 +40,56 @@ typedef struct {
   size_t backlog;
 } config_t;
 
-config_t *config_parse(const char *configString);
+config_t *config_parse(const char *configString) __attribute__((nonnull(1)));
 
 // Get and set the globally defined config
 config_t *config_getGlobalConfig();
-void config_setGlobalConfig(config_t *config);
+void config_setGlobalConfig(config_t *config) __attribute__((nonnull(1)));
 void config_freeGlobalConfig();
 
-server_config_t *config_parseServerTable(const toml_table_t *serverTable);
+server_config_t *config_parseServerTable(const toml_table_t *serverTable) __attribute__((nonnull(1)));
 
-int8_t config_getIsDaemon(const config_t *config);
-void config_setIsDaemon(config_t *config, int8_t isDaemon);
+int8_t config_getIsDaemon(const config_t *config) __attribute__((nonnull(1)));
+void config_setIsDaemon(config_t *config, int8_t isDaemon) __attribute__((nonnull(1)));
 
-uint8_t config_getLoggingLevel(const config_t *config);
-void config_setLoggingLevel(config_t *config, uint8_t loggingLevel);
+uint8_t config_getLoggingLevel(const config_t *config) __attribute__((nonnull(1)));
+void config_setLoggingLevel(config_t *config, uint8_t loggingLevel) __attribute__((nonnull(1)));
 
-server_config_t *config_getServerConfig(const config_t *config, size_t index);
-server_config_t *config_getServerConfigByHTTPSDomain(const config_t *config, const string_t *domain);
-server_config_t *config_getServerConfigByHTTPDomain(const config_t *config, const string_t *domain);
-server_config_t *config_getServerConfigByDomain(const config_t *config, const string_t *domain, uint16_t port);
-server_config_t *config_getServerConfigBySSLContext(const config_t *config, const SSL_CTX *sslContext);
-size_t config_getServers(const config_t *config);
+server_config_t *config_getServerConfig(const config_t *config, size_t index) __attribute__((nonnull(1)));
+server_config_t *config_getServerConfigByHTTPSDomain(const config_t *config, const string_t *domain) __attribute__((nonnull(1, 2)));
+server_config_t *config_getServerConfigByHTTPDomain(const config_t *config, const string_t *domain) __attribute__((nonnull(1, 2)));
+server_config_t *config_getServerConfigByDomain(const config_t *config, const string_t *domain, uint16_t port) __attribute__((nonnull(1, 2)));
+server_config_t *config_getServerConfigBySSLContext(const config_t *config, const SSL_CTX *sslContext) __attribute__((nonnull(1, 2)));
+size_t config_getServers(const config_t *config) __attribute__((nonnull(1)));
 
-size_t config_getNumberOfThreads(const config_t *config);
+size_t config_getNumberOfThreads(const config_t *config) __attribute__((nonnull(1)));
 
-size_t config_getBacklogSize(const config_t *config);
+size_t config_getBacklogSize(const config_t *config) __attribute__((nonnull(1)));
 
-string_t *config_getName(const server_config_t *config);
+string_t *config_getName(const server_config_t *config) __attribute__((nonnull(1)));
 
-string_t *config_getDomain(const server_config_t *config);
+string_t *config_getDomain(const server_config_t *config) __attribute__((nonnull(1)));
 
-string_t *config_getRootDirectory(const server_config_t *config);
+string_t *config_getRootDirectory(const server_config_t *config) __attribute__((nonnull(1)));
 
-int16_t config_getPort(const server_config_t *config);
-void config_setPort(server_config_t *config, int16_t port);
+int16_t config_getPort(const server_config_t *config) __attribute__((nonnull(1)));
+void config_setPort(server_config_t *config, int16_t port) __attribute__((nonnull(1)));
 
-string_t *config_getLogfile(const config_t *config);
-void config_setLogfile(config_t *config, string_t *logfile);
+string_t *config_getLogfile(const config_t *config) __attribute__((nonnull(1)));
+void config_setLogfile(config_t *config, string_t *logfile) __attribute__((nonnull(1)));
 
-SSL_CTX *config_getSSLContext(const server_config_t *config);
-DH *config_getDiffieHellmanParameters(const server_config_t *config);
+SSL_CTX *config_getSSLContext(const server_config_t *config) __attribute__((nonnull(1)));
+DH *config_getDiffieHellmanParameters(const server_config_t *config) __attribute__((nonnull(1)));
 
-list_t *config_getDirectoryIndex(const server_config_t *config);
+list_t *config_getDirectoryIndex(const server_config_t *config) __attribute__((nonnull(1)));
 
-string_t *config_parseString(const toml_table_t *table, const char *key);
-int64_t config_parseInt(const toml_table_t *table, const char *key);
-int8_t config_parseBool(const toml_table_t *table, const char *key);
-list_t *config_parseArray(const toml_table_t *table, const char *key);
+string_t *config_parseString(const toml_table_t *table, const char *key) __attribute__((nonnull(1, 2)));
+int64_t config_parseInt(const toml_table_t *table, const char *key) __attribute__((nonnull(1, 2)));
+int8_t config_parseBool(const toml_table_t *table, const char *key) __attribute__((nonnull(1, 2)));
+list_t *config_parseArray(const toml_table_t *table, const char *key) __attribute__((nonnull(1, 2)));
 
 // NOTE: Called by config_free automatically
-void config_freeServerConfig(server_config_t *serverConfig);
-void config_free(config_t *config);
+void config_freeServerConfig(server_config_t *serverConfig) __attribute__((nonnull(1)));
+void config_free(config_t *config) __attribute__((nonnull(1)));
 
 #endif

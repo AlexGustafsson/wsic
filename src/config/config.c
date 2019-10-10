@@ -254,9 +254,6 @@ server_config_t *config_parseServerTable(const toml_table_t *serverTable) {
 }
 
 string_t *config_parseString(const toml_table_t *table, const char *key) {
-  if (table == 0)
-    return 0;
-
   const char *rawValue = toml_raw_in((toml_table_t *)table, key);
   // The value is missing
   if (rawValue == 0)
