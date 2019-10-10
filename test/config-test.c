@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 
 #include "tomlc99/toml.h"
 #include "unity/unity.h"
@@ -179,112 +180,6 @@ void config_test_canParseBoolArray() {
   toml_free(table);
 }
 
-void config_test_canGetIsDaemon() {
-  config_t config;
-  memset(&config, 0, sizeof(config));
-  config.daemon = true;
-
-  TEST_ASSERT_EQUAL_INT(true, config_getIsDaemon(&config));
-}
-
-void config_test_canSetIsDaemon() {
-  config_t config;
-  memset(&config, 0, sizeof(config));
-  config_setIsDaemon(&config, true);
-
-  TEST_ASSERT_EQUAL_INT(true, config.daemon);
-}
-
-void config_test_canGetName() {
-  server_config_t config;
-  memset(&config, 0, sizeof(config));
-  config.name = string_fromBuffer("Foo Bar");
-
-  TEST_ASSERT_EQUAL_STRING("Foo Bar", string_getBuffer(config_getName(&config)));
-
-  string_free(config.name);
-}
-
-void config_test_canGetDomain() {
-  server_config_t config;
-  memset(&config, 0, sizeof(config));
-  config.domain = string_fromBuffer("Foo Bar");
-
-  TEST_ASSERT_EQUAL_STRING("Foo Bar", string_getBuffer(config_getDomain(&config)));
-
-  string_free(config.domain);
-}
-
-void config_test_canGetRootDirectory() {
-  server_config_t config;
-  memset(&config, 0, sizeof(config));
-  config.rootDirectory = string_fromBuffer("Foo Bar");
-
-  TEST_ASSERT_EQUAL_STRING("Foo Bar", string_getBuffer(config_getRootDirectory(&config)));
-
-  string_free(config.rootDirectory);
-}
-
-void config_test_canGetPort() {
-  server_config_t config;
-  memset(&config, 0, sizeof(config));
-  config.port = 4040;
-
-  TEST_ASSERT_EQUAL_UINT16(4040, config_getPort(&config));
-}
-
-void config_test_canSetPort() {
-  server_config_t config;
-  memset(&config, 0, sizeof(config));
-  config_setPort(&config, 4040);
-
-  TEST_ASSERT_EQUAL_UINT16(4040, config.port);
-}
-
-void config_test_canGetLogfile() {
-  config_t config;
-  memset(&config, 0, sizeof(config));
-  config.logfile = string_fromBuffer("foo");
-
-  TEST_ASSERT_EQUAL_STRING("foo", string_getBuffer(config_getLogfile(&config)));
-
-  string_free(config.logfile);
-}
-
-void config_test_canSetLogfile() {
-  config_t config;
-  memset(&config, 0, sizeof(config));
-  config_setLogfile(&config, string_fromBuffer("foo"));
-
-  TEST_ASSERT_EQUAL_STRING("foo", string_getBuffer(config.logfile));
-
-  string_free(config.logfile);
-}
-
-void config_test_canGetSSLContext() {
-  server_config_t config;
-  memset(&config, 0, sizeof(config));
-  config.sslContext = (SSL_CTX *)10;
-
-  TEST_ASSERT(config.sslContext == config_getSSLContext(&config));
-}
-
-void config_test_canGetDiffieHellmanParameters() {
-  server_config_t config;
-  memset(&config, 0, sizeof(config));
-  config.dhparams = (DH *)10;
-
-  TEST_ASSERT(config.dhparams == config_getDiffieHellmanParameters(&config));
-}
-
-void config_test_canGetDirectoryIndex() {
-  server_config_t config;
-  memset(&config, 0, sizeof(config));
-  config.directoryIndex = (list_t *)10;
-
-  TEST_ASSERT(config.directoryIndex == config_getDirectoryIndex(&config));
-}
-
 void config_test_canAccessGlobalConfig() {
   config_t *config = malloc(sizeof(config_t));
   memset(config, 0, sizeof(config_t));
@@ -300,7 +195,11 @@ void config_test_canAccessGlobalConfig() {
 void config_test_canParseConfig() {
   char *configString = "\
   [server]\n\
-  daemon = false\n\
+  daemon = true\n\
+  logfile = \"log.txt\"\n\
+  loggingLevel = 5\n\
+  threads = 32\n\
+  backlog = 128\n\
   \n\
   [servers]\n\
   [servers.default]\n\
@@ -323,6 +222,35 @@ void config_test_canParseConfig() {
 
   // Ensure that both servers were parsed
   TEST_ASSERT(config_getServers(config) == 2);
+
+  TEST_ASSERT(config_getIsDaemon(config));
+  TEST_ASSERT_EQUAL_STRING("log.txt", string_getBuffer(config_getLogfile(config)));
+  TEST_ASSERT_EQUAL_INT8(5, config_getLoggingLevel(config));
+  TEST_ASSERT_EQUAL_UINT64(32, config_getNumberOfThreads(config));
+  TEST_ASSERT_EQUAL_UINT64(128, config_getBacklogSize(config));
+
+  server_config_t *serverConfig1 = config_getServerConfig(config, 0);
+  TEST_ASSERT_EQUAL_STRING("localhost", string_getBuffer(config_getDomain(serverConfig1)));
+  const char *resolvedRootDirectory1 = realpath("www", NULL);
+  TEST_ASSERT_NOT_NULL(resolvedRootDirectory1);
+  TEST_ASSERT_EQUAL_STRING(resolvedRootDirectory1, string_getBuffer(config_getRootDirectory(serverConfig1)));
+  free(resolvedRootDirectory1);
+  TEST_ASSERT_EQUAL_UINT16(8080, config_getPort(serverConfig1));
+  TEST_ASSERT_NOT_NULL(config_getDirectoryIndex(serverConfig1));
+  TEST_ASSERT_EQUAL_UINT64(1, list_getLength(config_getDirectoryIndex(serverConfig1)));
+  TEST_ASSERT_EQUAL_STRING("index.html", string_getBuffer(list_getValue(config_getDirectoryIndex(serverConfig1), 0)));
+
+  server_config_t *serverConfig2 = config_getServerConfig(config, 1);
+  TEST_ASSERT_EQUAL_STRING("localhost", string_getBuffer(config_getDomain(serverConfig2)));
+  const char *resolvedRootDirectory2 = realpath("www", NULL);
+  TEST_ASSERT_NOT_NULL(resolvedRootDirectory2);
+  TEST_ASSERT_EQUAL_STRING(resolvedRootDirectory2, string_getBuffer(config_getRootDirectory(serverConfig2)));
+  free(resolvedRootDirectory2);
+  TEST_ASSERT_EQUAL_UINT16(8443, config_getPort(serverConfig2));
+  TEST_ASSERT_NOT_NULL(config_getDirectoryIndex(serverConfig2));
+  TEST_ASSERT_EQUAL_UINT64(1, list_getLength(config_getDirectoryIndex(serverConfig2)));
+  TEST_ASSERT_EQUAL_STRING("index.html", string_getBuffer(list_getValue(config_getDirectoryIndex(serverConfig2), 0)));
+  TEST_ASSERT_NOT_NULL(config_getSSLContext(serverConfig2));
 
   config_free(config);
 }
@@ -420,6 +348,92 @@ void config_test_cannotParseInvalidTLSConfig() {
   config_free(config);
 }
 
+void config_test_cannotParseTooFewThreads() {
+  char *configString = "\
+  [server]\n\
+  threads = -10\n";
+
+  config_t *config = config_parse(configString);
+  TEST_ASSERT_NOT_NULL(config);
+
+  TEST_ASSERT(config_getNumberOfThreads(config) == 32);
+
+  config_free(config);
+}
+
+void config_test_cannotParseTooSmallBacklog() {
+  char *configString = "\
+  [server]\n\
+  backlog = -10\n";
+
+  config_t *config = config_parse(configString);
+  TEST_ASSERT_NOT_NULL(config);
+
+  TEST_ASSERT(config_getBacklogSize(config) == SOMAXCONN);
+
+  config_free(config);
+}
+
+void config_test_canParseTooLargeBacklog() {
+  char *configString = "\
+  [server]\n\
+  backlog = 4294967296\n";
+
+  config_t *config = config_parse(configString);
+  TEST_ASSERT_NOT_NULL(config);
+
+  TEST_ASSERT(config_getBacklogSize(config) == SOMAXCONN);
+
+  config_free(config);
+}
+
+void config_test_cannotParseNonExistingPrivateKey() {
+  char *configString = "\
+  [servers]\n\
+  [servers.test]\n\
+  privateKey = \"non-existing.key\"\n\
+  certificate = \"server.cert\"\n";
+
+  config_t *config = config_parse(configString);
+  TEST_ASSERT_NOT_NULL(config);
+
+  TEST_ASSERT_EQUAL_INT(0, config_getServers(config));
+
+  config_free(config);
+}
+
+void config_test_canParseNonExistingEllipticCurvesList() {
+  char *configString = "\
+  [servers]\n\
+  [servers.test]\n\
+  privateKey = \"server.key\"\n\
+  certificate = \"server.cert\"\n\
+  ellipticCurves = \"P-384:P-521\"\n";
+
+  config_t *config = config_parse(configString);
+  TEST_ASSERT_NOT_NULL(config);
+
+  TEST_ASSERT_EQUAL_INT(1, config_getServers(config));
+  TEST_ASSERT_NOT_NULL(config_getSSLContext(config_getServerConfig(config, 0)));
+
+  config_free(config);
+}
+
+void config_test_cannotParseNonExistingCertificate() {
+  char *configString = "\
+  [servers]\n\
+  [servers.test]\n\
+  certificate = \"non-existing.key\"\n\
+  privateKey = \"server.key\"\n";
+
+  config_t *config = config_parse(configString);
+  TEST_ASSERT_NOT_NULL(config);
+
+  TEST_ASSERT_EQUAL_INT(0, config_getServers(config));
+
+  config_free(config);
+}
+
 void config_test_run() {
   RUN_TEST(config_test_canParseString);
   RUN_TEST(config_test_cannotParseNonExistingString);
@@ -437,27 +451,6 @@ void config_test_run() {
   RUN_TEST(config_test_canParseIntArray);
   RUN_TEST(config_test_canParseBoolArray);
 
-  RUN_TEST(config_test_canGetIsDaemon);
-  RUN_TEST(config_test_canSetIsDaemon);
-
-  RUN_TEST(config_test_canGetName);
-
-  RUN_TEST(config_test_canGetDomain);
-
-  RUN_TEST(config_test_canGetPort);
-  RUN_TEST(config_test_canSetPort);
-
-  RUN_TEST(config_test_canGetRootDirectory);
-
-  RUN_TEST(config_test_canGetLogfile);
-  RUN_TEST(config_test_canSetLogfile);
-
-  RUN_TEST(config_test_canGetSSLContext);
-
-  RUN_TEST(config_test_canGetDiffieHellmanParameters);
-
-  RUN_TEST(config_test_canGetDirectoryIndex);
-
   RUN_TEST(config_test_canAccessGlobalConfig);
 
   RUN_TEST(config_test_canParseConfig);
@@ -467,4 +460,10 @@ void config_test_run() {
   RUN_TEST(config_test_cannotParseInvalidRootDirectory);
   RUN_TEST(config_test_cannotParseInvalidPort);
   RUN_TEST(config_test_cannotParseInvalidTLSConfig);
+  RUN_TEST(config_test_cannotParseTooFewThreads);
+  RUN_TEST(config_test_cannotParseTooSmallBacklog);
+  RUN_TEST(config_test_canParseTooLargeBacklog);
+  RUN_TEST(config_test_cannotParseNonExistingPrivateKey);
+  RUN_TEST(config_test_cannotParseNonExistingCertificate);
+  RUN_TEST(config_test_canParseNonExistingEllipticCurvesList);
 }
