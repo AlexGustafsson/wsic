@@ -362,8 +362,8 @@ void string_test_canLoopThroughCharacters() {
   TEST_ASSERT(string_getNextChar(cursor) == 'c');
   TEST_ASSERT(string_getNextChar(cursor) == '3');
   // Ensure that the function returns null when out of bounds
-  TEST_ASSERT_NULL(string_getNextChar(cursor));
-  TEST_ASSERT_NULL(string_getNextChar(cursor));
+  TEST_ASSERT_EQUAL_UINT8(0, string_getNextChar(cursor));
+  TEST_ASSERT_EQUAL_UINT8(0, string_getNextChar(cursor));
 
   string_freeCursor(cursor);
   string_free(characters);

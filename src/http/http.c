@@ -208,7 +208,7 @@ bool http_parseRequestLine(http_t *http, const string_t *string) {
   }
   // If the version does not start with "HTTP/" then exit
   if (string_equalsBuffer(compareString, "HTTP/") == false) {
-    log(LOG_ERROR, "Could not parse request:version. Invalid input missing 'HTTP/''");
+    log(LOG_ERROR, "Could not parse request version. Invalid input missing version");
     if (compareString != 0)
       string_free(compareString);
     if (versionString != 0)
@@ -219,7 +219,7 @@ bool http_parseRequestLine(http_t *http, const string_t *string) {
 
   string_t *version = string_substring(versionString, 5, 8);
   if (version == 0) {
-    log(LOG_ERROR, "Could not parse request:version. Invalid input missing 'chars after HTTP/'");
+    log(LOG_ERROR, "Could not parse request version. Invalid input missing version");
     string_free(versionString);
     return false;
   }
@@ -230,7 +230,7 @@ bool http_parseRequestLine(http_t *http, const string_t *string) {
   bool thirdCharIsNotInt = string_getCharAt(version, 2) < '0' || string_getCharAt(version, 0) > '9';
 
   if (firstCharIsNotInt || secondCharIsNotDot || thirdCharIsNotInt) {
-    log(LOG_ERROR, "Could not parse request:version. Invalid input version nuber vas incorect");
+    log(LOG_ERROR, "Could not parse request version. Invalid version number");
     string_free(version);
     string_free(versionString);
     return false;

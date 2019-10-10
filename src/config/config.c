@@ -199,6 +199,7 @@ server_config_t *config_parseServerTable(const toml_table_t *serverTable) {
       log(LOG_ERROR, "Unable to create TLS context - could not read server private key");
       config_freeServerConfig(config);
       string_free(privateKey);
+      string_free(certificate);
       return 0;
     }
     string_free(privateKey);

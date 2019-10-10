@@ -49,41 +49,41 @@
 #define _logging_logToFile(filePointer, level, ...) logging_logToFile(filePointer, LOG_LABEL_##level, LOG_COLOR_##level, __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 // Log to all enabled outputs
-#define log(level, ...)                           \
-  do {                                            \
-    if (level > LOGGING_LEVEL)                    \
-      break;                                      \
-                                                  \
-    if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0)   \
-      _logging_logToFile(stderr, level, __VA_ARGS__);    \
-                                                  \
-    if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0)    \
-      syslog(level, __VA_ARGS__);                 \
-                                                  \
-    if (LOGGING_OUTPUT_FILE != 0) {               \
-      _logging_logToFile(LOGGING_OUTPUT_FILE, level, __VA_ARGS__);    \
-    }                                             \
-                                                  \
+#define log(level, ...)                                             \
+  do {                                                              \
+    if (level > LOGGING_LEVEL)                                      \
+      break;                                                        \
+                                                                    \
+    if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0)                     \
+      _logging_logToFile(stderr, level, __VA_ARGS__);               \
+                                                                    \
+    if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0)                      \
+      syslog(level, __VA_ARGS__);                                   \
+                                                                    \
+    if (LOGGING_OUTPUT_FILE != 0) {                                 \
+      _logging_logToFile(LOGGING_OUTPUT_FILE, level, __VA_ARGS__);  \
+    }                                                               \
+                                                                    \
   } while (0)
 
 // Log only the inputs (and a newline) to all enabled outputs
-#define logRaw(level, ...)                        \
-  do {                                            \
-    if (level > LOGGING_LEVEL)                    \
-      break;                                      \
-                                                  \
-    if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0) { \
-      fprintf(stdout, __VA_ARGS__);               \
-      fprintf(stdout, "\n");                      \
-    }                                             \
-                                                  \
-    if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0)    \
-      syslog(level, __VA_ARGS__);                 \
-                                                  \
-    if (LOGGING_OUTPUT_FILE != 0) {               \
-      fprintf(LOGGING_OUTPUT_FILE, __VA_ARGS__);  \
-      fprintf(LOGGING_OUTPUT_FILE, "\n");         \
-    }                                             \
+#define logRaw(level, ...)                                          \
+  do {                                                              \
+    if (level > LOGGING_LEVEL)                                      \
+      break;                                                        \
+                                                                    \
+    if ((LOGGING_OUTPUT & LOGGING_CONSOLE) > 0) {                   \
+      fprintf(stdout, __VA_ARGS__);                                 \
+      fprintf(stdout, "\n");                                        \
+    }                                                               \
+                                                                    \
+    if ((LOGGING_OUTPUT & LOGGING_SYSLOG) > 0)                      \
+      syslog(level, __VA_ARGS__);                                   \
+                                                                    \
+    if (LOGGING_OUTPUT_FILE != 0) {                                 \
+      fprintf(LOGGING_OUTPUT_FILE, __VA_ARGS__);                    \
+      fprintf(LOGGING_OUTPUT_FILE, "\n");                           \
+    }                                                               \
   } while (0)
 
 extern uint8_t LOGGING_OUTPUT;
@@ -93,7 +93,7 @@ extern FILE *LOGGING_OUTPUT_FILE;
 // Start logging (should always be called from the main process as soon as possible)
 bool logging_start();
 // Deconstruct logging (should always be closed right before exit)
-void logging_stop();
+int logging_stop();
 // Open specified logfile
 bool logging_openOutputFile(const char *filePath) __attribute__((nonnull(1)));
 // A general function that logs to specified file, can be both a path and stderr

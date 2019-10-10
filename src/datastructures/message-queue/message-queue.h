@@ -20,9 +20,6 @@ message_queue_t *message_queue_create();
 void message_queue_push(message_queue_t *queue, void *value) __attribute__((nonnull(1)));
 // Lock the calling thread until a value can be popped
 void *message_queue_pop(message_queue_t *queue) __attribute__((nonnull(1)));
-size_t message_queue_getLength(message_queue_t *queue) __attribute__((nonnull(1)));
-// Not thread safe (usually called alongside message_queue_free)
-void message_queue_clear(message_queue_t *queue) __attribute__((nonnull(1)));
 // Unlock all waiting threads - useful after pthread_cancel to ensure no thread is deadlocked
 // The message queue is expected to be freed after this call - other methods are undefined behaviour
 void message_queue_unlock(message_queue_t *queue) __attribute__((nonnull(1)));

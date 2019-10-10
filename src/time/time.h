@@ -4,6 +4,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 // One day in seconds
 #define DAY_IN_SECONDS 86400
@@ -27,7 +28,7 @@ void time_reset();
 // Convert epoch time to human readable format
 void time_getFormattedElapsedTime(uint64_t nanoseconds, uint64_t seconds, uint64_t *formattedNanoseconds, uint64_t *formattedMilliseconds, uint64_t *formattedSeconds, uint64_t *formattedMinutes, uint64_t *formattedHours, uint64_t *formattedDays);
 // Time since time_reset() was called. Undefined behaviour if it hasn't been called
-void time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds);
+bool time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds);
 
 uint64_t time_getElapsedTime(const struct timespec *timespec) __attribute__((nonnull(1)));
 #endif
