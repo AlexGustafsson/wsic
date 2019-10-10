@@ -164,7 +164,6 @@ bool http_parseRequestLine(http_t *http, const string_t *string) {
   string_t *requestTarget = string_create();
   if (requestTarget == 0) {
     string_freeCursor(cursor);
-    string_free(requestTarget);
     return false;
   }
 
