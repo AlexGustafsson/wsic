@@ -98,7 +98,8 @@ function runTests() {
   mkdir -p build/reports/integration
 
   # Start wsic in the background
-  export ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=asan-ignores.txt
+  export ASAN_OPTIONS=detect_leaks=1:symbolize=1
+  export LSAN_OPTIONS=suppressions=asan-ignores.txt
   $wsic start --verbose &> "build/reports/integration/log.txt" &
   wsicPID="$!"
 
