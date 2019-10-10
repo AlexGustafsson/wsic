@@ -18,6 +18,32 @@ url_t *url_create() {
   return url;
 }
 
+url_t *url_copy(url_t *url) {
+  url_t *newUrl = url_create();
+  if (newUrl == 0)
+    return 0;
+
+  if (url->protocol != 0)
+    newUrl->protocol = string_copy(url->protocol);
+
+  if (url->domainName != 0)
+    newUrl->domainName = string_copy(url->domainName);
+
+  newUrl->port = url->port;
+
+  if (url->path != 0)
+    newUrl->path = string_copy(url->path);
+
+  size_t parameters = hash_table_getLength(url->parameters);
+  for (size_t i = 0; i < parameters; i++) {
+    string_t *key = hash_table_getKeyByIndex(url->parameters, i);
+    string_t *value = hash_table_getValueByIndex(url->parameters, i);
+    url_setParameter(newUrl, string_copy(key), string_copy(value));
+  }
+
+  return newUrl;
+}
+
 string_t *url_toString(url_t *url) {
   string_t *result = string_create();
 

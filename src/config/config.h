@@ -56,7 +56,8 @@ uint8_t config_getLoggingLevel(config_t *config);
 void config_setLoggingLevel(config_t *config, uint8_t loggingLevel);
 
 server_config_t *config_getServerConfig(config_t *config, size_t index);
-server_config_t *config_getServerConfigBySNI(config_t *config, string_t *domain);
+server_config_t *config_getServerConfigByHTTPSDomain(config_t *config, string_t *domain);
+server_config_t *config_getServerConfigByHTTPDomain(config_t *config, string_t *domain);
 server_config_t *config_getServerConfigByDomain(config_t *config, string_t *domain, uint16_t port);
 server_config_t *config_getServerConfigBySSLContext(config_t *config, SSL_CTX *sslContext);
 size_t config_getServers(config_t *config);

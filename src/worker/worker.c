@@ -180,11 +180,11 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
     return 0;
   }
 
+  config_t *config = config_getGlobalConfig();
   string_t *domainName = url_getDomainName(http_getUrl(request));
   uint16_t port = url_getPort(http_getUrl(request));
 
   // Resolve server config - 500 if config not found
-  config_t *config = config_getGlobalConfig();
   server_config_t *serverConfig = config_getServerConfigByDomain(config, domainName, port);
   if (serverConfig == 0) {
     log(LOG_ERROR, "Got request to serve an unknown domain '%s'", string_getBuffer(domainName));
@@ -206,6 +206,48 @@ int worker_handleConnection(worker_t *worker, connection_t *connection) {
     worker_return400(connection, request, path, string_fromBuffer("Got HTTPS request on HTTP port"));
     http_free(request);
     return 0;
+  }
+
+  string_t *upgradeInsecureRequestsHeaders = string_fromBuffer("Upgrade-Insecure-Requests");
+  string_t *upgradeInsecureRequests = http_getHeader(request, upgradeInsecureRequestsHeaders);
+  string_free(upgradeInsecureRequestsHeaders);
+  // Handle Upgrade Insecure Requests if it is 1 and the request is not already served over HTTPS
+  if (upgradeInsecureRequests != 0 && string_equalsBuffer(upgradeInsecureRequests, "1") && serverConfig->sslContext == 0) {
+    http_t *response = http_create();
+    if (response == 0) {
+      log(LOG_ERROR, "Unable to create HTTP response");
+      http_free(request);
+      return 1;
+    }
+
+    server_config_t *httpsConfig = config_getServerConfigByHTTPSDomain(config, domainName);
+
+    if (httpsConfig != 0) {
+      http_setResponseCode(response, 301);
+      http_setVersion(response, string_fromBuffer("1.1"));
+      http_setHeader(response, string_fromBuffer("Vary"), string_fromBuffer("Upgrade-Insecure-Requests"));
+
+      url_t *url = url_copy(http_getUrl(request));
+      url_setProtocol(url, string_fromBuffer("https"));
+      url_setPort(url, config_getPort(httpsConfig));
+      http_setHeader(response, string_fromBuffer("Location"), url_toString(url));
+      url_free(url);
+
+      string_t *responseString = http_toResponseString(response);
+
+      log(LOG_DEBUG, "Response string is '%s'", string_getBuffer(responseString));
+      size_t bytesWritten = connection_write(connection, string_getBuffer(responseString), string_getSize(responseString));
+
+      logging_request(connection_getSourceAddress(connection), http_getMethod(request), path, http_getVersion(request), 301, bytesWritten);
+
+      http_free(request);
+      http_free(response);
+      string_free(responseString);
+
+      return 0;
+    } else {
+      log(LOG_DEBUG, "Unable to fulfill Upgrade Insecure Request wish, no HTTPS equivalent configured");
+    }
   }
 
   // Resolve path - 404 if not found or failed

@@ -374,13 +374,26 @@ server_config_t *config_getServerConfig(config_t *config, size_t index) {
   return list_getValue(config->serverConfigs, index);
 }
 
-server_config_t *config_getServerConfigBySNI(config_t *config, string_t *domain) {
+server_config_t *config_getServerConfigByHTTPSDomain(config_t *config, string_t *domain) {
   size_t servers = list_getLength(config->serverConfigs);
   for (size_t i = 0; i < servers; i++) {
     server_config_t *serverConfig = config_getServerConfig(config, i);
     bool isSameDomain = string_equals(config_getDomain(serverConfig), domain);
     bool hasSSL = serverConfig->sslContext != 0;
     if (isSameDomain && hasSSL)
+      return serverConfig;
+  }
+
+  return 0;
+}
+
+server_config_t *config_getServerConfigByHTTPDomain(config_t *config, string_t *domain) {
+  size_t servers = list_getLength(config->serverConfigs);
+  for (size_t i = 0; i < servers; i++) {
+    server_config_t *serverConfig = config_getServerConfig(config, i);
+    bool isSameDomain = string_equals(config_getDomain(serverConfig), domain);
+    bool hasSSL = serverConfig->sslContext != 0;
+    if (isSameDomain && !hasSSL)
       return serverConfig;
   }
 

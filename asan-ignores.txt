@@ -4,3 +4,5 @@ leak:fork
 leak:setlogmask
 # localtime seems to leak on macOS
 leak:localtime
+# tzset() seems to leak on macOS
+leak:tzsetwall_basic
