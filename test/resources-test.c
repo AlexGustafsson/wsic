@@ -72,7 +72,7 @@ void resources_test_canIsExecutable() {
 
   string_free(path);
 
-  const *realPath1 = realpath("test/resources-test.c", NULL);
+  char *realPath1 = realpath("test/resources-test.c", NULL);
   string_t *path1 = string_fromBuffer(realPath1);
   bool result1 = resources_isExecutable(path1);
   free(realPath1);

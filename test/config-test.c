@@ -233,7 +233,7 @@ void config_test_canParseConfig() {
 
   server_config_t *serverConfig1 = config_getServerConfig(config, 0);
   TEST_ASSERT_EQUAL_STRING("localhost", string_getBuffer(config_getDomain(serverConfig1)));
-  const char *resolvedRootDirectory1 = realpath("www", NULL);
+  char *resolvedRootDirectory1 = realpath("www", NULL);
   TEST_ASSERT_NOT_NULL(resolvedRootDirectory1);
   TEST_ASSERT_EQUAL_STRING(resolvedRootDirectory1, string_getBuffer(config_getRootDirectory(serverConfig1)));
   free(resolvedRootDirectory1);
@@ -244,7 +244,7 @@ void config_test_canParseConfig() {
 
   server_config_t *serverConfig2 = config_getServerConfig(config, 1);
   TEST_ASSERT_EQUAL_STRING("localhost", string_getBuffer(config_getDomain(serverConfig2)));
-  const char *resolvedRootDirectory2 = realpath("www", NULL);
+  char *resolvedRootDirectory2 = realpath("www", NULL);
   TEST_ASSERT_NOT_NULL(resolvedRootDirectory2);
   TEST_ASSERT_EQUAL_STRING(resolvedRootDirectory2, string_getBuffer(config_getRootDirectory(serverConfig2)));
   free(resolvedRootDirectory2);

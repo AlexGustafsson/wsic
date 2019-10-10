@@ -11,14 +11,14 @@ void message_queue_test_canPushAndPop() {
 
   pthread_t thread0;
   if (pthread_create(&thread0, NULL, (void *(*)(void *))thread_job, queue) != 0) {
-    log(LOG_ERROR, "Unable to start thread for worker");
+    TEST_FAIL_MESSAGE("Thread failed to initialize");
     message_queue_free(queue);
     return;
   }
 
   pthread_t thread1;
   if (pthread_create(&thread1, NULL, (void *(*)(void *))thread_job, queue) != 0) {
-    log(LOG_ERROR, "Unable to start thread for worker");
+    TEST_FAIL_MESSAGE("Thread failed to initialize");
     message_queue_free(queue);
     return;
   }
@@ -32,8 +32,8 @@ void message_queue_test_canPushAndPop() {
   int *result0 = 0;
   int *result1 = 0;
 
-  pthread_join(thread0, &result0);
-  pthread_join(thread1, &result1);
+  pthread_join(thread0, (void *)result0);
+  pthread_join(thread1, (void *)result1);
 
   TEST_ASSERT(*result0 != *result1);
   TEST_ASSERT(*result0 == value0 || *result0 == value1);
@@ -47,25 +47,23 @@ void messsage_queue_test_canUnlockQueue() {
 
   pthread_t thread0;
   if (pthread_create(&thread0, NULL, (void *(*)(void *))thread_job, queue) != 0) {
-    log(LOG_ERROR, "Unable to start thread for worker");
     message_queue_free(queue);
-    return;
+    TEST_FAIL_MESSAGE("Thread failed to initialize");
   }
 
   pthread_t thread1;
   if (pthread_create(&thread1, NULL, (void *(*)(void *))thread_job, queue) != 0) {
-    log(LOG_ERROR, "Unable to start thread for worker");
     message_queue_free(queue);
-    return;
+    TEST_FAIL_MESSAGE("Thread failed to initialize");
   }
 
   message_queue_unlock(queue);
 
-  void *result0 = 10;
-  void *result1 = 10;
+  int *result0 = 0;
+  int *result1 = 0;
 
-  pthread_join(thread0, &result0);
-  pthread_join(thread1, &result1);
+  pthread_join(thread0, (void *)result0);
+  pthread_join(thread1, (void *)result1);
 
   TEST_ASSERT_NULL(result0);
   TEST_ASSERT_NULL(result1);
