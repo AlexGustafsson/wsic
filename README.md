@@ -51,7 +51,7 @@ docker run -it -p8080:8080 wsic/wsic
 Make sure you meet the following prerequisites:
 * `openssl 1.1.1` is installed (`apt install libssl1.1` on Ubuntu `brew install openssl@1.1` on macOS)
 
-You can download the latest build [here](https://gitlab.axgn.se/wsic/wsic/builds/artifacts/development/download?job=build). Note however that this is a development build and will only run on an amd64 architecture on Ubuntu.  
+You can download the latest development build [here](https://gitlab.axgn.se/wsic/wsic/builds/artifacts/development/download?job=build) and the latest release [here](https://gitlab.axgn.se/wsic/wsic/builds/artifacts/master/download?job=build). Currently, these builds only run on Ubuntu with the amd64 architecture.
 
 ##### Installing from source
 
@@ -201,7 +201,7 @@ The branches `master` and `development` are locked for pushing. Code is merged i
 
 The feature branches should when applicable be up to speed to `development` via `git rebase development`. Feature branches are merged to `development` with `git merge --no-ff branch`. Feature branches may be squashed, but prefer to keep the history clean so that all commits can be kept.
 
-When `development` is stable enough and provides meaningful value, it is merged into the `master` branch.
+When `development` is stable enough and provides meaningful value, it is merged into the `master` branch. First, a `release-vx.x.x` branch is created in `development` with updates reflecting the version change. When that branch is merged to `development`, an annotated tag is created in `development` using `git tag -a vx.x.x -m "Version x.x.x"`. Then `development` is merged into `master`.
 
 ### Disclaimer
 
