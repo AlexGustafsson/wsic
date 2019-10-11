@@ -12,9 +12,14 @@
 #include "../time/time.h"
 
 // Define clean code comptaitble aliases for syslog's constants
-#define LOG_EMERGENCY LOG_EMERG
-#define LOG_CRITICAL LOG_CRIT
-#define LOG_ERROR LOG_ERR
+#define LOG_EMERGENCY LOG_EMERG // System is unusable - should not be used by applications
+//      LOG_ALERT - Should be corrected immediately - Example: Loss of the primary ISP connection
+#define LOG_CRITICAL LOG_CRIT // Critical conditions - Example: A failure in the system's primary application
+#define LOG_ERROR LOG_ERR // Error conditions - Example: An application has exceeded its file storage limit and attempts to write are failing
+//      LOG_WARNING - May indicate that an error will occur if action is not taken - Example: A non-root file system has only 2GB remaining
+//      LOG_NOTICE - Events that are unusual, but not error conditions
+//      LOG_INFO - Normal operational messages that require no action - Example: An application has started, paused or ended successfully
+//      LOG_DEBUG - Information useful to developers for debugging the application
 
 // Label for each log level
 #define LOG_LABEL_0 "EMERGENCY"

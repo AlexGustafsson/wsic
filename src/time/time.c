@@ -68,7 +68,6 @@ bool time_getTimeSinceStart(uint64_t *nanoseconds, uint64_t *seconds) {
     return true;
   } else {
     // If both in patameters was null, do nothing
-    log(LOG_ERROR, "Can get time, inparameters was null");
     return false;
   }
 }
