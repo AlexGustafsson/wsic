@@ -1,0 +1,18 @@
+[server]
+  daemon = false
+
+[servers]
+  [servers.default]
+    domain = "localhost"
+    rootDirectory = "www"
+    port = 8080
+    directoryIndex = ["index.html", "index.sh"]
+  [servers.defaultTLS]
+    domain = "localhost"
+    rootDirectory = "www"
+    port = 8443
+    directoryIndex = ["index.html", "index.sh"]
+    certificate = "server.cert"
+    privateKey = "server.key"
+    ellipticCurves = "P-384:P-521"
+    validateCertificate = false

@@ -1,0 +1,77 @@
+image: registry.axgn.se/wsic/ci-image
+stages:
+  - static analysis
+  - build
+  - test
+
+lint:
+  stage: static analysis
+  script: make lint
+
+analyze:
+  stage: static analysis
+  script: ./ci/analyze.sh
+  artifacts:
+    paths:
+      - build/reports/static-analysis
+    when: always
+
+check insecure code:
+  stage: static analysis
+  script: ./ci/check-insecure-code.sh ./src
+
+build:
+  stage: build
+  script: make clean build
+  artifacts:
+    paths:
+    - build/wsic
+
+debug build:
+  stage: build
+  script: make clean debug
+  artifacts:
+    paths:
+      - build/wsic.debug
+
+test build:
+  stage: build
+  script: make clean test
+  artifacts:
+    paths:
+      - build/wsic.test
+      - build/*/*.gcno
+      - build/*/*/*.gcno
+
+benchmark:
+  stage: test
+  script: ./ci/benchmark/benchmark.sh ./build/wsic
+  dependencies:
+    - build
+  artifacts:
+    paths:
+      - build/reports/benchmark/*/plot.png
+      - build/reports/benchmark/*/report.txt
+    when: always
+  allow_failure: true
+
+unit tests:
+  stage: test
+  script: ./ci/test.sh ./build/wsic.test
+  dependencies:
+    - test build
+  artifacts:
+    paths:
+      - build/reports/test
+    when: always
+  coverage: '/Line coverage: (.*)/'
+
+integration tests:
+  stage: test
+  script: ./ci/integration/test.sh ./build/wsic.debug
+  dependencies:
+    - debug build
+  artifacts:
+    paths:
+      - build/reports/integration
+    when: always

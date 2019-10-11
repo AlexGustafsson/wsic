@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset='utf8'>
+	<meta name='viewport' content='width=device-width'>
+
+	<title>WSIC</title>
+
+	<link rel='stylesheet' href='./style.css'>
+</head>
+
+<body>
+	<header>
+	  <a href="/"><h1>W[!]</h1></a>
+	</header>
+	<main>
+		<h1>WSIC - An open source, efficient and minimalistic web server</h1>
+		<p>Developed by students mastering in Computer Security at BTH, Sweden for the course DV1457 - Programming in Unix.</p>
+		<p>WSIC is open source and available for free at <a href="https://github.com/AlexGustafsson/wsic">https://github.com/AlexGustafsson/wsic</a>.</p>
+
+		<!-- Features -->
+		<h2>Features</h2>
+		<ul>
+			<li>Amazingly fast with a fully multi-threaded, event-driven architecture</li>
+			<li>Minimalistic configuration</li>
+			<li><a href="/cgi/">Support for CGI</a></li>
+			<li>Supports TLS 1.2 and TLS 1.3</li>
+			<li>Hardened for modern security needs</li>
+		</ul>
+
+		<!-- Getting started -->
+		<h2>Getting started</h2>
+		<p>Getting started with WSIC couldn't be easier. Just run <code>docker run -it -p8080:80 wsic/wsic</code>.</p>
+		<p><i>Seeing this page on your own domain? Read about configuring WSIC in the section below.</i></p>
+
+		<!-- Configuration -->
+		<h2>Configuration</h2>
+		<p>WSIC uses a simple TOML-based configuration file. An example config file looks like this:</p>
+		<div class="code-block">
+			<span class="toml table">[server]</span><br />
+			<span class="toml key">daemon</span> = <span class="toml value">false</span><br />
+			<br />
+			<span class="toml table">[servers]</span><br />
+  		<span class="toml table">  [servers.test]</span><br />
+    	<span class="toml key">    domain</span> = <span class="toml string">"localhost"</span><br />
+			<span class="toml key">    rootDirectory</span> = <span class="toml string">"www"</span><br />
+			<span class="toml key">    port</span> = <span class="toml value">8080</span><br />
+  		<span class="toml table">  [servers.testSecure]</span><br />
+    	<span class="toml key">    domain</span> = <span class="toml string">"localhost"</span><br />
+			<span class="toml key">    rootDirectory</span> = <span class="toml string">"www"</span><br />
+			<span class="toml key">    port</span> = <span class="toml value">8443</span><br />
+			<span class="toml key">    certificate</span> = <span class="toml string">"server.cert"</span><br />
+			<span class="toml key">    privateKey</span> = <span class="toml string">"server.key"</span><br />
+			<span class="toml key">    ellipticCurves</span> = <span class="toml string">"P-384:P-521"</span><br />
+			<span class="toml key">    validateCertificate</span> = <span class="toml value">false</span><br />
+			<span class="toml key">    dhparams</span> = <span class="toml string">"dhparams.pem"</span><br />
+		</code>
+	</main>
+	<footer>
+	  <p>This page was served by WSIC</p>
+		<p>WSIC was crafted with love by <a href="https://github.com/AlexGustafsson">Alex Gustafsson</a> and <a href="https://github.com/MarcusLenander">Marcus Lenander</a></p>
+		<p><a href="https://github.com/AlexGustafsson/wsic"><span class="github"></span></a></p>
+	</footer>
+</body>
+</html>
