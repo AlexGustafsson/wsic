@@ -1,7 +1,7 @@
 # Disable echoing of commands
 MAKEFLAGS += --silent
 
-WSIC_VERSION := 0.0.1
+WSIC_VERSION := 1.0.0
 
 # Build variables (such as version etc.)
 BUILD_VARIABLES=-D WSIC_VERSION='"$(WSIC_VERSION)"' -D COMPILER_VERSION='"$(shell $(CC) --version | head -1)"' -D COMPILE_TIME='"$(shell LC_ALL=en_US date)"' -D OPENSSL_NO_DEPRECATED
